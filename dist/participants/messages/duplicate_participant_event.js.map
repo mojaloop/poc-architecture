@@ -1,1 +1,0 @@
-{"version":3,"file":"duplicate_participant_event.js","sourceRoot":"","sources":["../../../src/participants/messages/duplicate_participant_event.ts"],"names":[],"mappings":"AAAA;;GAEG;AAEH,YAAY,CAAC;;;AAEb,wEAA2G;AAG3G,MAAa,+BAAgC,SAAQ,yBAAc;IAKlE,YAAY,cAAqB;QAChC,KAAK,EAAE,CAAC;QACR,IAAI,CAAC,OAAO,GAAG;YACd,cAAc;SACd,CAAA;IACF,CAAC;CACD;AAXD,0EAWC"}

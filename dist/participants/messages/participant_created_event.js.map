@@ -1,1 +1,0 @@
-{"version":3,"file":"participant_created_event.js","sourceRoot":"","sources":["../../../src/participants/messages/participant_created_event.ts"],"names":[],"mappings":"AAAA;;GAEG;AAEH,YAAY,CAAC;;;AAEb,wEAA2G;AAG3G,MAAa,qBACZ,SAAQ,yBAAc;IAKtB,YAAY,cAAqB;QAChC,KAAK,EAAE,CAAC;QACR,IAAI,CAAC,OAAO,GAAG;YACd,cAAc;SACd,CAAA;IACF,CAAC;CACD;AAZD,sDAYC"}
