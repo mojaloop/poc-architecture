@@ -111,3 +111,13 @@ dist
 **/*.iml
 
 dist/
+
+# General ignore rules
+*IGNORE*
+*ignore*
+
+# MacOS ignores
+**/.DS_Store
+
+# Env ignore
+.env

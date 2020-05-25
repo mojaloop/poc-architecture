@@ -5,7 +5,7 @@
 "use strict";
 import { v4 as uuidv4 } from 'uuid';
 
-import {InMemoryParticipantStateRepo} from "../infrastructure/inmemory_participant_repo";
+// import {InMemoryParticipantStateRepo} from "../infrastructure/inmemory_participant_repo";
 import {IEntityStateRepository} from "../../shared/domain_abstractions/ientity_state_repository";
 import {ParticipantState} from "../domain/participant_entity";
 import {IMessagePublisher} from "../../shared/domain_abstractions/imessage_publisher";
@@ -13,7 +13,7 @@ import {ParticpantsAgg} from "../domain/participants_agg";
 import {ReservePayerFundsCmd} from "../messages/reserve_payer_funds_cmd";
 import {ConsoleLogger} from "../../shared/utilities/logger";
 import {KafkaMessagePublisher} from "../../shared/infrastructure/kafka_message_publisher";
-import {CreateParticipantCmd} from "../messages/create_participant_cmd";
+// import {CreateParticipantCmd} from "../messages/create_participant_cmd";
 import {RedisParticipantStateRepo} from "../infrastructure/redis_participant_repo";
 
 

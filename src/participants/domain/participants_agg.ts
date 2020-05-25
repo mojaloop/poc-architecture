@@ -6,7 +6,7 @@
 
 import {BaseAggregate} from "../../shared/domain_abstractions/base_aggregate";
 import {ParticipantEntity, ParticipantState} from "./participant_entity";
-import {CommandMsg, DomainEventMsg, MessageTypes} from "../../shared/domain_abstractions/messages";
+// import {CommandMsg, DomainEventMsg, MessageTypes} from "../../shared/domain_abstractions/messages";
 import {IEntityStateRepository} from "../../shared/domain_abstractions/ientity_state_repository";
 import {IMessagePublisher} from "../../shared/domain_abstractions/imessage_publisher";
 import {ParticipantsFactory} from "./participants_factory";
