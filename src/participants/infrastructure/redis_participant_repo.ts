@@ -10,22 +10,22 @@ import { ParticipantState } from '../domain/participant_entity'
 import { ILogger } from '../../shared/utilities/logger'
 
 export class RedisParticipantStateRepo implements IEntityStateRepository<ParticipantState> {
-  protected _redis_client!: redis.RedisClient
-  private readonly _redis_conn_str: string
+  protected _redisClient!: redis.RedisClient
+  private readonly _redisConnStr: string
   private readonly _logger: ILogger
   private _initialized: boolean = false
-  private readonly key_prefix: string = 'participant_'
+  private readonly keyPrefix: string = 'participant_'
 
   constructor (connStr: string, logger: ILogger) {
-    this._redis_conn_str = connStr
+    this._redisConnStr = connStr
     this._logger = logger
   }
 
   async init (): Promise<void> {
     return await new Promise((resolve, reject) => {
-      this._redis_client = redis.createClient({ url: this._redis_conn_str })
+      this._redisClient = redis.createClient({ url: this._redisConnStr })
 
-      this._redis_client.on('ready', () => {
+      this._redisClient.on('ready', () => {
         this._logger.info('Redis client ready')
         if (this._initialized) { return }
 
@@ -33,7 +33,7 @@ export class RedisParticipantStateRepo implements IEntityStateRepository<Partici
         return resolve()
       })
 
-      this._redis_client.on('error', (err) => {
+      this._redisClient.on('error', (err) => {
         this._logger.error(err, 'A redis error has occurred:')
         if (!this._initialized) { return reject(err) }
       })
@@ -41,7 +41,7 @@ export class RedisParticipantStateRepo implements IEntityStateRepository<Partici
   }
 
   async destroy (): Promise<void> {
-    if (this._initialized) { this._redis_client.quit() }
+    if (this._initialized) { this._redisClient.quit() }
 
     return await Promise.resolve()
   }
@@ -56,7 +56,7 @@ export class RedisParticipantStateRepo implements IEntityStateRepository<Partici
 
       const key: string = this.keyWithPrefix(id)
 
-      this._redis_client.get(key, (err?: Error|null, result?: string) => {
+      this._redisClient.get(key, (err?: Error|null, result?: string) => {
         if (err != null) {
           this._logger.error(err, 'Error fetching entity state from redis - for key: ' + key)
           return reject(err)
@@ -82,7 +82,7 @@ export class RedisParticipantStateRepo implements IEntityStateRepository<Partici
 
       const key: string = this.keyWithPrefix(id)
 
-      this._redis_client.del(key, (err?: Error|null, result?: number) => {
+      this._redisClient.del(key, (err?: Error|null, result?: number) => {
         if (err != null) {
           this._logger.error(err, 'Error removing entity state from redis - for key: ' + key)
           return reject(err)
@@ -110,7 +110,7 @@ export class RedisParticipantStateRepo implements IEntityStateRepository<Partici
         return reject(err)
       }
 
-      this._redis_client.set(key, stringValue, (err: Error | null, reply: string) => {
+      this._redisClient.set(key, stringValue, (err: Error | null, reply: string) => {
         if (err != null) {
           this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
           return reject(err)
@@ -125,6 +125,6 @@ export class RedisParticipantStateRepo implements IEntityStateRepository<Partici
   }
 
   private keyWithPrefix (key: string): string {
-    return this.key_prefix + key
+    return this.keyPrefix + key
   }
 }
