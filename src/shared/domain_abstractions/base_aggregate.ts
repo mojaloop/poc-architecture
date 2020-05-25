@@ -53,7 +53,7 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
         await this.commit() // send out the unpublished events regardless
 
         // until we have full event sourcing we have to persist
-        if (result != true) {
+        if (!result) {
           this._logger.info(`Command '${commandMsg.msg_name}' execution failed`)
           return reject(new Error(`Command '${commandMsg.msg_name}' execution failed`))
         }
@@ -128,8 +128,8 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
         return reject(new Error('Aggregate not found')) // TODO typify these errors
       }
 
-      if (entityState != null) { 
-        this._rootEntity = this._entity_factory.createFromState(entityState) 
+      if (entityState != null) {
+        this._rootEntity = this._entity_factory.createFromState(entityState)
       }
 
       // the reset_state() above already sets the root_entity to null

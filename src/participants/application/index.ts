@@ -13,7 +13,7 @@ import { ParticpantsAgg } from '../domain/participants_agg'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 import { ConsoleLogger } from '../../shared/utilities/logger'
 import { KafkaMessagePublisher } from '../../shared/infrastructure/kafka_message_publisher'
-import {CreateParticipantCmd} from "../messages/create_participant_cmd";
+import { CreateParticipantCmd } from '../messages/create_participant_cmd'
 import { RedisParticipantStateRepo } from '../infrastructure/redis_participant_repo'
 
 const logger: ConsoleLogger = new ConsoleLogger()
@@ -39,8 +39,8 @@ async function start (): Promise<void> {
   // const payerId: string = uuidv4();
   const transferId: string = uuidv4()
 
-  const createParticipantCmd: CreateParticipantCmd = new CreateParticipantCmd(payerId, "participant 1", 1000, 100);
-  await agg.processCommand(createParticipantCmd);
+  const createParticipantCmd: CreateParticipantCmd = new CreateParticipantCmd(payerId, 'participant 1', 1000, 100)
+  await agg.processCommand(createParticipantCmd)
 
   const reserveCmd: ReservePayerFundsCmd = new ReservePayerFundsCmd(payerId, transferId, 50)
   await agg.processCommand(reserveCmd)
