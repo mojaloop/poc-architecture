@@ -1,0 +1,26 @@
+{
+  "name": "arch_poc_participants",
+  "version": "0.1.0",
+  "description": "mojaloop arch poc all-in-one participants service",
+  "main": "application/index.js",
+  "scripts": {
+    "start:participants": "tsc && node dist/participants/application/index.js",
+    "build:participants": "tsc",
+    "build": "npm run build:participants",
+    "clean": "rm -Rf dist"
+  },
+  "author": "Pedro Barreto <pedrosousabarreto@gmail.com",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/kafka-node": "^3.0.0",
+    "@types/node": "^14.0.4",
+    "@types/redis": "^2.8.21",
+    "@types/uuid": "^8.0.0",
+    "typescript": "^3.9.3"
+  },
+  "dependencies": {
+    "kafka-node": "^5.0.0",
+    "redis": "^3.0.2",
+    "uuid": "^8.1.0"
+  }
+}
