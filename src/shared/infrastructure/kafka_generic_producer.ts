@@ -13,7 +13,7 @@ export class KafkaGenericProducer {
   private readonly _kafka_conn_str: string
   private readonly _kafka_client_name: string
   private _producer!: kafka.HighLevelProducer
-  private readonly _known_topics = new Map<string, boolean>()
+  private readonly _knownTopics = new Map<string, boolean>()
 
   constructor (kafkaConString: string, kafkaClientName: string, envName: string, logger?: ILogger) {
     this._kafka_conn_str = kafkaConString
@@ -94,7 +94,7 @@ export class KafkaGenericProducer {
       // const msgsByTopic: Map<string, kafka.KeyedMessage[]> = new Map<string, kafka.KeyedMessage[]>()
       const payloads: any[] = []
 
-      // iterate the messages to parse and check them, and fill _known_topics with first time topics
+      // iterate the messages to parse and check them, and fill _knownTopics with first time topics
       kafkaMessages.forEach((kafkaMsg: IMessage) => {
         if (kafkaMsg.msgTopic == null) { throw new Error(`Invalid topic for message: ${kafkaMsg?.msg_type}`) }
 
@@ -120,7 +120,7 @@ export class KafkaGenericProducer {
         }
 
         // check for known topic and add null if not there
-        if (!this._known_topics.has(topic)) { this._known_topics.set(topic, false) }
+        if (!this._knownTopics.has(topic)) { this._knownTopics.set(topic, false) }
 
         const km = new kafka.KeyedMessage(key, msg)
         payloads.push({ topic: topic, messages: km, key: key })
@@ -129,13 +129,13 @@ export class KafkaGenericProducer {
       })
 
       // make sure we refresh metadata for first time topics - otherwise we bet BrokerNotAvailable error on first time topic
-      const results = Promise.all(Array.from(this._known_topics.entries()).map(async (item) => {
+      const results = Promise.all(Array.from(this._knownTopics.entries()).map(async (item) => {
         const topicName = item[0]
         const val = item[1]
         if (val) { return await Promise.resolve() }
 
         await this._refreshMetadata(topicName)
-        this._known_topics.set(topicName, true)
+        this._knownTopics.set(topicName, true)
         return await Promise.resolve()
       }))
 

@@ -65,7 +65,7 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
         }
         this._logger.info(`Aggregate state persisted to repository at the end of command: ${commandMsg.msg_name}`)
         return resolve(true)
-      }).catch(async (result: boolean, err: any) => {
+      }).catch(async (err: any) => {
         await this.commit() // we still send out the unpublished events
         this._logger.error(err, `Aggregate state persited to repoistory at the end of command: ${commandMsg.msg_name}`)
 
