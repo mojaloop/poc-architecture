@@ -2,32 +2,31 @@
  * Created by pedrosousabarreto@gmail.com on 22/May/2020.
  */
 
-"use strict";
+'use strict'
 
-import {CommandMsg} from "../../shared/domain_abstractions/messages";
-import {ParticipantsAggTopics} from "../domain/participants_agg";
+import { CommandMsg } from '../../shared/domain_abstractions/messages'
+import { ParticipantsAggTopics } from '../domain/participants_agg'
 
+export class ReservePayerFundsCmd extends CommandMsg {
+  aggregateId: string
+  aggregate_name: string = 'Participants'
+  msgKey: string
+  msgTopic: string = ParticipantsAggTopics.Commands
 
-export class ReservePayerFundsCmd extends CommandMsg{
-	aggregate_id: string;
-	aggregate_name: string = "Participants";
-	msg_key: string;
-	msg_topic: string = ParticipantsAggTopics.Commands;
+  payload: {
+    payerId: string
+    transferId: string
+    amount: number
+  }
 
-	payload: {
-		payer_id:string;
-		transfer_id: string;
-		amount: number;
-	};
+  constructor (payerId: string, transferId: string, amount: number) {
+    super()
+    this.aggregateId = this.msgKey = payerId
 
-	constructor(payer_id:string, transfer_id:string, amount:number) {
-		super();
-		this.aggregate_id = this.msg_key = payer_id;
-
-		this.payload = {
-			payer_id,
-			transfer_id,
-			amount
-		}
-	}
+    this.payload = {
+      payerId,
+      transferId,
+      amount
+    }
+  }
 }

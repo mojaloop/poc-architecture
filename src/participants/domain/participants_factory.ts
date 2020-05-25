@@ -2,34 +2,34 @@
  * Created by pedrosousabarreto@gmail.com on 22/May/2020.
  */
 
-"use strict";
+'use strict'
 
-import {ParticipantEntity, ParticipantState} from "./participant_entity";
-import {IEntityFactory} from "../../shared/domain_abstractions/entity_factory";
+import { ParticipantEntity, ParticipantState } from './participant_entity'
+import { IEntityFactory } from '../../shared/domain_abstractions/entity_factory'
 
-export class ParticipantsFactory implements IEntityFactory<ParticipantEntity, ParticipantState>{
-	// singleton
-	private static _instance:ParticipantsFactory;
-	static GetInstance():ParticipantsFactory{
-		if(!this._instance)
-			this._instance = new ParticipantsFactory();
+export class ParticipantsFactory implements IEntityFactory<ParticipantEntity, ParticipantState> {
+  // singleton
+  private static _instance: ParticipantsFactory
+  static GetInstance (): ParticipantsFactory {
+    if (this._instance == null) { this._instance = new ParticipantsFactory() }
 
-		return this._instance;
-	}
-	private constructor(){}
+    return this._instance
+  }
 
-	create():ParticipantEntity{
-		return ParticipantEntity.CreateInstance(new ParticipantState());
-	}
+  private constructor () {}
 
-	create_from_state(initial_state: ParticipantState): ParticipantEntity {
-		return ParticipantEntity.CreateInstance(initial_state);
-	}
+  create (): ParticipantEntity {
+    return ParticipantEntity.CreateInstance(new ParticipantState())
+  }
 
-	create_with_id(initial_id: string): ParticipantEntity {
-		let initial_state:ParticipantState = new ParticipantState();
-		initial_state.id = initial_id;
+  createFromState (initialState: ParticipantState): ParticipantEntity {
+    return ParticipantEntity.CreateInstance(initialState)
+  }
 
-		return ParticipantEntity.CreateInstance(initial_state);
-	}
+  createWithId (initialId: string): ParticipantEntity {
+    const initialState: ParticipantState = new ParticipantState()
+    initialState.id = initialId
+
+    return ParticipantEntity.CreateInstance(initialState)
+  }
 }

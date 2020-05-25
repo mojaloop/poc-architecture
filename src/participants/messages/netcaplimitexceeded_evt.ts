@@ -2,31 +2,30 @@
  * Created by pedrosousabarreto@gmail.com on 22/May/2020.
  */
 
-"use strict";
+'use strict'
 
-import {DomainEventMsg} from "../../shared/domain_abstractions/messages";
-import {ParticipantsAggTopics} from "../domain/participants_agg";
+import { DomainEventMsg } from '../../shared/domain_abstractions/messages'
+import { ParticipantsAggTopics } from '../domain/participants_agg'
 
+export class NetCapLimitExceededEvt extends DomainEventMsg {
+  aggregateId: string
+  aggregate_name: string = 'Participants'
+  msgKey: string
+  msgTopic: string = ParticipantsAggTopics.DomainEvents
 
-export class NetCapLimitExceededEvt extends DomainEventMsg{
-	aggregate_id: string;
-	aggregate_name: string = "Participants";
-	msg_key: string;
-	msg_topic: string = ParticipantsAggTopics.DomainEvents;
+  payload: {
+    participantId: string
+    transferId: string
+  }
 
-	payload: {
-		participant_id:string;
-		transfer_id:string;
-	};
+  constructor (participantId: string, transferId: string) {
+    super()
 
-	constructor(participant_id:string, transfer_id:string) {
-		super();
+    this.aggregateId = this.msgKey = participantId
 
-		this.aggregate_id = this.msg_key = participant_id;
-
-		this.payload = {
-			participant_id,
-			transfer_id
-		}
-	}
+    this.payload = {
+      participantId,
+      transferId
+    }
+  }
 }

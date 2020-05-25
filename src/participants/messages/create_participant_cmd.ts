@@ -2,36 +2,34 @@
  * Created by pedrosousabarreto@gmail.com on 22/May/2020.
  */
 
-"use strict";
+'use strict'
 
-import {CommandMsg} from "../../shared/domain_abstractions/messages";
-import {ParticipantsAggTopics} from "../domain/participants_agg";
-
+import { CommandMsg } from '../../shared/domain_abstractions/messages'
+import { ParticipantsAggTopics } from '../domain/participants_agg'
 
 export class CreateParticipantCmd extends CommandMsg {
-	aggregate_id: string;
-	aggregate_name: string = "Participants";
-	msg_key: string;
-	msg_topic: string = ParticipantsAggTopics.Commands;
+  aggregateId: string
+  aggregate_name: string = 'Participants'
+  msgKey: string
+  msgTopic: string = ParticipantsAggTopics.Commands
 
+  payload: {
+    id: string
+    name: string
+    limit: number
+    initialPosition: number
+  }
 
-	payload: {
-		id: string;
-		name: string;
-		limit:number;
-		initial_position: number;
-	};
+  constructor (id: string, name: string, limit: number, initialPosition: number) {
+    super()
 
-	constructor(id: string, name:string, limit:number, initial_position: number) {
-		super();
+    this.aggregateId = this.msgKey = id
 
-		this.aggregate_id = this.msg_key = id;
-
-		this.payload = {
-			id,
-			name,
-			limit,
-			initial_position
-		}
-	}
+    this.payload = {
+      id,
+      name,
+      limit,
+      initialPosition
+    }
+  }
 }

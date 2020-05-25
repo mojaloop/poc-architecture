@@ -2,33 +2,32 @@
  * Created by pedrosousabarreto@gmail.com on 22/May/2020.
  */
 
-"use strict";
+'use strict'
 
-import {DomainEventMsg} from "../../shared/domain_abstractions/messages";
-import {ParticipantsAggTopics} from "../domain/participants_agg";
+import { DomainEventMsg } from '../../shared/domain_abstractions/messages'
+import { ParticipantsAggTopics } from '../domain/participants_agg'
 
+export class PayerFundsReservedEvt extends DomainEventMsg {
+  aggregateId: string
+  aggregate_name: string = 'Participants'
+  msgKey: string
+  msgTopic: string = ParticipantsAggTopics.DomainEvents
 
-export class PayerFundsReservedEvt extends DomainEventMsg{
-	aggregate_id: string;
-	aggregate_name: string = "Participants";
-	msg_key: string;
-	msg_topic: string = ParticipantsAggTopics.DomainEvents;
+  payload: {
+    transferId: string
+    payerId: string
+    currentPosition: number
+  }
 
-	payload: {
-		transfer_id:string;
-		payer_id:string;
-		current_position:number;
-	};
+  constructor (transferId: string, payerId: string, currentPosition: number) {
+    super()
 
-	constructor(transfer_id:string, payer_id:string, current_position:number) {
-		super();
+    this.aggregateId = this.msgKey = payerId
 
-		this.aggregate_id = this.msg_key = payer_id;
-
-		this.payload = {
-			transfer_id,
-			payer_id,
-			current_position
-		}
-	}
+    this.payload = {
+      transferId,
+      payerId,
+      currentPosition
+    }
+  }
 }

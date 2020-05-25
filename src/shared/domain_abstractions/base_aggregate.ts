@@ -2,159 +2,165 @@
  * Created by pedrosousabarreto@gmail.com on 21/May/2020.
  */
 
-"use strict";
+'use strict'
 
-import {BaseEntity} from "./base_entity";
-import {BaseEntityState} from "./base_entity_state";
-import {CommandMsg, DomainEventMsg, IDomainMessage} from "./messages";
-import {IMessagePublisher} from "./imessage_publisher";
-import {IEntityStateRepository} from "./ientity_state_repository";
-import {IEntityFactory} from "./entity_factory";
-import {ConsoleLogger, ILogger} from "../utilities/logger";
+import { BaseEntity } from './base_entity'
+import { BaseEntityState } from './base_entity_state'
+import { CommandMsg, DomainEventMsg, IDomainMessage } from './messages'
+import { IMessagePublisher } from './imessage_publisher'
+import { IEntityStateRepository } from './ientity_state_repository'
+import { IEntityFactory } from './entity_factory'
+import { ConsoleLogger, ILogger } from '../utilities/logger'
 
-export abstract class BaseAggregate<E extends BaseEntity<S>,S extends BaseEntityState>{
-	protected _logger:ILogger;
-	// private _event_handlers: Map<string, (event:DomainEventMsg)=>Promise<void>>;
-	private _command_handlers: Map<string, (cmd:CommandMsg)=>Promise<boolean>>;
+export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntityState> {
+  protected _logger: ILogger
+  // private _event_handlers: Map<string, (event:DomainEventMsg)=>Promise<void>>;
+  private readonly _commandHandlers: Map<string, (cmd: CommandMsg) => Promise<boolean>>
 
-	private _uncommitted_events:DomainEventMsg[];
-	protected _root_entity:E | null;
+  private _uncommittedEvents: DomainEventMsg[]
+  protected _rootEntity: E | null
 
-	protected _entity_factory:IEntityFactory<E, S>;
-	protected _msg_publisher:IMessagePublisher;
-	protected _entity_state_repo:IEntityStateRepository<S>;
+  protected _entity_factory: IEntityFactory<E, S>
+  protected _msgPublisher: IMessagePublisher
+  protected _entity_state_repo: IEntityStateRepository<S>
 
-	constructor(entity_factory:IEntityFactory<E, S>, entity_state_repo:IEntityStateRepository<S>, msg_publisher:IMessagePublisher, logger?:ILogger) {
-		this._logger = logger ? logger : new ConsoleLogger();
+  constructor (entityFactory: IEntityFactory<E, S>, entityStateRepo: IEntityStateRepository<S>, msgPublisher: IMessagePublisher, logger?: ILogger) {
+    this._logger = logger ?? new ConsoleLogger()
 
-		// this._event_handlers = new Map<string, (event:DomainEventMsg, replayed?:boolean)=>Promise<void>>();
-		this._command_handlers = new Map<string, (cmd:CommandMsg)=>Promise<boolean>>();
-		this._uncommitted_events = [];
-		this._root_entity = null;
+    // this._event_handlers = new Map<string, (event:DomainEventMsg, replayed?:boolean)=>Promise<void>>();
+    this._commandHandlers = new Map<string, (cmd: CommandMsg) => Promise<boolean>>()
+    this._uncommittedEvents = []
+    this._rootEntity = null
 
-		this._entity_factory = entity_factory;
+    this._entity_factory = entityFactory
 
-		this._entity_state_repo = entity_state_repo;
-		this._msg_publisher = msg_publisher;
-	}
+    this._entity_state_repo = entityStateRepo
+    this._msgPublisher = msgPublisher
+  }
 
-	async process_command(command_msg: CommandMsg): Promise<boolean>{
-		return new Promise(async (resolve, reject)=>{
-			const handler = this._command_handlers.get(command_msg.msg_name);
-			if(!handler)
-				return reject("Aggregate doesn't have a handler for a command with name" +  command_msg.msg_name);
+  async processCommand (commandMsg: CommandMsg): Promise<boolean> {
+    return await new Promise(async (resolve, reject) => {
+      const handler = this._commandHandlers.get(commandMsg.msg_name)
+      if (handler == null) {
+        return reject(new Error(`Aggregate doesn't have a handler for a command with name ${commandMsg.msg_name}`))
+      }
 
-			this._reset_state();
-			// the local cmd handler code must either load or create the aggregate
+      this._resetState()
+      // the local cmd handler code must either load or create the aggregate
 
-			// TODO check for consistency, ie, versions
-			await handler.call(this, command_msg).then(async (result:boolean)=>{
-				await this.commit(); // send out the unpublished events regardless
+      // TODO check for consistency, ie, versions
+      await handler.call(this, commandMsg).then(async (result: boolean) => {
+        await this.commit() // send out the unpublished events regardless
 
-				// until we have full event sourcing we have to persist
-				if (result != true) {
-					this._logger.info(`Command '${command_msg.msg_name}' execution failed`);
-					return reject();
-				}
+        // until we have full event sourcing we have to persist
+        if (result != true) {
+          this._logger.info(`Command '${commandMsg.msg_name}' execution failed`)
+          return reject(new Error(`Command '${commandMsg.msg_name}' execution failed`))
+        }
 
-				await this._entity_state_repo.store(this._root_entity!.export_state());
-				this._logger.info(`Aggregate state persisted to repository at the end of command: ${command_msg.msg_name}`);
-				return resolve();
-			}).catch(async (err)=>{
-				await this.commit(); // we still send out the unpublished events
-				this._logger.error(err, `Aggregate state persited to repoistory at the end of command: ${command_msg.msg_name}`);
+        if (this._rootEntity != null) {
+          await this._entity_state_repo.store(this._rootEntity.exportState())
+        } else {
+          return reject(new Error(`Aggregate doesn't have a valid state to process command with name ${commandMsg.msg_name}`))
+        }
+        this._logger.info(`Aggregate state persisted to repository at the end of command: ${commandMsg.msg_name}`)
+        return resolve(true)
+      }).catch(async (err: any) => {
+        await this.commit() // we still send out the unpublished events
+        this._logger.error(err, `Aggregate state persited to repoistory at the end of command: ${commandMsg.msg_name}`)
 
-				reject(err);
-			});
+        reject(err)
+      })
+    })
+  }
 
-		});
-	}
+  /* protected _register_event_handler(event_name:string, handler:(event:DomainEventMsg, replayed?:boolean)=>Promise<void>){
+     this._event_handlers.set(event_name, handler);
+  } */
 
-	/*protected _register_event_handler(event_name:string, handler:(event:DomainEventMsg, replayed?:boolean)=>Promise<void>){
-		this._event_handlers.set(event_name, handler);
-	}*/
+  protected _registerCommandHandler (cmdName: string, handler: (event: CommandMsg) => Promise<boolean>): void {
+    this._commandHandlers.set(cmdName, handler)
+  }
 
-	protected _register_command_handler(cmd_name:string, handler:(event:CommandMsg)=>Promise<boolean>){
-		this._command_handlers.set(cmd_name, handler);
-	}
+  /* private apply_event(event_msg: DomainEventMsg, replayed?: boolean): Promise<void>{
+     return new Promise(async(resolve, reject)=>{
+       const handler: ((event: DomainEventMsg, replayed?:boolean) => Promise<void>) | undefined = this._event_handlers.get(event_msg.header.msg_name);
+       if (!handler)
+         return reject("Aggregate doesn't have a handler for event with name" +  event_msg.header.msg_name);
+       // TODO check for consistency, ie, versions
+       await handler(event_msg, replayed).then(()=>{
+         resolve()
+       }).catch((err)=>{
+         reject(err);
+       });
+    });
+  }
 
-/*	private apply_event(event_msg: DomainEventMsg, replayed?: boolean): Promise<void>{
-		return new Promise(async(resolve, reject)=>{
-			const handler: ((event: DomainEventMsg, replayed?:boolean) => Promise<void>) | undefined = this._event_handlers.get(event_msg.header.msg_name);
-			if (!handler)
-				return reject("Aggregate doesn't have a handler for event with name" +  event_msg.header.msg_name);
+  private async apply_events(event_msgs: DomainEventMsg[], replayed?: boolean): Promise<void> {
+    const promises = event_msgs.map(evt => this.apply_event(evt));
 
-			// TODO check for consistency, ie, versions
-			await handler(event_msg, replayed).then(()=>{
-				resolve()
-			}).catch((err)=>{
-				reject(err);
-			});
-		});
-	}
+    return Promise.all(promises).then(()=> Promise.resolve());
+  } */
 
-	private async apply_events(event_msgs: DomainEventMsg[], replayed?: boolean): Promise<void> {
-		const promises = event_msgs.map(evt => this.apply_event(evt));
+  protected create (id?: string): void{
+    this._resetState()
+    if (id != null) {
+      this._rootEntity = this._entity_factory.createWithId(id)
+    } else {
+      this._rootEntity = this._entity_factory.create()
+    }
+  }
 
-		return Promise.all(promises).then(()=> Promise.resolve());
-	}*/
+  protected async load (aggregateId: string, throwOnNotFound: boolean = true): Promise<void> {
+    return await new Promise(async (resolve, reject) => {
+      this._resetState()
 
-	protected create(id?: string): void{
-		this._reset_state();
-		this._root_entity = id ? this._entity_factory.create_with_id(id) : this._entity_factory.create();
-	}
+      // TODO implement load from snapshot events and state events, using a state events repository
 
-	protected async load(aggregate_id: string, throw_on_not_found:boolean = true): Promise<void>{
-		return new Promise(async (resolve, reject) => {
-			this._reset_state();
+      if (this._entity_state_repo.canCall() == null) {
+        this._logger.error('Aggregate repository not available to be called')
+        return reject(new Error('Aggregate repository not available to be called')) // TODO typify these errors
+      }
 
-			// TODO implement load from snapshot events and state events, using a state events repository
+      const entityState = await this._entity_state_repo.load(aggregateId)
+      if (entityState == null && throwOnNotFound) {
+        this._logger.debug(`Aggregate with id: ${aggregateId} not found`)
+        return reject(new Error('Aggregate not found')) // TODO typify these errors
+      }
 
-			if (!this._entity_state_repo.can_call()){
-				this._logger.error("Aggregate repository not available to be called");
-				return reject(new Error("Aggregate repository not available to be called")); // TODO typify these errors
-			}
+      if (entityState != null) { 
+        this._rootEntity = this._entity_factory.createFromState(entityState) 
+      }
 
-			let entity_state = await this._entity_state_repo.load(aggregate_id);
-			if (!entity_state && throw_on_not_found){
-				this._logger.debug(`Aggregate with id: ${aggregate_id} not found`);
-				return reject(new Error("Aggregate not found")); // TODO typify these errors
-			}
+      // the reset_state() above already sets the root_entity to null
+      resolve()
+    })
+  }
 
-			if(entity_state)
-				this._root_entity = this._entity_factory.create_from_state(entity_state);
+  protected recordDomainEvent (event: IDomainMessage): void{
+    this._uncommittedEvents.push(event)
+  }
 
-			// the reset_state() above already sets the root_entity to null
-			resolve();
-		});
-	}
+  protected async commit (): Promise<void> {
+    return await new Promise(async (resolve, reject) => {
+      if (this._uncommittedEvents.length <= 0) {
+        this._logger.warn('Called aggregate commit without uncommitted events to commit')
+        return resolve()
+      }
 
-	protected record_domain_event(event:IDomainMessage):void{
-		this._uncommitted_events.push(event);
-	}
+      const eventNames = this._uncommittedEvents.map(evt => evt.msg_name)
 
-	protected async commit(): Promise<void>{
-		return new Promise(async (resolve, reject)=>{
-			if(this._uncommitted_events.length <= 0){
-				this._logger.warn("Called aggregate commit without uncommitted events to commit");
-				return resolve();
-			}
+      await this._msgPublisher.publishMany(this._uncommittedEvents)
 
-			const event_names = this._uncommitted_events.map(evt=> evt.msg_name);
+      this._logger.debug(`Aggregate committed ${this._uncommittedEvents.length} events - ${JSON.stringify(eventNames)}`)
 
-			await this._msg_publisher.publish_many(this._uncommitted_events);
+      this._uncommittedEvents = []
+      resolve()
+    })
+  }
 
-			this._logger.debug(`Aggregate committed ${this._uncommitted_events.length} events - ${event_names}`);
-
-			this._uncommitted_events = [];
-			resolve();
-		});
-	}
-
-
-	private _reset_state() {
-		this._uncommitted_events = [];
-		this._root_entity = null;
-	}
-
+  private _resetState (): void {
+    this._uncommittedEvents = []
+    this._rootEntity = null
+  }
 }

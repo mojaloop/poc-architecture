@@ -2,56 +2,55 @@
  * Created by pedrosousabarreto@gmail.com on 22/May/2020.
  */
 
-"use strict";
+'use strict'
 
-import {BaseEntityState} from "../../shared/domain_abstractions/base_entity_state";
-import {BaseEntity} from "../../shared/domain_abstractions/base_entity";
+import { BaseEntityState } from '../../shared/domain_abstractions/base_entity_state'
+import { BaseEntity } from '../../shared/domain_abstractions/base_entity'
 
-export class ParticipantState extends BaseEntityState{
-	limit: number = 0;
-	position: number = 0;
-	name: string = "";
+export class ParticipantState extends BaseEntityState {
+  limit: number = 0
+  position: number = 0
+  name: string = ''
 }
 
-export class ParticipantEntity extends BaseEntity<ParticipantState>{
-	get limit():number{
-		return this._state.limit;
-	}
+export class ParticipantEntity extends BaseEntity<ParticipantState> {
+  get limit (): number {
+    return this._state.limit
+  }
 
-	get position():number{
-		return this._state.position;
-	}
+  get position (): number {
+    return this._state.position
+  }
 
-	get name():string {
-		return this._state.name;
-	}
+  get name (): string {
+    return this._state.name
+  }
 
-	static CreateInstance(initial_state?:ParticipantState ) {
-		initial_state = initial_state || new ParticipantState();
+  static CreateInstance (initialState?: ParticipantState): ParticipantEntity {
+    initialState = initialState ?? new ParticipantState()
 
-		let entity: ParticipantEntity = new ParticipantEntity(initial_state);
+    const entity: ParticipantEntity = new ParticipantEntity(initialState)
 
-		return entity;
-	}
+    return entity
+  }
 
-	setup_initial_state( name:string, limit:number, initial_position: number):void{
-		this._state.name = name;
-		this._state.limit = limit;
-		this._state.position = initial_position;
-	}
+  setupInitialState (name: string, limit: number, initialPosition: number): void{
+    this._state.name = name
+    this._state.limit = limit
+    this._state.position = initialPosition
+  }
 
-	can_reserve_funds(amount:number):boolean{
-		if(amount<=0)
-			return false;
+  canReserveFunds (amount: number): boolean {
+    if (amount <= 0) { return false }
 
-		return this._state.position > amount;
-	}
+    return (this._state.position + amount) < this._state.limit
+  }
 
-	reserve_funds(amount:number):void{
-		this._state.position -= amount
-	}
+  reserveFunds (amount: number): void{
+    this._state.position -= amount
+  }
 
-	reverse_fund_reservation(amount:number):void{
-		this._state.position += amount
-	}
+  reverseFundReservation (amount: number): void{
+    this._state.position += amount
+  }
 }
