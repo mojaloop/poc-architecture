@@ -4,7 +4,8 @@
   "description": "mojaloop arch poc all-in-one participants service",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/shared",
+    "packages/participants"
   ],
   "scripts": {
   },
