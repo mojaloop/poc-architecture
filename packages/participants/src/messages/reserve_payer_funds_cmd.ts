@@ -4,31 +4,30 @@
 
 "use strict";
 
-import {DomainEventMsg} from "../../shared/domain_abstractions/messages";
+import {CommandMsg} from "shared";
 import {ParticipantsAggTopics} from "../domain/participants_agg";
 
 
-export class PayerFundsReservedEvt extends DomainEventMsg{
+export class ReservePayerFundsCmd extends CommandMsg{
 	aggregate_id: string;
 	aggregate_name: string = "Participants";
 	msg_key: string;
-	msg_topic: string = ParticipantsAggTopics.DomainEvents;
+	msg_topic: string = ParticipantsAggTopics.Commands;
 
 	payload: {
-		transfer_id:string;
 		payer_id:string;
-		current_position:number;
+		transfer_id: string;
+		amount: number;
 	};
 
-	constructor(transfer_id:string, payer_id:string, current_position:number) {
+	constructor(payer_id:string, transfer_id:string, amount:number) {
 		super();
-
 		this.aggregate_id = this.msg_key = payer_id;
 
 		this.payload = {
-			transfer_id,
 			payer_id,
-			current_position
+			transfer_id,
+			amount
 		}
 	}
 }

@@ -1,0 +1,19 @@
+{
+  "name": "participants",
+  "version": "0.1.0",
+  "description": "mojaloop arch poc participants.",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -Rf dist",
+    "start": "node dist/application/index.js",
+    "test": "jest"
+  },
+  "author": "Pedro Barreto <pedrosousabarreto@gmail.com",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "kafka-node": "^5.0.0",
+    "redis": "^3.0.2",
+    "shared": "0.1.0",
+    "uuid": "^8.1.0"
+  }
+}

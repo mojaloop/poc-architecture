@@ -1,0 +1,18 @@
+{
+  "name": "shared",
+  "version": "0.1.0",
+  "description": "mojaloop arch poc shared components.",
+  "author": "Pedro Barreto <pedrosousabarreto@gmail.com",
+  "license": "Apache-2.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -Rf ./dist"
+  },
+  "dependencies": {
+    "kafka-node": "^5.0.0",
+    "redis": "^3.0.2",
+    "uuid": "^8.1.0"
+  }
+}

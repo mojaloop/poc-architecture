@@ -4,7 +4,7 @@
 
 "use strict";
 
-import {CommandMsg} from "../../shared/domain_abstractions/messages";
+import {CommandMsg} from "shared";
 import {ParticipantsAggTopics} from "../domain/participants_agg";
 
 

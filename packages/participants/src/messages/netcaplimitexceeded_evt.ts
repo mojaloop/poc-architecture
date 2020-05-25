@@ -4,27 +4,29 @@
 
 "use strict";
 
-import {DomainEventMsg} from "../../shared/domain_abstractions/messages";
+import {DomainEventMsg} from "shared";
 import {ParticipantsAggTopics} from "../domain/participants_agg";
 
 
-export class InvalidParticipantEvt extends DomainEventMsg{
+export class NetCapLimitExceededEvt extends DomainEventMsg{
 	aggregate_id: string;
 	aggregate_name: string = "Participants";
 	msg_key: string;
 	msg_topic: string = ParticipantsAggTopics.DomainEvents;
 
 	payload: {
-		participant_id:string
+		participant_id:string;
+		transfer_id:string;
 	};
 
-	constructor(participant_id:string) {
+	constructor(participant_id:string, transfer_id:string) {
 		super();
 
 		this.aggregate_id = this.msg_key = participant_id;
 
 		this.payload = {
-			participant_id
+			participant_id,
+			transfer_id
 		}
 	}
 }

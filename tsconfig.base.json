@@ -8,11 +8,7 @@
     "skipLibCheck": true,
     "moduleResolution": "node",
     "esModuleInterop": true,
-    "types": ["node"],
-    //"rootDir": "src",
-    "outDir": "dist"
-  },
-  "include": ["src"],
-  "exclude": ["node_modules"]
+    "types": ["node"]
+  }
 }
 

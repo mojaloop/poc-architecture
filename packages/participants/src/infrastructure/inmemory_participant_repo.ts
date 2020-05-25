@@ -4,7 +4,7 @@
 
 "use strict";
 
-import {IEntityStateRepository} from "../../shared/domain_abstractions/ientity_state_repository";
+import {IEntityStateRepository} from "shared";
 import {ParticipantState} from "../domain/participant_entity";
 
 export class InMemoryParticipantStateRepo implements IEntityStateRepository<ParticipantState>{

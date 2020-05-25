@@ -4,7 +4,7 @@
 
 "use strict";
 
-import {DomainEventMsg} from "../../shared/domain_abstractions/messages";
+import {DomainEventMsg} from "shared";
 import {ParticipantsAggTopics} from "../domain/participants_agg";
 
 

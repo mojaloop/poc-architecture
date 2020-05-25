@@ -5,9 +5,8 @@
 "use strict";
 
 import * as redis from "redis";
-import {IEntityStateRepository} from "../../shared/domain_abstractions/ientity_state_repository";
+import {IEntityStateRepository, ILogger} from "shared";
 import {ParticipantState} from "../domain/participant_entity";
-import {ILogger} from "../../shared/utilities/logger";
 
 export class RedisParticipantStateRepo implements IEntityStateRepository<ParticipantState>{
 	protected _redis_client!: redis.RedisClient;

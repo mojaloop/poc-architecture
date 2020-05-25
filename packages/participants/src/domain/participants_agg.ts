@@ -4,11 +4,8 @@
 
 "use strict";
 
-import {BaseAggregate} from "../../shared/domain_abstractions/base_aggregate";
+import {BaseAggregate, IEntityStateRepository, IMessagePublisher, CommandMsg, DomainEventMsg, MessageTypes} from "shared";
 import {ParticipantEntity, ParticipantState} from "./participant_entity";
-import {CommandMsg, DomainEventMsg, MessageTypes} from "../../shared/domain_abstractions/messages";
-import {IEntityStateRepository} from "../../shared/domain_abstractions/ientity_state_repository";
-import {IMessagePublisher} from "../../shared/domain_abstractions/imessage_publisher";
 import {ParticipantsFactory} from "./participants_factory";
 import {ReservePayerFundsCmd} from "../messages/reserve_payer_funds_cmd";
 import {CreateParticipantCmd} from "../messages/create_participant_cmd";

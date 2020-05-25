@@ -5,7 +5,6 @@
 "use strict";
 
 import {BaseEntityState} from "./base_entity_state";
-import {ParticipantState} from "../../participants/domain/participant_entity";
 
 
 export abstract class BaseEntity <S extends BaseEntityState>{

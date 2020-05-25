@@ -5,7 +5,7 @@
 "use strict";
 
 import {ParticipantEntity, ParticipantState} from "./participant_entity";
-import {IEntityFactory} from "../../shared/domain_abstractions/entity_factory";
+import {IEntityFactory} from "shared";
 
 export class ParticipantsFactory implements IEntityFactory<ParticipantEntity, ParticipantState>{
 	// singleton

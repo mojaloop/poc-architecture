@@ -4,8 +4,7 @@
 
 "use strict";
 
-import {BaseEntityState} from "../../shared/domain_abstractions/base_entity_state";
-import {BaseEntity} from "../../shared/domain_abstractions/base_entity";
+import {BaseEntity,BaseEntityState} from "shared";
 
 export class ParticipantState extends BaseEntityState{
 	limit: number = 0;
