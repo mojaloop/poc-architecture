@@ -11,7 +11,11 @@
   "contributors": [
     "Miguel de Barros <miguel.debarros@modusbox.com>"
   ],
-  "main": "dist/application/index.js",
+  "main": "./dist/application/index.js",
+  "types": "./dist/application/index.d.ts",
+  "files": [
+    "/dist"
+  ],
   "pre-commit": [
     "dep:check",
     "build",

@@ -1,5 +1,3 @@
 {
-  "reject": [
-    "@typescript-eslint/eslint-plugin"
-  ]
+  "reject": []
 }
