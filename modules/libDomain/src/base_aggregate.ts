@@ -10,7 +10,7 @@ import { CommandMsg, DomainEventMsg, IDomainMessage } from './messages'
 import { IMessagePublisher } from './imessage_publisher'
 import { IEntityStateRepository } from './ientity_state_repository'
 import { IEntityFactory } from './entity_factory'
-import { ConsoleLogger, ILogger } from '@mojaloop-poc/lib-utilities'
+import { ILogger } from './ilogger'
 
 export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntityState> {
   protected _logger: ILogger
@@ -24,8 +24,8 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
   protected _msgPublisher: IMessagePublisher
   protected _entity_state_repo: IEntityStateRepository<S>
 
-  constructor (entityFactory: IEntityFactory<E, S>, entityStateRepo: IEntityStateRepository<S>, msgPublisher: IMessagePublisher, logger?: ILogger) {
-    this._logger = logger ?? new ConsoleLogger()
+  constructor (entityFactory: IEntityFactory<E, S>, entityStateRepo: IEntityStateRepository<S>, msgPublisher: IMessagePublisher, logger: ILogger) {
+    this._logger = logger
 
     // this._event_handlers = new Map<string, (event:DomainEventMsg, replayed?:boolean)=>Promise<void>>();
     this._commandHandlers = new Map<string, (cmd: CommandMsg) => Promise<boolean>>()

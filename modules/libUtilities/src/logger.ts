@@ -1,16 +1,11 @@
 /**
  * Created by pedrosousabarreto@gmail.com on 22/May/2020.
  */
+
 'use strict'
 
-export interface ILogger {
-  // trace(...anything);
-  debug: (message?: any, ...optionalParams: any[]) => void
-  info: (message?: any, ...optionalParams: any[]) => void
-  warn: (message?: any, ...optionalParams: any[]) => void
-  error: (message?: any, ...optionalParams: any[]) => void
-  fatal: (message?: any, ...optionalParams: any[]) => void
-}
+
+import {ILogger} from '@mojaloop-poc/lib-domain'
 
 export class ConsoleLogger implements ILogger {
   // trace(...anything) {

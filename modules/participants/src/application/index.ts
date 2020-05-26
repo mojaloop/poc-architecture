@@ -15,8 +15,9 @@ import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 
 import { CreateParticipantCmd } from '../messages/create_participant_cmd'
 import { RedisParticipantStateRepo } from '../infrastructure/redis_participant_repo'
+import {ILogger} from '@mojaloop-poc/lib-domain'
 
-const logger: ConsoleLogger = new ConsoleLogger()
+const logger: ILogger = new ConsoleLogger()
 
 async function start (): Promise<void> {
   // const repo: IEntityStateRepository<ParticipantState> = new InMemoryParticipantStateRepo();
@@ -33,7 +34,7 @@ async function start (): Promise<void> {
 
   await kafkaMsgPublisher.init()
 
-  const agg: ParticpantsAgg = new ParticpantsAgg(repo, kafkaMsgPublisher)
+  const agg: ParticpantsAgg = new ParticpantsAgg(repo, kafkaMsgPublisher, logger)
 
   // const payerId: string = '47fca31d-6784-4ac2-afd2-03af341df7e1' // Use this to validate duplicate insert logic for participants
   const payerId: string = uuidv4() // Use this to create a new participant record
