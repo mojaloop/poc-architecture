@@ -4,7 +4,8 @@
 'use strict'
 
 import * as kafka from 'kafka-node'
-import { ConsoleLogger, ILogger } from '@mojaloop-poc/lib-utilities'
+import { ConsoleLogger} from '@mojaloop-poc/lib-utilities'
+import { ILogger } from '@mojaloop-poc/lib-domain'
 import { IMessage } from '@mojaloop-poc/lib-domain'
 
 export class KafkaGenericProducer {
