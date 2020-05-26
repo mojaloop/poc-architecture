@@ -7,12 +7,12 @@ module.exports = {
   rules: {
     'no-async-promise-executor': 'off',
     '@typescript-eslint/no-non-null-assertion': 'off',
-    '@typescript-eslint/no-misused-promises': [
-      'error',
-      {
-        'checksVoidReturn': true // Setting this to 'false' resolves - Error: Promise returned in function argument where a void return was expected  @typescript-eslint/no-misused-promises. This should be removed when productionized.
-      }
-    ]
+    // '@typescript-eslint/no-misused-promises': [
+    //   'error',
+    //   {
+    //     'checksVoidReturn': true // Setting this to 'false' resolves - Error: Promise returned in function argument where a void return was expected  @typescript-eslint/no-misused-promises. This should be removed when productionized.
+    //   }
+    // ]
   },
   overrides: [
     {

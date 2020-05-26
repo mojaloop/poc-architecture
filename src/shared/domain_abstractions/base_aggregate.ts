@@ -93,7 +93,7 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
       // until we have full event sourcing we have to persist
       if (!result) {
         this._logger.info(`Command '${commandMsg.msg_name}' execution failed`)
-        throw new Error(`Command '${commandMsg.msg_name}' execution failed`)
+        return false
       }
 
       if (this._rootEntity != null) {

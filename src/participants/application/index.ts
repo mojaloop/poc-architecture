@@ -36,8 +36,8 @@ async function start (): Promise<void> {
   const agg: ParticpantsAgg = new ParticpantsAgg(repo, kafkaMsgPublisher)
 
   // const payerId: string = '47fca31d-6784-4ac2-afd2-03af341df7e1' // Use this to validate duplicate insert logic for participants
-  const payerId: string = uuidv4(); // Use this to create a new participant record
-  
+  const payerId: string = uuidv4() // Use this to create a new participant record
+
   const transferId: string = uuidv4()
 
   const createParticipantCmd: CreateParticipantCmd = new CreateParticipantCmd(payerId, 'participant 1', 1000, 100)
