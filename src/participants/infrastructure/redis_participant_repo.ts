@@ -2,137 +2,129 @@
  * Created by pedrosousabarreto@gmail.com on 24/May/2020.
  */
 
-"use strict";
+'use strict'
 
-import * as redis from "redis";
-import {IEntityStateRepository} from "../../shared/domain_abstractions/ientity_state_repository";
-import {ParticipantState} from "../domain/participant_entity";
-import {ILogger} from "../../shared/utilities/logger";
+import * as redis from 'redis'
+import { IEntityStateRepository } from '../../shared/domain_abstractions/ientity_state_repository'
+import { ParticipantState } from '../domain/participant_entity'
+import { ILogger } from '../../shared/utilities/logger'
 
-export class RedisParticipantStateRepo implements IEntityStateRepository<ParticipantState>{
-	protected _redis_client!: redis.RedisClient;
-	private _redis_conn_str:string;
-	private _logger:ILogger;
-	private _initialized: boolean = false;
-	private readonly key_prefix:string = "participant_";
+export class RedisParticipantStateRepo implements IEntityStateRepository<ParticipantState> {
+  protected _redisClient!: redis.RedisClient
+  private readonly _redisConnStr: string
+  private readonly _logger: ILogger
+  private _initialized: boolean = false
+  private readonly keyPrefix: string = 'participant_'
 
-	constructor(conn_str:string, logger:ILogger) {
-		this._redis_conn_str = conn_str;
-		this._logger = logger;
-	}
+  constructor (connStr: string, logger: ILogger) {
+    this._redisConnStr = connStr
+    this._logger = logger
+  }
 
-	init():Promise<void>{
-		return new Promise((resolve, reject)=> {
-			this._redis_client = redis.createClient({url: this._redis_conn_str});
+  async init (): Promise<void> {
+    return await new Promise((resolve, reject) => {
+      this._redisClient = redis.createClient({ url: this._redisConnStr })
 
-			this._redis_client.on("ready", () => {
-				this._logger.info('Redis client ready');
-				if (this._initialized)
-					return;
+      this._redisClient.on('ready', () => {
+        this._logger.info('Redis client ready')
+        if (this._initialized) { return }
 
-				this._initialized = true;
-				return resolve();
-			});
+        this._initialized = true
+        return resolve()
+      })
 
-			this._redis_client.on('error', (err) => {
-				this._logger.error(err, 'A redis error has occurred:');
-				if (!this._initialized)
-					return reject(err);
-			});
+      this._redisClient.on('error', (err) => {
+        this._logger.error(err, 'A redis error has occurred:')
+        if (!this._initialized) { return reject(err) }
+      })
+    })
+  }
 
-		});
-	}
+  async destroy (): Promise<void> {
+    if (this._initialized) { this._redisClient.quit() }
 
-	destroy():Promise<void>{
-		if(this._initialized)
-			this._redis_client.quit();
+    return await Promise.resolve()
+  }
 
-		return Promise.resolve();
-	}
+  canCall (): boolean {
+    return this._initialized // for now, no circuit breaker exists
+  }
 
+  async load (id: string): Promise<ParticipantState|null> {
+    return await new Promise((resolve, reject) => {
+      if (!this.canCall()) return reject(new Error('Repository not ready'))
 
-	can_call(): boolean {
-		return this._initialized; // for now, no circuit breaker exists
-	}
+      const key: string = this.keyWithPrefix(id)
 
-	load(id: string): Promise<ParticipantState|null> {
-		return new Promise((resolve, reject)=>{
-			if(!this.can_call()) return reject("Repository not ready");
+      this._redisClient.get(key, (err?: Error|null, result?: string) => {
+        if (err != null) {
+          this._logger.error(err, 'Error fetching entity state from redis - for key: ' + key)
+          return reject(err)
+        }
+        if (result == null) {
+          this._logger.debug('Entity state not found in redis - for key: ' + key)
+          return resolve(null)
+        }
+        try {
+          const state: ParticipantState = JSON.parse(result)
+          return resolve(state)
+        } catch (err) {
+          this._logger.error(err, 'Error parsing entity state from redis - for key: ' + key)
+          return reject(err)
+        }
+      })
+    })
+  }
 
-			const key:string = this.key_with_prefix(id);
+  async remove (id: string): Promise<void> {
+    return await new Promise((resolve, reject) => {
+      if (!this.canCall()) return reject(new Error('Repository not ready'))
 
-			this._redis_client.get(key, (err?: Error|null, result?: string) => {
-				if (err){
-					this._logger.error(err, "Error fetching entity state from redis - for key: "+key);
-					return reject();
-				}
-				if(!result){
-					this._logger.debug("Entity state not found in redis - for key: "+key);
-					return resolve(null);
-				}
+      const key: string = this.keyWithPrefix(id)
 
-				try{
-					let state:ParticipantState = JSON.parse(result);
-					return resolve(state);
-				}catch(err){
-					this._logger.error(err, "Error parsing entity state from redis - for key: "+key);
-					return reject();
-				}
-			});
-		});
-	}
+      this._redisClient.del(key, (err?: Error|null, result?: number) => {
+        if (err != null) {
+          this._logger.error(err, 'Error removing entity state from redis - for key: ' + key)
+          return reject(err)
+        }
+        if (result !== 1) {
+          this._logger.debug('Entity state not found in redis - for key: ' + key)
+          return resolve()
+        }
 
-	remove(id:string): Promise<void> {
-		return new Promise((resolve, reject)=>{
-			if(!this.can_call()) return reject("Repository not ready");
+        return resolve()
+      })
+    })
+  }
 
-			const key:string = this.key_with_prefix(id);
+  async store (entityState: ParticipantState): Promise<void> {
+    return await new Promise((resolve, reject) => {
+      if (!this.canCall()) return reject(new Error('Repository not ready'))
 
-			this._redis_client.del(key, (err?: Error|null, result?: number) => {
-				if (err) {
-					this._logger.error(err, "Error removing entity state from redis - for key: "+key);
-					return reject();
-				}
-				if(result !== 1){
-					this._logger.debug("Entity state not found in redis - for key: "+key);
-					return resolve();
-				}
+      const key: string = this.keyWithPrefix(entityState.id)
+      let stringValue: string
+      try {
+        stringValue = JSON.stringify(entityState)
+      } catch (err) {
+        this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
+        return reject(err)
+      }
 
-				return resolve();
-			});
-		});
-	}
+      this._redisClient.set(key, stringValue, (err: Error | null, reply: string) => {
+        if (err != null) {
+          this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
+          return reject(err)
+        }
+        if (reply !== 'OK') {
+          this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
+          return reject(err)
+        }
+        return resolve()
+      })
+    })
+  }
 
-	store(entity_state: ParticipantState): Promise<void> {
-		return new Promise((resolve, reject)=>{
-			if(!this.can_call()) return reject("Repository not ready");
-
-			const key:string = this.key_with_prefix(entity_state.id);
-			let string_value:string;
-			try{
-				string_value = JSON.stringify(entity_state);
-			}catch(err){
-				this._logger.error(err, "Error parsing entity state JSON - for key: "+key);
-				return reject();
-			}
-
-			this._redis_client.set(key, string_value, (err: Error | null, reply: string) => {
-				if (err) {
-					this._logger.error(err, "Error storing entity state to redis - for key: "+key);
-					return reject();
-				}
-				if(reply !== "OK"){
-					this._logger.error("Unsuccessful attempt to store the entity state in redis - for key: "+key);
-					return reject();
-				}
-				return resolve();
-			});
-		});
-	}
-
-
-	private key_with_prefix(key:string):string{
-		return this.key_prefix + key;
-	}
-
+  private keyWithPrefix (key: string): string {
+    return this.keyPrefix + key
+  }
 }

@@ -110,4 +110,18 @@ dist
 .idea/
 **/*.iml
 
+# Vscode
+.vscode/**/*.*
+
+# Ignore build files
 dist/
+
+# General ignore rules
+*IGNORE*
+*ignore*
+
+# MacOS ignores
+**/.DS_Store
+
+# Env ignore
+.env
