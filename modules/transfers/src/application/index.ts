@@ -1,15 +1,32 @@
 /**
- * Created by pedrosousabarreto@gmail.com on 21/May/2020.
+ * Created by Roman Pietrzak y@ke.mu on 2020-05-26.
  */
-
 'use strict'
 
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
+import { IEntityStateRepository, IMessagePublisher } from '@mojaloop-poc/lib-domain'
+import { KafkaMessagePublisher } from '@mojaloop-poc/lib-infrastructure'
+import { TransferState } from '../domain/transfer_entity'
+import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
 
 const logger: ConsoleLogger = new ConsoleLogger()
 
 async function start (): Promise<void> {
-  logger.info('To be implemented')
+  const repo: IEntityStateRepository<TransferState> = new InMemoryTransferStateRepo()
+//  const repo: IEntityStateRepository<TransferState> = new RedisParticipantStateRepo('redis://localhost:6379', logger)
+
+  await repo.init()
+
+  const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
+    'localhost:9092',
+    'client_a',
+    'development',
+    logger
+  )
+
+  await kafkaMsgPublisher.init()
+
+  //const agg: TransfersAgg = new TransfersAgg(repo, kafkaMsgPublisher)
 }
 
 start().catch((err) => {

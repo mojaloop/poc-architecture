@@ -15,9 +15,9 @@ import { InvalidParticipantEvt } from '../messages/invalid_participant_evt'
 import { PayerFundsReservedEvt } from '../messages/payer_funds_reserved_evt'
 import { ParticipantCreatedEvt } from '../messages/participant_created_evt'
 import { NetCapLimitExceededEvt } from '../messages/netcaplimitexceeded_evt'
-import {ILogger} from '@mojaloop-poc/lib-domain'
+import { ILogger } from '@mojaloop-poc/lib-domain'
 
-export enum ParticipantsAggTopics{
+export enum ParticipantsAggTopics {
   'Commands' = 'ParticipantCommands',
   'DomainEvents' = 'ParticipantDomainEvents',
   // "StateEvents" = "ParticipantStateEvents"
