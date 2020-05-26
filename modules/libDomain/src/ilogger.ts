@@ -1,7 +1,7 @@
 /**
  * Created by pedrosousabarreto@gmail.com on 26/May/2020.
  */
-"use strict";
+'use strict'
 
 export interface ILogger {
   // trace(...anything);
