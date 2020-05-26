@@ -1,7 +1,7 @@
 {
-  "name": "arch_poc_participants",
+  "name": "arch_poc",
   "version": "0.1.0",
-  "description": "mojaloop arch poc all-in-one participants service",
+  "description": "mojaloop arch poc all-in-one",
   "license": "Apache-2.0",
   "homepage": "https://github.com/mojaloop/poc-architecture",
   "bugs": {
@@ -11,7 +11,6 @@
   "contributors": [
     "Miguel de Barros <miguel.debarros@modusbox.com>"
   ],
-  "main": "application/index.js",
   "pre-commit": [
     "dep:check",
     "build",
@@ -19,49 +18,26 @@
     "test:unit"
   ],
   "scripts": {
-    "start:participants": "tsc && node dist/participants/application/index.js",
-    "build": "tsc",
-    "watch": "tsc -w",
-    "clean": "rm -Rf dist",
-    "pretest": "npm run build",
-    "standard": "npm run lint",
-    "lint": "npx eslint ./src",
-    "lint:fix": "npx eslint ./src --fix",
-    "test:unit": "jest --testMatch '**/test/unit/**/*.test.ts'",
-    "test:coverage": "jest --coverage --coverageThreshold='{}' --testMatch '**/test/unit/**/*.test.ts'",
-    "test:coverage-check": "jest --coverage --testMatch '**/test/unit/**/*.test.ts'",
-    "audit:resolve": "SHELL=sh resolve-audit",
-    "audit:check": "SHELL=sh check-audit",
-    "dep:check": "npx ncu -e 2",
-    "dep:update": "npx ncu -u"
+    "start:participants": "npm run build && npx lerna run start:participants",
+    "build": "npx lerna run build",
+    "clean": "npm run clean:dist && npm run clean:npm",
+    "clean:npm": "npx lerna clean",
+    "clean:dist": "npx lerna run clean",
+    "postinstall": "npx lerna bootstrap",
+    "pretest": "echo 'FIX ME'",
+    "standard": "npm run lint'",
+    "lint": "npx lerna run lint",
+    "lint:fix": "npx lerna run lint:fix",
+    "test:unit": "npx lerna run test:unit",
+    "test:coverage": "npx lerna run test:coverage",
+    "test:coverage-check": "npx lerna run test:coverage-check",
+    "audit:resolve": "npx lerna run audit:resolve",
+    "audit:check": "npx lerna run audit:check",
+    "dep:check": "npx lerna run dep:check",
+    "dep:update": "npx lerna run dep:update"
   },
   "dependencies": {
-    "kafka-node": "^5.0.0",
-    "redis": "^3.0.2",
-    "uuid": "^8.1.0"
+    "lerna": "^3.22.0"
   },
-  "devDependencies": {
-    "@types/kafka-node": "^3.0.0",
-    "@types/node": "^14.0.5",
-    "@types/redis": "^2.8.21",
-    "@types/uuid": "^8.0.0",
-    "@typescript-eslint/eslint-plugin": "^2.34.0",
-    "eslint": "^7.1.0",
-    "eslint-config-prettier": "^6.11.0",
-    "eslint-config-standard-with-typescript": "^17.0.0",
-    "eslint-plugin-import": "^2.20.2",
-    "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-promise": "^4.2.1",
-    "eslint-plugin-standard": "^4.0.1",
-    "faucet": "0.0.1",
-    "jest": "^26.0.1",
-    "jest-junit": "^10.0.0",
-    "npm-audit-resolver": "^2.2.0",
-    "npm-check-updates": "^6.0.1",
-    "nyc": "^15.0.1",
-    "pre-commit": "^1.2.2",
-    "ts-jest": "^26.0.0",
-    "typedoc": "^0.17.7",
-    "typescript": "^3.9.3"
-  }
+  "devDependencies": {}
 }
