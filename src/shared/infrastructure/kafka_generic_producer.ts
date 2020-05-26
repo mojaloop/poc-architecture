@@ -87,69 +87,136 @@ export class KafkaGenericProducer {
 
   async send(kafkaMessages: IMessage[]): Promise<void>;
 
+  /*
+  # Commented out as it causes the following lint error `error  Promise returned in function argument where a void return was expected  @typescript-eslint/no-misused-promises`. See below alternative implementation to fix linting issue.
+  */
+  // async send (kafkaMessages: any): Promise<void> {
+  //   return await new Promise(async (resolve, reject) => {
+  //     if (!Array.isArray(arguments[0])) { kafkaMessages = [arguments[0]] as IMessage[] }
+
+  //     // const msgsByTopic: Map<string, kafka.KeyedMessage[]> = new Map<string, kafka.KeyedMessage[]>()
+  //     const payloads: any[] = []
+
+  //     // iterate the messages to parse and check them, and fill _knownTopics with first time topics
+  //     kafkaMessages.forEach((kafkaMsg: IMessage) => {
+  //       if (kafkaMsg.msgTopic == null) { throw new Error(`Invalid topic for message: ${kafkaMsg?.msg_type}`) }
+
+  //       let msg: string
+  //       // let topic = this._env_name + "_"+ kafkaMsg.header.msgTopic; // prefix envName on all topics
+  //       const topic = kafkaMsg.msgTopic
+  //       const key = kafkaMsg.msgKey
+
+  //       try {
+  //         msg = JSON.stringify(kafkaMsg)
+  //       } catch (e) {
+  //         this._logger.error(e, +' - error parsing message')
+  //         return process.nextTick(() => {
+  //           reject(new Error('KafkaProducer - Error parsing message'))
+  //         })
+  //       }
+
+  //       if (msg == null) {
+  //         this._logger.error('invalid message in send_message')
+  //         return process.nextTick(() => {
+  //           reject(new Error('KafkaProducer - invalid or empty message'))
+  //         })
+  //       }
+
+  //       // check for known topic and add null if not there
+  //       if (!this._knownTopics.has(topic)) { this._knownTopics.set(topic, false) }
+
+  //       const km = new kafka.KeyedMessage(key, msg)
+  //       payloads.push({ topic: topic, messages: km, key: key })
+  //       // payloads.push({topic: topic, messages: [km]});
+  //       // payloads.push(km);
+  //     })
+
+  //     // make sure we refresh metadata for first time topics - otherwise we bet BrokerNotAvailable error on first time topic
+  //     const results = Promise.all(Array.from(this._knownTopics.entries()).map(async (item) => {
+  //       const topicName = item[0]
+  //       const val = item[1]
+  //       if (val) { return await Promise.resolve() }
+
+  //       await this._refreshMetadata(topicName)
+  //       this._knownTopics.set(topicName, true)
+  //       return await Promise.resolve()
+  //     }))
+
+  //     await results.catch(err => {
+  //       reject(err)
+  //     }).then(async () => {
+  //       await this._producer.send(payloads, (err?: Error | null, data?: any) => {
+  //         if (err != null) {
+  //           this._logger.error(err, 'KafkaGenericProducer error sending message')
+  //           return reject(err)
+  //         }
+  //         console.log('KafkaGenericProducer sent message - response:', data)
+  //         resolve(data)
+  //       })
+  //     })
+  //   })
+  // }
+
   async send (kafkaMessages: any): Promise<void> {
-    return await new Promise(async (resolve, reject) => {
-      if (!Array.isArray(arguments[0])) { kafkaMessages = [arguments[0]] as IMessage[] }
+    if (!Array.isArray(arguments[0])) { kafkaMessages = [arguments[0]] as IMessage[] }
 
-      // const msgsByTopic: Map<string, kafka.KeyedMessage[]> = new Map<string, kafka.KeyedMessage[]>()
-      const payloads: any[] = []
+    // const msgsByTopic: Map<string, kafka.KeyedMessage[]> = new Map<string, kafka.KeyedMessage[]>()
+    const payloads: any[] = []
 
-      // iterate the messages to parse and check them, and fill _knownTopics with first time topics
-      kafkaMessages.forEach((kafkaMsg: IMessage) => {
-        if (kafkaMsg.msgTopic == null) { throw new Error(`Invalid topic for message: ${kafkaMsg?.msg_type}`) }
+    // iterate the messages to parse and check them, and fill _knownTopics with first time topics
+    kafkaMessages.forEach((kafkaMsg: IMessage) => {
+      if (kafkaMsg.msgTopic == null) { throw new Error(`Invalid topic for message: ${kafkaMsg?.msg_type}`) }
 
-        let msg: string
-        // let topic = this._env_name + "_"+ kafkaMsg.header.msgTopic; // prefix envName on all topics
-        const topic = kafkaMsg.msgTopic
-        const key = kafkaMsg.msgKey
+      let msg: string
+      // let topic = this._env_name + "_"+ kafkaMsg.header.msgTopic; // prefix envName on all topics
+      const topic = kafkaMsg.msgTopic
+      const key = kafkaMsg.msgKey
 
-        try {
-          msg = JSON.stringify(kafkaMsg)
-        } catch (e) {
-          this._logger.error(e, +' - error parsing message')
-          return process.nextTick(() => {
-            reject(new Error('KafkaProducer - Error parsing message'))
-          })
-        }
-
-        if (msg == null) {
-          this._logger.error('invalid message in send_message')
-          return process.nextTick(() => {
-            reject(new Error('KafkaProducer - invalid or empty message'))
-          })
-        }
-
-        // check for known topic and add null if not there
-        if (!this._knownTopics.has(topic)) { this._knownTopics.set(topic, false) }
-
-        const km = new kafka.KeyedMessage(key, msg)
-        payloads.push({ topic: topic, messages: km, key: key })
-        // payloads.push({topic: topic, messages: [km]});
-        // payloads.push(km);
-      })
-
-      // make sure we refresh metadata for first time topics - otherwise we bet BrokerNotAvailable error on first time topic
-      const results = Promise.all(Array.from(this._knownTopics.entries()).map(async (item) => {
-        const topicName = item[0]
-        const val = item[1]
-        if (val) { return await Promise.resolve() }
-
-        await this._refreshMetadata(topicName)
-        this._knownTopics.set(topicName, true)
-        return await Promise.resolve()
-      }))
-
-      await results.catch(err => {
-        reject(err)
-      }).then(async () => {
-        await this._producer.send(payloads, (err?: Error | null, data?: any) => {
-          if (err != null) {
-            this._logger.error(err, 'KafkaGenericProducer error sending message')
-            return reject(err)
-          }
-          console.log('KafkaGenericProducer sent message - response:', data)
-          resolve(data)
+      try {
+        msg = JSON.stringify(kafkaMsg)
+      } catch (e) {
+        this._logger.error(e, +' - error parsing message')
+        return process.nextTick(() => {
+          throw new Error('KafkaProducer - Error parsing message')
         })
+      }
+
+      if (msg == null) {
+        this._logger.error('invalid message in send_message')
+        return process.nextTick(() => {
+          throw new Error('KafkaProducer - invalid or empty message')
+        })
+      }
+
+      // check for known topic and add null if not there
+      if (!this._knownTopics.has(topic)) { this._knownTopics.set(topic, false) }
+
+      const km = new kafka.KeyedMessage(key, msg)
+      payloads.push({ topic: topic, messages: km, key: key })
+      // payloads.push({topic: topic, messages: [km]});
+      // payloads.push(km);
+    })
+
+    // make sure we refresh metadata for first time topics - otherwise we bet BrokerNotAvailable error on first time topic
+    const results = Promise.all(Array.from(this._knownTopics.entries()).map(async (item) => {
+      const topicName = item[0]
+      const val = item[1]
+      if (val) { return }
+
+      await this._refreshMetadata(topicName)
+      this._knownTopics.set(topicName, true)
+    }))
+
+    await results.catch(err => {
+      throw err
+    }).then(async () => {
+      await this._producer.send(payloads, (err?: Error | null, data?: any) => {
+        if (err != null) {
+          this._logger.error(err, 'KafkaGenericProducer error sending message')
+          throw err
+        }
+        console.log('KafkaGenericProducer sent message - response:', data)
+        return (data)
       })
     })
   }

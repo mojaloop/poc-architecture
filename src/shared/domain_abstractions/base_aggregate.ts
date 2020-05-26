@@ -38,39 +38,75 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
     this._msgPublisher = msgPublisher
   }
 
+  /*
+  # Commented out as it causes the following lint error `error  Promise returned in function argument where a void return was expected  @typescript-eslint/no-misused-promises`. See below alternative implementation to fix linting issue.
+  */
+  // async processCommand (commandMsg: CommandMsg): Promise<boolean> {
+  //   return new Promise(async (resolve, reject) => {
+  //     const handler = this._commandHandlers.get(commandMsg.msg_name)
+  //     if (handler == null) {
+  //       return reject(new Error(`Aggregate doesn't have a handler for a command with name ${commandMsg.msg_name}`))
+  //     }
+
+  //     this._resetState()
+  //     // the local cmd handler code must either load or create the aggregate
+
+  //     // TODO check for consistency, ie, versions
+  //     await handler.call(this, commandMsg).then(async (result: boolean) => {
+  //       await this.commit() // send out the unpublished events regardless
+
+  //       // until we have full event sourcing we have to persist
+  //       if (!result) {
+  //         this._logger.info(`Command '${commandMsg.msg_name}' execution failed`)
+  //         return reject(new Error(`Command '${commandMsg.msg_name}' execution failed`))
+  //       }
+
+  //       if (this._rootEntity != null) {
+  //         await this._entity_state_repo.store(this._rootEntity.exportState())
+  //       } else {
+  //         return reject(new Error(`Aggregate doesn't have a valid state to process command with name ${commandMsg.msg_name}`))
+  //       }
+  //       this._logger.info(`Aggregate state persisted to repository at the end of command: ${commandMsg.msg_name}`)
+  //       return resolve(true)
+  //     }).catch(async (err: any) => {
+  //       await this.commit() // we still send out the unpublished events
+  //       this._logger.error(err, `Aggregate state persited to repoistory at the end of command: ${commandMsg.msg_name}`)
+
+  //       reject(err)
+  //     })
+  //   })
+  // }
+
   async processCommand (commandMsg: CommandMsg): Promise<boolean> {
-    return await new Promise(async (resolve, reject) => {
-      const handler = this._commandHandlers.get(commandMsg.msg_name)
-      if (handler == null) {
-        return reject(new Error(`Aggregate doesn't have a handler for a command with name ${commandMsg.msg_name}`))
+    const handler = this._commandHandlers.get(commandMsg.msg_name)
+    if (handler == null) {
+      throw new Error(`Aggregate doesn't have a handler for a command with name ${commandMsg.msg_name}`)
+    }
+
+    this._resetState()
+    // the local cmd handler code must either load or create the aggregate
+
+    // TODO check for consistency, ie, versions
+    return await handler.call(this, commandMsg).then(async (result: boolean) => {
+      await this.commit() // send out the unpublished events regardless
+
+      // until we have full event sourcing we have to persist
+      if (!result) {
+        this._logger.info(`Command '${commandMsg.msg_name}' execution failed`)
+        throw new Error(`Command '${commandMsg.msg_name}' execution failed`)
       }
 
-      this._resetState()
-      // the local cmd handler code must either load or create the aggregate
-
-      // TODO check for consistency, ie, versions
-      await handler.call(this, commandMsg).then(async (result: boolean) => {
-        await this.commit() // send out the unpublished events regardless
-
-        // until we have full event sourcing we have to persist
-        if (!result) {
-          this._logger.info(`Command '${commandMsg.msg_name}' execution failed`)
-          return reject(new Error(`Command '${commandMsg.msg_name}' execution failed`))
-        }
-
-        if (this._rootEntity != null) {
-          await this._entity_state_repo.store(this._rootEntity.exportState())
-        } else {
-          return reject(new Error(`Aggregate doesn't have a valid state to process command with name ${commandMsg.msg_name}`))
-        }
-        this._logger.info(`Aggregate state persisted to repository at the end of command: ${commandMsg.msg_name}`)
-        return resolve(true)
-      }).catch(async (err: any) => {
-        await this.commit() // we still send out the unpublished events
-        this._logger.error(err, `Aggregate state persited to repoistory at the end of command: ${commandMsg.msg_name}`)
-
-        reject(err)
-      })
+      if (this._rootEntity != null) {
+        await this._entity_state_repo.store(this._rootEntity.exportState())
+      } else {
+        throw new Error(`Aggregate doesn't have a valid state to process command with name ${commandMsg.msg_name}`)
+      }
+      this._logger.info(`Aggregate state persisted to repository at the end of command: ${commandMsg.msg_name}`)
+      return true
+    }).catch(async (err: any) => {
+      await this.commit() // we still send out the unpublished events
+      this._logger.error(err, `Aggregate state persited to repoistory at the end of command: ${commandMsg.msg_name}`)
+      throw err
     })
   }
 
@@ -107,52 +143,95 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
     this._rootEntity = (id != null) ? this._entity_factory.createWithId(id) : this._entity_factory.create()
   }
 
+  /*
+  # Commented out as it causes the following lint error `error  Promise returned in function argument where a void return was expected  @typescript-eslint/no-misused-promises`. See below alternative implementation to fix linting issue.
+  */
+  // protected async load (aggregateId: string, throwOnNotFound: boolean = true): Promise<void> {
+  //   return await new Promise(async (resolve, reject) => {
+  //     this._resetState()
+
+  //     // TODO implement load from snapshot events and state events, using a state events repository
+
+  //     if (this._entity_state_repo.canCall() == null) {
+  //       this._logger.error('Aggregate repository not available to be called')
+  //       return reject(new Error('Aggregate repository not available to be called')) // TODO typify these errors
+  //     }
+
+  //     const entityState = await this._entity_state_repo.load(aggregateId)
+  //     if (entityState == null && throwOnNotFound) {
+  //       this._logger.debug(`Aggregate with id: ${aggregateId} not found`)
+  //       return reject(new Error('Aggregate not found')) // TODO typify these errors
+  //     }
+
+  //     if (entityState != null) {
+  //       this._rootEntity = this._entity_factory.createFromState(entityState)
+  //     }
+
+  //     // the reset_state() above already sets the root_entity to null
+  //     resolve()
+  //   })
+  // }
+
   protected async load (aggregateId: string, throwOnNotFound: boolean = true): Promise<void> {
-    return await new Promise(async (resolve, reject) => {
-      this._resetState()
+    this._resetState()
 
-      // TODO implement load from snapshot events and state events, using a state events repository
+    // TODO implement load from snapshot events and state events, using a state events repository
 
-      if (this._entity_state_repo.canCall() == null) {
-        this._logger.error('Aggregate repository not available to be called')
-        return reject(new Error('Aggregate repository not available to be called')) // TODO typify these errors
-      }
+    if (this._entity_state_repo.canCall() == null) {
+      this._logger.error('Aggregate repository not available to be called')
+      throw new Error('Aggregate repository not available to be called') // TODO typify these errors
+    }
 
-      const entityState = await this._entity_state_repo.load(aggregateId)
-      if (entityState == null && throwOnNotFound) {
-        this._logger.debug(`Aggregate with id: ${aggregateId} not found`)
-        return reject(new Error('Aggregate not found')) // TODO typify these errors
-      }
+    const entityState = await this._entity_state_repo.load(aggregateId)
+    if (entityState == null && throwOnNotFound) {
+      this._logger.debug(`Aggregate with id: ${aggregateId} not found`)
+      throw new Error('Aggregate not found') // TODO typify these errors
+    }
 
-      if (entityState != null) {
-        this._rootEntity = this._entity_factory.createFromState(entityState)
-      }
-
-      // the reset_state() above already sets the root_entity to null
-      resolve()
-    })
+    if (entityState != null) {
+      this._rootEntity = this._entity_factory.createFromState(entityState)
+    }
+    // the reset_state() above already sets the root_entity to null
   }
 
   protected recordDomainEvent (event: IDomainMessage): void{
     this._uncommittedEvents.push(event)
   }
 
+  /*
+  # Commented out as it causes the following lint error `error  Promise returned in function argument where a void return was expected  @typescript-eslint/no-misused-promises`. See below alternative implementation to fix linting issue.
+  */
+  // protected async commit (): Promise<void> {
+  //   return await new Promise(async (resolve, reject) => {
+  //     if (this._uncommittedEvents.length <= 0) {
+  //       this._logger.warn('Called aggregate commit without uncommitted events to commit')
+  //       return resolve()
+  //     }
+
+  //     const eventNames = this._uncommittedEvents.map(evt => evt.msg_name)
+
+  //     await this._msgPublisher.publishMany(this._uncommittedEvents)
+
+  //     this._logger.debug(`Aggregate committed ${this._uncommittedEvents.length} events - ${JSON.stringify(eventNames)}`)
+
+  //     this._uncommittedEvents = []
+  //     resolve()
+  //   })
+  // }
+
   protected async commit (): Promise<void> {
-    return await new Promise(async (resolve, reject) => {
-      if (this._uncommittedEvents.length <= 0) {
-        this._logger.warn('Called aggregate commit without uncommitted events to commit')
-        return resolve()
-      }
+    if (this._uncommittedEvents.length <= 0) {
+      this._logger.warn('Called aggregate commit without uncommitted events to commit')
+      return
+    }
 
-      const eventNames = this._uncommittedEvents.map(evt => evt.msg_name)
+    const eventNames = this._uncommittedEvents.map(evt => evt.msg_name)
 
-      await this._msgPublisher.publishMany(this._uncommittedEvents)
+    await this._msgPublisher.publishMany(this._uncommittedEvents)
 
-      this._logger.debug(`Aggregate committed ${this._uncommittedEvents.length} events - ${JSON.stringify(eventNames)}`)
+    this._logger.debug(`Aggregate committed ${this._uncommittedEvents.length} events - ${JSON.stringify(eventNames)}`)
 
-      this._uncommittedEvents = []
-      resolve()
-    })
+    this._uncommittedEvents = []
   }
 
   private _resetState (): void {

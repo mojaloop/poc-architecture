@@ -31,47 +31,93 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
     this._registerCommandHandler('ReservePayerFundsCmd', this.processReserveFundsCommand)
   }
 
+  /*
+  # Commented out as it causes the following lint error `error  Promise returned in function argument where a void return was expected  @typescript-eslint/no-misused-promises`. See below alternative implementation to fix linting issue.
+  */
+  // async processCreateParticipantCommand (commandMsg: CreateParticipantCmd): Promise<boolean> {
+  //   return await new Promise(async (resolve, reject) => {
+  //     // try loadling first to detect duplicates
+  //     await this.load(commandMsg.payload.id, false)
+  //     if (this._rootEntity != null) {
+  //       this.recordDomainEvent(new DuplicateParticipantDetectedEvt(commandMsg.payload.id))
+  //       return reject(new Error(`DuplicateParticipantDetected with command: ${commandMsg.constructor.name} - name: ${commandMsg.payload.name}, id:${commandMsg.payload.id}`))
+  //     }
+
+  //     this.create(commandMsg.payload.id)
+  //     this._rootEntity!.setupInitialState(
+  //       commandMsg.payload.name,
+  //       commandMsg.payload.limit,
+  //       commandMsg.payload.initialPosition
+  //     )
+
+  //     this.recordDomainEvent(new ParticipantCreatedEvt(this._rootEntity!))
+
+  //     return resolve(true)
+  //   })
+  // }
+
   async processCreateParticipantCommand (commandMsg: CreateParticipantCmd): Promise<boolean> {
-    return await new Promise(async (resolve, reject) => {
-      // try loadling first to detect duplicates
-      await this.load(commandMsg.payload.id, false)
-      if (this._rootEntity != null) {
-        this.recordDomainEvent(new DuplicateParticipantDetectedEvt(commandMsg.payload.id))
-        return reject(new Error(`DuplicateParticipantDetected with command: ${commandMsg.constructor.name} - name: ${commandMsg.payload.name}, id:${commandMsg.payload.id}`))
-      }
+    // try loadling first to detect duplicates
+    await this.load(commandMsg.payload.id, false)
+    if (this._rootEntity != null) {
+      this.recordDomainEvent(new DuplicateParticipantDetectedEvt(commandMsg.payload.id))
+      throw new Error(`DuplicateParticipantDetected with command: ${commandMsg.constructor.name} - name: ${commandMsg.payload.name}, id:${commandMsg.payload.id}`)
+    }
 
-      this.create(commandMsg.payload.id)
-      this._rootEntity!.setupInitialState(
-        commandMsg.payload.name,
-        commandMsg.payload.limit,
-        commandMsg.payload.initialPosition
-      )
+    this.create(commandMsg.payload.id)
+    this._rootEntity!.setupInitialState(
+      commandMsg.payload.name,
+      commandMsg.payload.limit,
+      commandMsg.payload.initialPosition
+    )
 
-      this.recordDomainEvent(new ParticipantCreatedEvt(this._rootEntity!))
+    this.recordDomainEvent(new ParticipantCreatedEvt(this._rootEntity!))
 
-      return resolve(true)
-    })
+    return true
   }
 
+  /*
+  # Commented out as it causes the following lint error `error  Promise returned in function argument where a void return was expected  @typescript-eslint/no-misused-promises`. See below alternative implementation to fix linting issue.
+  */
+  // async processReserveFundsCommand (commandMsg: ReservePayerFundsCmd): Promise<boolean> {
+  //   return await new Promise(async (resolve, reject) => {
+  //     await this.load(commandMsg.payload.payerId)
+
+  //     if (this._rootEntity == null) {
+  //       this.recordDomainEvent(new InvalidParticipantEvt(commandMsg.payload.payerId))
+  //       return resolve(false)
+  //     }
+
+  //     if (!this._rootEntity.canReserveFunds(commandMsg.payload.amount)) {
+  //       this.recordDomainEvent(new NetCapLimitExceededEvt(this._rootEntity.id, commandMsg.payload.transferId))
+  //       return resolve(false)
+  //     }
+
+  //     this._rootEntity.reserveFunds(commandMsg.payload.amount)
+
+  //     this.recordDomainEvent(new PayerFundsReservedEvt(commandMsg.payload.transferId, commandMsg.payload.payerId, this._rootEntity.position))
+
+  //     return resolve(true)
+  //   })
+  // }
+
   async processReserveFundsCommand (commandMsg: ReservePayerFundsCmd): Promise<boolean> {
-    return await new Promise(async (resolve, reject) => {
-      await this.load(commandMsg.payload.payerId)
+    await this.load(commandMsg.payload.payerId)
 
-      if (this._rootEntity == null) {
-        this.recordDomainEvent(new InvalidParticipantEvt(commandMsg.payload.payerId))
-        return resolve(false)
-      }
+    if (this._rootEntity == null) {
+      this.recordDomainEvent(new InvalidParticipantEvt(commandMsg.payload.payerId))
+      return false
+    }
 
-      if (!this._rootEntity.canReserveFunds(commandMsg.payload.amount)) {
-        this.recordDomainEvent(new NetCapLimitExceededEvt(this._rootEntity.id, commandMsg.payload.transferId))
-        return resolve(false)
-      }
+    if (!this._rootEntity.canReserveFunds(commandMsg.payload.amount)) {
+      this.recordDomainEvent(new NetCapLimitExceededEvt(this._rootEntity.id, commandMsg.payload.transferId))
+      return true
+    }
 
-      this._rootEntity.reserveFunds(commandMsg.payload.amount)
+    this._rootEntity.reserveFunds(commandMsg.payload.amount)
 
-      this.recordDomainEvent(new PayerFundsReservedEvt(commandMsg.payload.transferId, commandMsg.payload.payerId, this._rootEntity.position))
+    this.recordDomainEvent(new PayerFundsReservedEvt(commandMsg.payload.transferId, commandMsg.payload.payerId, this._rootEntity.position))
 
-      return resolve(true)
-    })
+    return true
   }
 }

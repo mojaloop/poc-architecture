@@ -10,7 +10,7 @@ module.exports = {
     '@typescript-eslint/no-misused-promises': [
       'error',
       {
-        'checksVoidReturn': false
+        'checksVoidReturn': true // Setting this to 'false' resolves - Error: Promise returned in function argument where a void return was expected  @typescript-eslint/no-misused-promises. This should be removed when productionized.
       }
     ]
   },
