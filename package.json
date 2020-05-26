@@ -19,6 +19,7 @@
   ],
   "scripts": {
     "start:participants": "npm run build && npx lerna run start:participants",
+    "start:transfers": "npm run build && npx lerna run start:transfers",
     "build": "npx lerna run build",
     "clean": "npm run clean:dist && npm run clean:npm",
     "clean:npm": "npx lerna clean",

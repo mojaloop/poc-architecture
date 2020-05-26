@@ -125,3 +125,6 @@ dist/
 
 # Env ignore
 .env
+
+# Lerna files
+**/*.lerna_backup
