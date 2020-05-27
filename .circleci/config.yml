@@ -206,7 +206,7 @@ jobs:
           name: Execute NPM install for module dependencies
           command: npm install
       - run:
-          name: Execute Lint check
+          name: Execute Build check
           command: npm run build
 
   test-unit:
