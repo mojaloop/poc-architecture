@@ -25,3 +25,18 @@ npm run build
 ```sh
 npm run start:participants
 ```
+
+### Transfers
+
+```sh
+npm run start:transfers
+```
+
+## Todo
+
+...
+
+## Known Issues
+
+1. `npm run dep:check` hangs when run at root level.
+2. `@typescript-eslint/no-misused-promises` lint issue disabled on [kafka_generic_producer.ts](./modules/libInfrastructure/src/kafka_generic_producer.ts)
