@@ -188,9 +188,10 @@ jobs:
       - run:
           name: Execute NPM install for module dependencies
           command: npm install
-      - run:
-          name: Execute Build check
-          command: npm run build
+      # Commented out the next run as we already do the build as part of the lint 
+      # - run:
+      #     name: Execute Build check
+      #     command: npm run build
       - run:
           name: Execute Lint check
           command: npm run lint
