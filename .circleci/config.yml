@@ -456,6 +456,8 @@ workflows:
                 - /bugfix*/
       - lint-check:
           context: org-global
+          requires:
+            - setup
           filters:
             tags:
               only: /.*/
