@@ -7,7 +7,6 @@
 // import * as kafka from 'kafka-node'
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 import { ILogger, IMessage, IMessagePublisher } from '@mojaloop-poc/lib-domain'
-
 import { KafkaGenericProducer } from './kafka_generic_producer'
 
 export class KafkaMessagePublisher implements IMessagePublisher {
