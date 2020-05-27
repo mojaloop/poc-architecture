@@ -1,7 +1,7 @@
 {
   "name": "arch_poc",
   "version": "0.1.0",
-  "description": "mojaloop arch poc all-in-one",
+  "description": "mojaloop arch poc all-in-one.",
   "license": "Apache-2.0",
   "homepage": "https://github.com/mojaloop/poc-architecture",
   "bugs": {
