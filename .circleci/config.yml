@@ -174,7 +174,6 @@ jobs:
           key: dependency-cache-{{ checksum "package.json" }}
           paths:
             - node_modules
-            - modules
 
   lint-check:
     executor: default-docker
@@ -187,8 +186,28 @@ jobs:
           keys:
           - dependency-cache-{{ checksum "package.json" }}
       - run:
-          name: Execute lint check
+          name: Execute NPM install for module dependencies
+          command: npm install
+      - run:
+          name: Execute Lint check
           command: npm run lint
+
+  build-check:
+    executor: default-docker
+    steps:
+      - checkout
+      - run:
+          name: Install general dependencies
+          command: *defaults_Dependencies
+      - restore_cache:
+          keys:
+          - dependency-cache-{{ checksum "package.json" }}
+      - run:
+          name: Execute NPM install for module dependencies
+          command: npm install
+      - run:
+          name: Execute Lint check
+          command: npm run build
 
   test-unit:
     executor: default-docker
@@ -455,6 +474,17 @@ workflows:
                 - /feature*/
                 - /bugfix*/
       - lint-check:
+          context: org-global
+          requires:
+            - setup
+          filters:
+            tags:
+              only: /.*/
+            branches:
+              ignore:
+                - /feature*/
+                - /bugfix*/
+      - build-check:
           context: org-global
           requires:
             - setup
