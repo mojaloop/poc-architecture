@@ -4,7 +4,7 @@
 
 'use strict'
 
-import { BaseAggregate, IEntityStateRepository, IMessagePublisher } from '@mojaloop-poc/lib-domain'
+import { BaseAggregate, IEntityStateRepository, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
 // import {CommandMsg, DomainEventMsg, MessageTypes} from "../../shared/domain_abstractions/messages";
 import { ParticipantEntity, ParticipantState } from './participant_entity'
 import { ParticipantsFactory } from './participants_factory'
@@ -15,7 +15,6 @@ import { InvalidParticipantEvt } from '../messages/invalid_participant_evt'
 import { PayerFundsReservedEvt } from '../messages/payer_funds_reserved_evt'
 import { ParticipantCreatedEvt } from '../messages/participant_created_evt'
 import { NetCapLimitExceededEvt } from '../messages/netcaplimitexceeded_evt'
-import {ILogger} from '@mojaloop-poc/lib-domain'
 
 export enum ParticipantsAggTopics{
   'Commands' = 'ParticipantCommands',
@@ -24,7 +23,7 @@ export enum ParticipantsAggTopics{
 }
 
 export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, ParticipantState> {
-  constructor (entityStateRepo: IEntityStateRepository<ParticipantState>, msgPublisher: IMessagePublisher, logger:ILogger) {
+  constructor (entityStateRepo: IEntityStateRepository<ParticipantState>, msgPublisher: IMessagePublisher, logger: ILogger) {
     super(ParticipantsFactory.GetInstance(), entityStateRepo, msgPublisher, logger)
     this._registerCommandHandler('CreateParticipantCmd', this.processCreateParticipantCommand)
     this._registerCommandHandler('ReservePayerFundsCmd', this.processReserveFundsCommand)

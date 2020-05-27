@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid'
 
 // import {InMemoryParticipantStateRepo} from "../infrastructure/inmemory_participant_repo";
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
-import { IEntityStateRepository, IMessagePublisher } from '@mojaloop-poc/lib-domain'
+import { IEntityStateRepository, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
 import { KafkaMessagePublisher } from '@mojaloop-poc/lib-infrastructure'
 import { ParticipantState } from '../domain/participant_entity'
 import { ParticpantsAgg } from '../domain/participants_agg'
@@ -15,7 +15,6 @@ import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 
 import { CreateParticipantCmd } from '../messages/create_participant_cmd'
 import { RedisParticipantStateRepo } from '../infrastructure/redis_participant_repo'
-import {ILogger} from '@mojaloop-poc/lib-domain'
 
 const logger: ILogger = new ConsoleLogger()
 

@@ -5,8 +5,8 @@
 'use strict'
 
 import * as redis from 'redis'
-import { IEntityStateRepository } from '@mojaloop-poc/lib-domain'
-import { ILogger } from '@mojaloop-poc/lib-domain'
+import { IEntityStateRepository, ILogger } from '@mojaloop-poc/lib-domain'
+
 import { ParticipantState } from '../domain/participant_entity'
 
 export class RedisParticipantStateRepo implements IEntityStateRepository<ParticipantState> {
