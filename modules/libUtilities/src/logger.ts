@@ -4,7 +4,7 @@
 
 'use strict'
 
-
+import { ILogger } from '@mojaloop-poc/lib-domain'
 import {ILogger} from '@mojaloop-poc/lib-domain'
 
 export class ConsoleLogger implements ILogger {
