@@ -4,8 +4,9 @@
 'use strict'
 
 import { BaseAggregate, IEntityStateRepository, IMessagePublisher } from '@mojaloop-poc/lib-domain'
-import { CreateTransferCmd } from "../messages/create_transfer_cmd";
-import { TransferCreatedEvt } from "../messages/transfer_created_evt";
+import { CreateTransferCmd } from "../messages/create_transfer_cmd"
+import { TransferCreatedEvt } from "../messages/transfer_created_evt"
+import { DuplicateTransferDetectedEvt } from "../messages/duplicate_participant_evt"
 import { TransferEntity, TransferState } from './transfer_entity'
 import { TransfersFactory } from './transfers_factory'
 import { ILogger } from '@mojaloop-poc/lib-domain'
@@ -25,12 +26,10 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
     // try loading first to detect duplicates
     await this.load(commandMsg.payload.id, false)
 
-    /* TODO:
     if (this._rootEntity != null) {
-      this.recordDomainEvent(new DuplicateParticipantDetectedEvt(commandMsg.payload.id))
+      this.recordDomainEvent(new DuplicateTransferDetectedEvt(commandMsg.payload.id))
       return false
     }
-    */
 
     this.create(commandMsg.payload.id)
     this._rootEntity!.setupInitialState(
