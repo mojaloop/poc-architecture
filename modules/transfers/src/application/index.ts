@@ -8,6 +8,7 @@ import { IEntityStateRepository, IMessagePublisher } from '@mojaloop-poc/lib-dom
 import { KafkaMessagePublisher } from '@mojaloop-poc/lib-infrastructure'
 import { TransferState } from '../domain/transfer_entity'
 import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
+import { TransfersAgg } from '../domain/transfers_agg'
 
 const logger: ConsoleLogger = new ConsoleLogger()
 
@@ -26,7 +27,7 @@ async function start (): Promise<void> {
 
   await kafkaMsgPublisher.init()
 
-  //const agg: TransfersAgg = new TransfersAgg(repo, kafkaMsgPublisher)
+  const agg: TransfersAgg = new TransfersAgg(repo, kafkaMsgPublisher, logger)
 }
 
 start().catch((err) => {

@@ -1,33 +1,39 @@
 /**
- * Created by pedrosousabarreto@gmail.com on 22/May/2020.
+ * Created by Roman Pietrzak y@ke.mu on 2020-05-27.
  */
-
 'use strict'
 
 import { CommandMsg } from '@mojaloop-poc/lib-domain'
-import { TransferssAggTopics } from '../domain/transfers_agg'
+import { TransfersAggTopics } from '../domain/transfers_agg'
+import { TransferInternalState } from '../domain/transfer_entity'
 
 export class CreateTransferCmd extends CommandMsg {
   aggregateId: string
   aggregate_name: string = 'Transfers'
   msgKey: string
-  msgTopic: string = TransferssAggTopics.Commands
+  msgTopic: string = TransfersAggTopics.Commands
 
   payload: {
     id: string
-    name: string
+    amount: number
+    currencyId: string
+    transferInternalStateId: TransferInternalState
+    payerName: string
+    payeeName: string
   }
 
-  constructor (id: string, name: string, limit: number, initialPosition: number) {
+  constructor (id: string, amount: number, currencyId: string, payerName: string, payeeName: string) {
     super()
 
     this.aggregateId = this.msgKey = id
 
     this.payload = {
       id,
-      name,
-      limit,
-      initialPosition
+      amount,
+      currencyId,
+      transferInternalStateId: TransferInternalState.INVALID,
+      payerName,
+      payeeName
     }
   }
 }

@@ -30,18 +30,26 @@ export class TransferState extends BaseEntityState {
 }
 
 export class TransferEntity extends BaseEntity<TransferState> {
-/*  get limit (): number {
-    return this._state.limit
+  get amount (): number {
+    return this._state.amount
   }
 
-  get position (): number {
-    return this._state.position
+  get currencyId (): string {
+    return this._state.currencyId
   }
 
-  get name (): string {
-    return this._state.name
+  get transferInternalStateId (): TransferInternalState {
+    return this._state.transferInternalStateId
   }
-*/
+
+  get payerName (): string {
+    return this._state.currencyId
+  }
+
+  get payeeName (): string {
+    return this._state.currencyId
+  }
+
   static CreateInstance (initialState?: TransferState): TransferEntity {
     initialState = initialState ?? new TransferState()
 
@@ -50,8 +58,7 @@ export class TransferEntity extends BaseEntity<TransferState> {
     return entity
   }
 
-  setupInitialState (id: string, amount: number, currencyId: string, payerName: string, payeeName: string): void{
-    this._state.id = id
+  setupInitialState (amount: number, currencyId: string, payerName: string, payeeName: string): void{
     this._state.amount = amount
     this._state.currencyId = currencyId
     this._state.payerName = payerName

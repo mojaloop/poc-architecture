@@ -4,11 +4,13 @@
 'use strict'
 
 import { BaseAggregate, IEntityStateRepository, IMessagePublisher } from '@mojaloop-poc/lib-domain'
-// import {CommandMsg, DomainEventMsg, MessageTypes} from "../../shared/domain_abstractions/messages";
+import { CreateTransferCmd } from "../messages/create_transfer_cmd";
+import { TransferCreatedEvt } from "../messages/transfer_created_evt";
 import { TransferEntity, TransferState } from './transfer_entity'
 import { TransfersFactory } from './transfers_factory'
+import { ILogger } from '@mojaloop-poc/lib-domain'
 
-export enum TransferssAggTopics {
+export enum TransfersAggTopics {
   'Commands' = 'TransferCommands',
   'DomainEvents' = 'TransferDomainEvents',
 }
@@ -19,22 +21,26 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
     this._registerCommandHandler('CreateTransferCmd', this.processCreateTransferCommand)
   }
 
-  async processCreateTransferCommand (commandMsg: CreateParticipantCmd): Promise<boolean> {
-    // try loadling first to detect duplicates
+  async processCreateTransferCommand (commandMsg: CreateTransferCmd): Promise<boolean> {
+    // try loading first to detect duplicates
     await this.load(commandMsg.payload.id, false)
+
+    /* TODO:
     if (this._rootEntity != null) {
       this.recordDomainEvent(new DuplicateParticipantDetectedEvt(commandMsg.payload.id))
       return false
     }
+    */
 
     this.create(commandMsg.payload.id)
     this._rootEntity!.setupInitialState(
-      commandMsg.payload.name,
-      commandMsg.payload.limit,
-      commandMsg.payload.initialPosition
+      commandMsg.payload.amount,
+      commandMsg.payload.currencyId,
+      commandMsg.payload.payerName,
+      commandMsg.payload.payeeName
     )
 
-    this.recordDomainEvent(new ParticipantCreatedEvt(this._rootEntity!))
+    this.recordDomainEvent(new TransferCreatedEvt(this._rootEntity!))
 
     return true
   }
