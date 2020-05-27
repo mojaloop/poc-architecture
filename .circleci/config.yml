@@ -175,7 +175,7 @@ jobs:
           paths:
             - node_modules
 
-  lint-check:
+  check-lint:
     executor: default-docker
     steps:
       - checkout
@@ -192,7 +192,7 @@ jobs:
           name: Execute Lint check
           command: npm run lint
 
-  build-check:
+  check-build:
     executor: default-docker
     steps:
       - checkout
@@ -473,7 +473,7 @@ workflows:
               ignore:
                 - /feature*/
                 - /bugfix*/
-      - lint-check:
+      - check-lint:
           context: org-global
           requires:
             - setup
@@ -484,7 +484,7 @@ workflows:
               ignore:
                 - /feature*/
                 - /bugfix*/
-      - build-check:
+      - check-build:
           context: org-global
           requires:
             - setup
