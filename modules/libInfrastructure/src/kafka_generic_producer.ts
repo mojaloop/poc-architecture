@@ -100,7 +100,7 @@ export class KafkaGenericProducer {
 
       // iterate the messages to parse and check them, and fill _knownTopics with first time topics
       kafkaMessages.forEach((kafkaMsg: IMessage) => {
-        if (kafkaMsg.msgTopic == null) { throw new Error(`Invalid topic for message: ${kafkaMsg?.msg_type}`) }
+        if (kafkaMsg.msgTopic == null) { throw new Error(`Invalid topic for message: ${kafkaMsg?.msgType}`) }
 
         let msg: string
         // let topic = this._env_name + "_"+ kafkaMsg.header.msgTopic; // prefix envName on all topics
@@ -178,7 +178,7 @@ export class KafkaGenericProducer {
 
   //   // iterate the messages to parse and check them, and fill _knownTopics with first time topics
   //   kafkaMessages.forEach((kafkaMsg: IMessage) => {
-  //     if (kafkaMsg.msgTopic == null) { throw new Error(`Invalid topic for message: ${kafkaMsg?.msg_type}`) }
+  //     if (kafkaMsg.msgTopic == null) { throw new Error(`Invalid topic for message: ${kafkaMsg?.msgType}`) }
 
   //     let msg: string
   //     // let topic = this._env_name + "_"+ kafkaMsg.header.msgTopic; // prefix envName on all topics

@@ -13,9 +13,9 @@ export enum MessageTypes{
 }
 
 export interface IMessage{
-  msg_type: MessageTypes
-  msg_id: string // unique per message
-  msg_timestamp: number
+  msgType: MessageTypes
+  msgId: string // unique per message
+  msgTimestamp: number
   msgKey: string // usually the id of the aggregate (used for partitioning)
   msgTopic: string
 
@@ -40,11 +40,11 @@ export interface IDomainMessage extends IMessage{
 }
 
 export abstract class DomainMsg implements IDomainMessage {
-  msg_id: string = uuidv4() // unique per message
-  msg_timestamp: number = Date.now()
+  msgId: string = uuidv4() // unique per message
+  msgTimestamp: number = Date.now()
   msg_name: string = (this as any).constructor.name
 
-  abstract msg_type: MessageTypes
+  abstract msgType: MessageTypes
   abstract msgKey: string // usually the id of the aggregate (used for partitioning)
   abstract msgTopic: string
 
@@ -56,9 +56,9 @@ export abstract class DomainMsg implements IDomainMessage {
 }
 
 export abstract class DomainEventMsg extends DomainMsg {
-  msg_type: MessageTypes = MessageTypes.DOMAIN_EVENT
+  msgType: MessageTypes = MessageTypes.DOMAIN_EVENT
 }
 
 export abstract class CommandMsg extends DomainMsg {
-  msg_type: MessageTypes = MessageTypes.COMMAND
+  msgType: MessageTypes = MessageTypes.COMMAND
 }
