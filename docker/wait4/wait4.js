@@ -183,15 +183,14 @@ async function methodNCat (waitJob) {
  * @function methodRedis
  * @description Waits for the Redis server to be up and running
  * @param {*} waitJob
- * @param {*} RC
  */
 async function methodRedis (waitJob) {
   // create client and wait till client is ready.
-  const redis = require('redis', RC)
-  redis.createClient({ url: RC.REDIS_CONNECTION })
+  const redis = require('redis')
+  const client = redis.createClient({ url: waitJob.uri })
   await new Promise((resolve, reject) => {
-    redis.on('ready', () => { resolve() })
-    redis.on('error', (err) => { reject(err) })
+    client.on('ready', () => { resolve() })
+    client.on('error', (err) => { reject(err) })
   })
   return waitJob
 }

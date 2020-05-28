@@ -39,7 +39,9 @@
     "dep:update": "npx lerna run dep:update"
   },
   "dependencies": {
-    "lerna": "^3.22.0"
+    "knex": "^0.21.1",
+    "lerna": "^3.22.0",
+    "redis": "^3.0.2"
   },
   "devDependencies": {
     "pre-commit": "^1.2.2"

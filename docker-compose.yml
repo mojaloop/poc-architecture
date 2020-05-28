@@ -52,6 +52,8 @@ services:
   redis-participants:
     container_name: redis-participants
     image: "redis:5.0.4-alpine"
+    ports:
+      - "6379:6379"
     networks:
       - mojaloop-poc
     restart: always
