@@ -51,7 +51,7 @@ const logger: ConsoleLogger = new ConsoleLogger()
 
 async function start (): Promise<void> {
   const repo: IEntityStateRepository<TransferState> = new InMemoryTransferStateRepo()
-//  const repo: IEntityStateRepository<TransferState> = new RedisParticipantStateRepo('redis://localhost:6379', logger)
+  // const repo: IEntityStateRepository<TransferState> = new RedisParticipantStateRepo('redis://localhost:6379', logger)
 
   await repo.init()
 
