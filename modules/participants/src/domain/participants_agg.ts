@@ -1,10 +1,43 @@
-/**
- * Created by pedrosousabarreto@gmail.com on 21/May/2020.
- */
+/*****
+ License
+ --------------
+ Copyright © 2017 Bill & Melinda Gates Foundation
+ The Mojaloop files are made available by the Bill & Melinda Gates Foundation under the Apache License, Version 2.0 (the "License") and you may not use these files except in compliance with the License. You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, the Mojaloop files are distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+
+ Contributors
+ --------------
+ This is the official list (alphabetical ordering) of the Mojaloop project contributors for this file.
+ Names of the original copyright holders (individuals or organizations)
+ should be listed with a '*' in the first column. People who have
+ contributed from an organization can be listed under the organization
+ that actually holds the copyright for their contributions (see the
+ Gates Foundation organization for an example). Those individuals should have
+ their names indented and be marked with a '-'. Email address can be added
+ optionally within square brackets <email>.
+
+ * Gates Foundation
+ - Name Surname <name.surname@gatesfoundation.com>
+
+ * Coil
+ - Donovan Changfoot <donovan.changfoot@coil.com>
+
+ * Crosslake
+ - Pedro Sousa Barreto <pedrob@crosslaketech.com>
+
+ * ModusBox
+ - Miguel de Barros <miguel.debarros@modusbox.com>
+ - Roman Pietrzak <roman.pietrzak@modusbox.com>
+
+ --------------
+******/
 
 'use strict'
 
-import { BaseAggregate, IEntityStateRepository, IMessagePublisher } from '@mojaloop-poc/lib-domain'
+import { BaseAggregate, IEntityStateRepository, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
 // import {CommandMsg, DomainEventMsg, MessageTypes} from "../../shared/domain_abstractions/messages";
 import { ParticipantEntity, ParticipantState } from './participant_entity'
 import { ParticipantsFactory } from './participants_factory'
@@ -15,7 +48,6 @@ import { InvalidParticipantEvt } from '../messages/invalid_participant_evt'
 import { PayerFundsReservedEvt } from '../messages/payer_funds_reserved_evt'
 import { ParticipantCreatedEvt } from '../messages/participant_created_evt'
 import { NetCapLimitExceededEvt } from '../messages/netcaplimitexceeded_evt'
-import { ILogger } from '@mojaloop-poc/lib-domain'
 
 export enum ParticipantsAggTopics {
   'Commands' = 'ParticipantCommands',
@@ -24,7 +56,7 @@ export enum ParticipantsAggTopics {
 }
 
 export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, ParticipantState> {
-  constructor (entityStateRepo: IEntityStateRepository<ParticipantState>, msgPublisher: IMessagePublisher, logger:ILogger) {
+  constructor (entityStateRepo: IEntityStateRepository<ParticipantState>, msgPublisher: IMessagePublisher, logger: ILogger) {
     super(ParticipantsFactory.GetInstance(), entityStateRepo, msgPublisher, logger)
     this._registerCommandHandler('CreateParticipantCmd', this.processCreateParticipantCommand)
     this._registerCommandHandler('ReservePayerFundsCmd', this.processReserveFundsCommand)

@@ -7,9 +7,11 @@
   "bugs": {
     "url": "https://github.com/mojaloop/<repo-name>/issues#readme"
   },
-  "author": "Pedro Barreto <pedrosousabarreto@gmail.com",
+  "author": "Roman Pietrzak <roman.pietrzak@modusbox.com>",
   "contributors": [
-    "Miguel de Barros <miguel.debarros@modusbox.com>"
+    "Pedro Sousa Barreto <pedrob@crosslaketech.com>",
+    "Miguel de Barros <miguel.debarros@modusbox.com>",
+    "Donovan Changfoot <donovan.changfoot@coil.com>"
   ],
   "main": "./dist/application/index.js",
   "types": "./dist/application/index.d.ts",
@@ -29,8 +31,8 @@
     "clean": "rm -Rf dist",
     "pretest": "npm run build",
     "standard": "npm run lint",
-    "lint": "npx eslint ./src",
-    "lint:fix": "npx eslint ./src --fix",
+    "lint": "npm run build && npx eslint ./src",
+    "lint:fix": "npm run build && npx eslint ./src --fix",
     "test:unit": "jest --testMatch '**/test/unit/**/*.test.ts'",
     "test:coverage": "jest --coverage --coverageThreshold='{}' --testMatch '**/test/unit/**/*.test.ts'",
     "test:coverage-check": "jest --coverage --testMatch '**/test/unit/**/*.test.ts'",
