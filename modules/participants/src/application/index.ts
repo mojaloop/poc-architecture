@@ -41,7 +41,7 @@ async function start (): Promise<void> {
 
   const transferId: string = uuidv4()
 
-  const createParticipantCmd: CreateParticipantCmd = new CreateParticipantCmd(payerId, 'participant 1', 1000, 100)
+  const createParticipantCmd: CreateParticipantCmd = new CreateParticipantCmd(payerId, 'participant_1', 1000, 100)
   await agg.processCommand(createParticipantCmd)
 
   const reserveCmd: ReservePayerFundsCmd = new ReservePayerFundsCmd(payerId, transferId, 50)

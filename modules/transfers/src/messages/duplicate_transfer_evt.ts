@@ -9,7 +9,7 @@ import { TransfersAggTopics } from '../domain/transfers_agg'
 
 export class DuplicateTransferDetectedEvt extends DomainEventMsg {
   aggregateId: string
-  aggregate_name: string = 'Participants'
+  aggregate_name: string = 'Transfers'
   msgKey: string
   msgTopic: string = TransfersAggTopics.DomainEvents
 

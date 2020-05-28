@@ -58,7 +58,7 @@ export class TransferEntity extends BaseEntity<TransferState> {
     return entity
   }
 
-  setupInitialState (amount: number, currencyId: string, payerName: string, payeeName: string): void{
+  setupInitialState (amount: number, currencyId: string, payerName: string, payeeName: string): void {
     this._state.amount = amount
     this._state.currencyId = currencyId
     this._state.payerName = payerName
@@ -66,19 +66,7 @@ export class TransferEntity extends BaseEntity<TransferState> {
     this._state.transferInternalStateId = TransferInternalState.RECEIVED_PREPARE
   }
 
-
-/*
-  canReserveFunds (amount: number): boolean {
-    if (amount <= 0) { return false }
-
-    return (this._state.position + amount) < this._state.limit
+  changeStateTo (newState: TransferInternalState): void {
+    this._state.transferInternalStateId = newState
   }
-
-  reserveFunds (amount: number): void{
-    this._state.position -= amount
-  }
-
-  reverseFundReservation (amount: number): void{
-    this._state.position += amount
-  }*/
 }

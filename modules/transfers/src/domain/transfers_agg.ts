@@ -6,10 +6,14 @@
 import { BaseAggregate, IEntityStateRepository, IMessagePublisher } from '@mojaloop-poc/lib-domain'
 import { CreateTransferCmd } from "../messages/create_transfer_cmd"
 import { TransferCreatedEvt } from "../messages/transfer_created_evt"
-import { DuplicateTransferDetectedEvt } from "../messages/duplicate_participant_evt"
-import { TransferEntity, TransferState } from './transfer_entity'
+import { DuplicateTransferDetectedEvt } from "../messages/duplicate_transfer_evt"
+import { UnknownTransferEvt } from '../messages/unknown_transfer_evt'
+import { TransferEntity, TransferState, TransferInternalState } from './transfer_entity'
 import { TransfersFactory } from './transfers_factory'
 import { ILogger } from '@mojaloop-poc/lib-domain'
+import { TransferReservedEvt } from '../messages/transfer_reserved_evt'
+import { AcknowledgeTransferFundsCmd } from '../messages/acknowledge_transfer_funds_cmd'
+import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 
 export enum TransfersAggTopics {
   'Commands' = 'TransferCommands',
@@ -20,7 +24,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
   constructor (entityStateRepo: IEntityStateRepository<TransferState>, msgPublisher: IMessagePublisher, logger:ILogger) {
     super(TransfersFactory.GetInstance(), entityStateRepo, msgPublisher, logger)
     this._registerCommandHandler('CreateTransferCmd', this.processCreateTransferCommand)
-    this._registerCommandHandler('AcknowledgeTransferFundsReserved', this.processAcknowledgeTransferFundsReservedCommand)
+    this._registerCommandHandler('AcknowledgeTransferFundsCmd', this.processAcknowledgeTransferFundsReservedCommand)
   }
 
   async processCreateTransferCommand (commandMsg: CreateTransferCmd): Promise<boolean> {
@@ -48,15 +52,17 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
     return true
   }
 
-  async processAcknowledgeTransferFundsReservedCommand (commandMsg: CreateTransferCmd): Promise<boolean> {
-    // try loading first to detect duplicates
+  async processAcknowledgeTransferFundsReservedCommand (commandMsg: AcknowledgeTransferFundsCmd): Promise<boolean> {
     await this.load(commandMsg.payload.id, false)
 
-    /* TODO: make sure it exists, if not error event */
+    if (!this._rootEntity) {
+      this.recordDomainEvent(new UnknownTransferEvt(commandMsg.payload.id))
+      return false
+    }
 
-    /* TODO: call entity state to be changed */
+    this._rootEntity.changeStateTo(TransferInternalState.RESERVED)
 
-    /* TODO: send event TransferReservedEvent */
+    this.recordDomainEvent(new TransferReservedEvt(this._rootEntity!))
 
     return true
   }
