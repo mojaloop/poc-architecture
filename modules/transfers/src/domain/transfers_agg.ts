@@ -20,6 +20,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
   constructor (entityStateRepo: IEntityStateRepository<TransferState>, msgPublisher: IMessagePublisher, logger:ILogger) {
     super(TransfersFactory.GetInstance(), entityStateRepo, msgPublisher, logger)
     this._registerCommandHandler('CreateTransferCmd', this.processCreateTransferCommand)
+    this._registerCommandHandler('AcknowledgeTransferFundsReserved', this.processAcknowledgeTransferFundsReservedCommand)
   }
 
   async processCreateTransferCommand (commandMsg: CreateTransferCmd): Promise<boolean> {
@@ -31,7 +32,10 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       return false
     }
 
+    /* TODO: validation of incoming payload */
+
     this.create(commandMsg.payload.id)
+
     this._rootEntity!.setupInitialState(
       commandMsg.payload.amount,
       commandMsg.payload.currencyId,
@@ -40,6 +44,19 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
     )
 
     this.recordDomainEvent(new TransferCreatedEvt(this._rootEntity!))
+
+    return true
+  }
+
+  async processAcknowledgeTransferFundsReservedCommand (commandMsg: CreateTransferCmd): Promise<boolean> {
+    // try loading first to detect duplicates
+    await this.load(commandMsg.payload.id, false)
+
+    /* TODO: make sure it exists, if not error event */
+
+    /* TODO: call entity state to be changed */
+
+    /* TODO: send event TransferReservedEvent */
 
     return true
   }

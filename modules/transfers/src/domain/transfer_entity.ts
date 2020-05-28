@@ -63,7 +63,10 @@ export class TransferEntity extends BaseEntity<TransferState> {
     this._state.currencyId = currencyId
     this._state.payerName = payerName
     this._state.payeeName = payeeName
+    this._state.transferInternalStateId = TransferInternalState.RECEIVED_PREPARE
   }
+
+
 /*
   canReserveFunds (amount: number): boolean {
     if (amount <= 0) { return false }
