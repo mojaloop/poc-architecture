@@ -1,15 +1,17 @@
 {
   "name": "arch_poc",
   "version": "0.1.0",
-  "description": "mojaloop arch poc all-in-one",
+  "description": "mojaloop arch poc all-in-one.",
   "license": "Apache-2.0",
   "homepage": "https://github.com/mojaloop/poc-architecture",
   "bugs": {
     "url": "https://github.com/mojaloop/<repo-name>/issues#readme"
   },
-  "author": "Pedro Barreto <pedrosousabarreto@gmail.com",
+  "author": "Pedro Sousa Barreto <pedrob@crosslaketech.com>",
   "contributors": [
-    "Miguel de Barros <miguel.debarros@modusbox.com>"
+    "Miguel de Barros <miguel.debarros@modusbox.com>",
+    "Donovan Changfoot <donovan.changfoot@coil.com>",
+    "Roman Pietrzak <roman.pietrzak@modusbox.com>"
   ],
   "pre-commit": [
     "dep:check",
