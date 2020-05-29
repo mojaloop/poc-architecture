@@ -42,7 +42,7 @@ import { ParticipantsAggTopics } from '../domain/participants_agg'
 
 export class InvalidParticipantEvt extends DomainEventMsg {
   aggregateId: string
-  aggregate_name: string = 'Participants'
+  aggregateName: string = 'Participants'
   msgKey: string
   msgTopic: string = ParticipantsAggTopics.DomainEvents
 
@@ -59,4 +59,6 @@ export class InvalidParticipantEvt extends DomainEventMsg {
       participantId
     }
   }
+
+  validatePayload (): void{ }
 }

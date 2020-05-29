@@ -20,10 +20,11 @@
     "test:unit"
   ],
   "scripts": {
-    "start": "npx lerna run start",
-    "start:participants": "npm run build && npx lerna run start:participants",
-    "start:transfers": "npm run build && npx lerna run start:transfers",
-    "build": "npx lerna run build",
+    "start": "npx lerna run --no-progress --stream  start",
+    "start:participants": "npm run build && npx lerna run --no-progress --stream --scope='@mojaloop-poc/participants' start",
+    "start:transfers": "npm run build && npx lerna run --no-progress --stream --scope='@mojaloop-poc/participants' start",
+    "build": "npx lerna run --stream build",
+    "watch": "npx lerna run --no-progress --stream --parallel watch",
     "clean": "npm run clean:dist && npm run clean:npm",
     "clean:npm": "npx lerna clean",
     "clean:dist": "npx lerna run clean",
@@ -37,8 +38,8 @@
     "test:coverage-check": "npx lerna run test:coverage-check",
     "audit:resolve": "npx lerna run audit:resolve",
     "audit:check": "npx lerna run audit:check",
-    "dep:check": "npx lerna run dep:check",
-    "dep:update": "npx lerna run dep:update"
+    "dep:check": "npx lerna run --no-progress --stream dep:check",
+    "dep:update": "npx lerna run --no-progress --stream dep:update"
   },
   "dependencies": {
     "knex": "^0.21.1",

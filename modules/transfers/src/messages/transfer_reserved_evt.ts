@@ -9,7 +9,7 @@ import { TransfersAggTopics } from '../domain/transfers_agg'
 
 export class TransferReservedEvt extends DomainEventMsg {
   aggregateId: string
-  aggregate_name: string = 'Transfers'
+  aggregateName: string = 'Transfers'
   msgKey: string
   msgTopic: string = TransfersAggTopics.DomainEvents
 
@@ -36,4 +36,6 @@ export class TransferReservedEvt extends DomainEventMsg {
       payeeName: transfer.payeeName
     }
   }
+
+  validatePayload (): void{ }
 }

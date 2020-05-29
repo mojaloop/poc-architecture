@@ -8,7 +8,7 @@ import { TransfersAggTopics } from '../domain/transfers_agg'
 
 export class AcknowledgeTransferFundsCmd extends CommandMsg {
   aggregateId: string
-  aggregate_name: string = 'Transfers'
+  aggregateName: string = 'Transfers'
   msgKey: string
   msgTopic: string = TransfersAggTopics.Commands
 
@@ -25,4 +25,6 @@ export class AcknowledgeTransferFundsCmd extends CommandMsg {
       id
     }
   }
+
+  validatePayload (): void{ }
 }

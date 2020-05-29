@@ -66,9 +66,9 @@ export interface IMessage{
 // domain specific
 
 export interface IDomainMessage extends IMessage{
-  msg_name: string // name of the event or command
+  msgName: string // name of the event or command
 
-  aggregate_name: string // name of the source/target aggregate (source if event, target if command)
+  aggregateName: string // name of the source/target aggregate (source if event, target if command)
   aggregateId: string // id of the source/target aggregate (source if event, target if command)
   // aggregate_version:number; // version of the source/target aggregate (source if event, target if command)
 }
@@ -76,17 +76,30 @@ export interface IDomainMessage extends IMessage{
 export abstract class DomainMsg implements IDomainMessage {
   msgId: string = uuidv4() // unique per message
   msgTimestamp: number = Date.now()
-  msg_name: string = (this as any).constructor.name
+  msgName: string = (this as any).constructor.name
 
   abstract msgType: MessageTypes
   abstract msgKey: string // usually the id of the aggregate (used for partitioning)
   abstract msgTopic: string
 
   abstract aggregateId: string
-  abstract aggregate_name: string
-  // abstract aggregate_version: number;
+  abstract aggregateName: string
+  // abstract aggregateVersion: number;
 
   abstract payload: any
+
+  // static fromIDomainMessage<T extends DomainMsg>(msg:IDomainMessage):T{
+  static fromIDomainMessage (msg: IDomainMessage): DomainMsg | undefined {
+    const obj: DomainMsg = Reflect.construct(this, [{}])
+
+    Object.assign(obj, msg)
+
+    obj.validatePayload()
+
+    return obj
+  }
+
+  abstract validatePayload(): void
 }
 
 export abstract class DomainEventMsg extends DomainMsg {

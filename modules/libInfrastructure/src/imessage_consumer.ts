@@ -1,3 +1,4 @@
+
 /*****
  License
  --------------
@@ -37,28 +38,41 @@
 
 'use strict'
 
-import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
-import { ParticipantsAggTopics } from '../domain/participants_agg'
+import { IDomainMessage, ILogger } from '@mojaloop-poc/lib-domain'
+import { EventEmitter } from 'events'
 
-export interface DuplicateParticipantDetectedEvtPayload {
-  participantId: string
+export interface Options<tClientOptions> {
+  client: tClientOptions
+  topics: string | string[]
 }
 
-export class DuplicateParticipantDetectedEvt extends DomainEventMsg {
-  aggregateId: string
-  aggregateName: string = 'Participants'
-  msgKey: string
-  msgTopic: string = ParticipantsAggTopics.DomainEvents
+export interface iMessageConsumer {
+  init: (handlerCallback: (message: IDomainMessage) => void) => void
+  destroy: (forceCommit: boolean) => Promise<void>
+  connect: () => void
+  pause: () => void
+  resume: () => void
+  disconnect: () => void
+}
 
-  payload: DuplicateParticipantDetectedEvtPayload
+export abstract class MessageConsumer extends EventEmitter implements iMessageConsumer {
+  abstract init (handlerCallback: (message: IDomainMessage) => void): void
+  abstract destroy (forceCommit: boolean): Promise<void>
+  abstract connect (): void
+  abstract pause (): void
+  abstract resume (): void
+  abstract disconnect (): void
+  static Create<tOptions>(options: tOptions, logger: ILogger): MessageConsumer {
+    const consumer = Reflect.construct(this, arguments)
 
-  constructor (payload: DuplicateParticipantDetectedEvtPayload) {
-    super()
+    consumer.on('error', (err: Error): void => {
+      logger.error(`event::error - ${JSON.stringify(err)}`)
+    })
 
-    this.aggregateId = this.msgKey = payload.participantId
+    // consumer.on('commit', (msgMetaData:any) => {
+    //   logger.info(`event::commit - ${JSON.stringify(msgMetaData)}`)
+    // })
 
-    this.payload = payload
+    return consumer
   }
-
-  validatePayload (): void{ }
 }

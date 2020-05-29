@@ -42,7 +42,7 @@ import { ParticipantsAggTopics } from '../domain/participants_agg'
 
 export class NetCapLimitExceededEvt extends DomainEventMsg {
   aggregateId: string
-  aggregate_name: string = 'Participants'
+  aggregateName: string = 'Participants'
   msgKey: string
   msgTopic: string = ParticipantsAggTopics.DomainEvents
 
@@ -61,4 +61,6 @@ export class NetCapLimitExceededEvt extends DomainEventMsg {
       transferId
     }
   }
+
+  validatePayload (): void{ }
 }

@@ -37,32 +37,33 @@
 
 'use strict'
 
-import { CommandMsg } from '@mojaloop-poc/lib-domain'
+import { CommandMsg, MessageTypes } from '@mojaloop-poc/lib-domain'
 import { ParticipantsAggTopics } from '../domain/participants_agg'
 
+export interface CreateParticipantCmdPayload {
+  id: string
+  name: string
+  limit: number
+  initialPosition: number
+}
+
 export class CreateParticipantCmd extends CommandMsg {
-  aggregateId: string
-  aggregate_name: string = 'Participants'
-  msgKey: string
+  msgType: MessageTypes
+  msgKey: string // usually the id of the aggregate (used for partitioning)
   msgTopic: string = ParticipantsAggTopics.Commands
 
-  payload: {
-    id: string
-    name: string
-    limit: number
-    initialPosition: number
-  }
+  aggregateId: string
+  aggregateName: string = 'Participants'
 
-  constructor (id: string, name: string, limit: number, initialPosition: number) {
+  payload: CreateParticipantCmdPayload
+
+  constructor (payload: CreateParticipantCmdPayload) {
     super()
 
-    this.aggregateId = this.msgKey = id
+    this.aggregateId = this.msgKey = payload?.id
 
-    this.payload = {
-      id,
-      name,
-      limit,
-      initialPosition
-    }
+    this.payload = payload
   }
+
+  validatePayload (): void{ }
 }

@@ -91,7 +91,9 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
     // try loadling first to detect duplicates
     await this.load(commandMsg.payload.id, false)
     if (this._rootEntity != null) {
-      this.recordDomainEvent(new DuplicateParticipantDetectedEvt(commandMsg.payload.id))
+      this.recordDomainEvent(new DuplicateParticipantDetectedEvt({
+        participantId: commandMsg.payload.id
+      }))
       return false
     }
 

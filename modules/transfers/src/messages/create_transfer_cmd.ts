@@ -9,7 +9,7 @@ import { TransferInternalState } from '../domain/transfer_entity'
 
 export class CreateTransferCmd extends CommandMsg {
   aggregateId: string
-  aggregate_name: string = 'Transfers'
+  aggregateName: string = 'Transfers'
   msgKey: string
   msgTopic: string = TransfersAggTopics.Commands
 
@@ -36,4 +36,6 @@ export class CreateTransferCmd extends CommandMsg {
       payeeName
     }
   }
+
+  validatePayload (): void{ }
 }
