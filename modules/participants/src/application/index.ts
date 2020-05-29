@@ -96,7 +96,7 @@ const start = async (): Promise<void> => {
   // })
   // await agg.processCommand(reserveCmd)
 
-  // ## Setup createParticipantCmdConsumerConfig
+  // ## Setup participantCmdConsumer
   const participantCmdHandler = async (message: IDomainMessage): Promise<void> => {
     try {
       // transfer messages into correct Participant Command
@@ -129,18 +129,18 @@ const start = async (): Promise<void> => {
     }
   }
 
-  const createParticipantCmdConsumerOptions: KafkaGenericConsumerOptions = {
+  const participantCmdConsumerOptions: KafkaGenericConsumerOptions = {
     client: {
       kafkaHost: appConfig.kafka.host,
-      id: 'createParticipantCmdConsumer',
-      groupId: 'createParticipantCmdGroup',
+      id: 'participantCmdConsumer',
+      groupId: 'participantCmdGroup',
       fromOffset: EnumOffset.LATEST
     },
     topics: [ParticipantsAggTopics.Commands]
   }
 
-  logger.info('Creating createParticipantCmdConsumer...')
-  const createParticipantCmdConsumer = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(createParticipantCmdConsumerOptions, logger)
+  logger.info('Creating participantCmdConsumer...')
+  const participantCmdConsumer = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(participantCmdConsumerOptions, logger)
 
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
   // process.on('exit', async (): Promise<void> => {
@@ -150,9 +150,9 @@ const start = async (): Promise<void> => {
   //   logger.info('Exit complete')
   // })
 
-  logger.info('Initializing createParticipantCmdConsumer...')
+  logger.info('Initializing participantCmdConsumer...')
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-  await createParticipantCmdConsumer.init(participantCmdHandler)
+  await participantCmdConsumer.init(participantCmdHandler)
 }
 
 start().catch((err) => {
