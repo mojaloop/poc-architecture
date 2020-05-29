@@ -23,7 +23,7 @@
     "start": "npx lerna run --no-progress --stream  start",
     "start:participants": "npm run build && npx lerna run --no-progress --stream --scope='@mojaloop-poc/participants' start",
     "start:transfers": "npm run build && npx lerna run --no-progress --stream --scope='@mojaloop-poc/participants' start",
-    "build": "npx lerna run build",
+    "build": "npx lerna run --stream build",
     "watch": "npx lerna run --no-progress --stream --parallel watch",
     "clean": "npm run clean:dist && npm run clean:npm",
     "clean:npm": "npx lerna clean",
