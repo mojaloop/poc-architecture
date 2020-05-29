@@ -150,7 +150,7 @@ const start = async (): Promise<void> => {
   //   logger.info('Exit complete')
   // })
 
-  logger.info('Initializing createParticipantCmdConsumer...')
+  logger.info('Initializing participantCmdConsumer...')
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
   await participantCmdConsumer.init(participantCmdHandler)
 }
