@@ -1,0 +1,82 @@
+version: "3.7"
+
+networks:
+  mojaloop-poc:
+    name: mojaloop-poc
+
+services:
+  kafka:
+    image: johnnypark/kafka-zookeeper:2.3.0
+    container_name: kafka
+    volumes:
+      - ./docker/kafka/:/opt/kafka_2.12-2.3.0/config/
+    ports:
+      - "2181:2181"
+      - "9092:9092"
+    environment:
+      - ZOO_LOG4J_PROP=WARN
+    networks:
+      - mojaloop-poc
+    healthcheck:
+      test: ["CMD" ,"/opt/kafka_2.12-2.3.0/bin/kafka-broker-api-versions.sh","--bootstrap-server","172.17.0.1:9092"]
+      timeout: 20s
+      retries: 10
+      start_period: 40s
+      interval: 30s
+
+  # Participants
+  participants:
+    image: mojaloop-poc/participants:v0.1.0
+    container_name: participants
+    command: sh -c "/opt/participants/wait4/wait4.js participants && npm start"
+    ports:
+      - "3001:3001"
+    volumes:
+       - ./docker/participants/default.json:/opt/participants/config/default.json
+       - ./docker/wait4:/opt/participants/wait4
+    environment:
+      - LOG_LEVEL=info
+      - PARTICIPANTS_REDIS_CONNECTION=redis-participants
+      - PARTICIPANTS_KAFKA_CONNECTION="kafka:9092"
+    networks:
+      - mojaloop-poc
+    depends_on:
+      - redis-participants
+      - kafka
+    # healthcheck:
+    #   test: wget -q http://172.17.0.1:3001/health -O /dev/null || exit 1
+    #   timeout: 20s
+    #   retries: 30
+    #   interval: 15s
+
+  redis-participants:
+    container_name: redis-participants
+    image: "redis:5.0.4-alpine"
+    ports:
+      - "6379:6379"
+    networks:
+      - mojaloop-poc
+    restart: always
+
+  # Transfers
+  transfers:
+    image: mojaloop-poc/transfers:v0.1.0
+    container_name: transfers
+    command: sh -c "/opt/transfers/wait4/wait4.js transfers && npm start"
+    ports:
+      - "3000:3001"
+    volumes:
+       - ./docker/transfers/default.json:/opt/transfers/config/default.json
+       - ./docker/wait4:/opt/transfers/wait4
+    environment:
+      - LOG_LEVEL=info
+      - TRANSFERS_KAFKA_CONNECTION="kafka:9092"
+    networks:
+      - mojaloop-poc
+    depends_on:
+      - kafka
+    # healthcheck:
+    #   test: wget -q http://172.17.0.1:3001/health -O /dev/null || exit 1
+    #   timeout: 20s
+    #   retries: 30
+    #   interval: 15s

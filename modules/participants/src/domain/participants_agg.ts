@@ -49,7 +49,7 @@ import { PayerFundsReservedEvt } from '../messages/payer_funds_reserved_evt'
 import { ParticipantCreatedEvt } from '../messages/participant_created_evt'
 import { NetCapLimitExceededEvt } from '../messages/netcaplimitexceeded_evt'
 
-export enum ParticipantsAggTopics{
+export enum ParticipantsAggTopics {
   'Commands' = 'ParticipantCommands',
   'DomainEvents' = 'ParticipantDomainEvents',
   // "StateEvents" = "ParticipantStateEvents"

@@ -20,6 +20,7 @@
     "test:unit"
   ],
   "scripts": {
+    "start": "npx lerna run --no-progress --stream  start",
     "start:participants": "npm run build && npx lerna run --no-progress --stream --scope='@mojaloop-poc/participants' start",
     "start:transfers": "npm run build && npx lerna run --no-progress --stream --scope='@mojaloop-poc/participants' start",
     "build": "npx lerna run build",
@@ -41,7 +42,9 @@
     "dep:update": "npx lerna run --no-progress dep:update"
   },
   "dependencies": {
-    "lerna": "^3.22.0"
+    "knex": "^0.21.1",
+    "lerna": "^3.22.0",
+    "redis": "^3.0.2"
   },
   "devDependencies": {
     "pre-commit": "^1.2.2"
