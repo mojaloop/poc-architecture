@@ -8,6 +8,7 @@ module.exports = {
     'no-async-promise-executor': 'off',
     '@typescript-eslint/no-non-null-assertion': 'off'
   },
+  ignorePatterns: [ '**/*.js',  '**/*.d.ts'],
   overrides: [
     {
       // Disable some rules that we abuse in unit tests.

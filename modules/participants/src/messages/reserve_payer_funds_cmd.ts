@@ -62,4 +62,6 @@ export class ReservePayerFundsCmd extends CommandMsg {
       amount
     }
   }
+
+  validatePayload():void{ }
 }

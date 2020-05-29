@@ -39,7 +39,7 @@
 
 import { BaseEntity } from './base_entity'
 import { BaseEntityState } from './base_entity_state'
-import { CommandMsg, DomainEventMsg, IDomainMessage } from './messages'
+import {CommandMsg, DomainEventMsg, DomainMsg, IDomainMessage} from './messages'
 import { IMessagePublisher } from './imessage_publisher'
 import { IEntityStateRepository } from './ientity_state_repository'
 import { IEntityFactory } from './entity_factory'
@@ -147,7 +147,7 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
      this._event_handlers.set(event_name, handler);
   } */
 
-  protected _registerCommandHandler (cmdName: string, handler: (event: CommandMsg) => Promise<boolean>): void {
+  protected _registerCommandHandler (cmdName: string, handler: (commandMsg: CommandMsg) => Promise<boolean>): void {
     this._commandHandlers.set(cmdName, handler)
   }
 
@@ -227,7 +227,7 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
     // the reset_state() above already sets the root_entity to null
   }
 
-  protected recordDomainEvent (event: IDomainMessage): void{
+  protected recordDomainEvent (event: DomainMsg): void{
     this._uncommittedEvents.push(event)
   }
 

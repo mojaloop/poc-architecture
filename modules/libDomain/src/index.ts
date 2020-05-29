@@ -38,6 +38,8 @@
 'use strict'
 
 // Exports for Domain
+import {MessageTypes} from "./messages";
+
 export * from './base_aggregate'
 export * from './base_entity'
 export * from './base_entity_state'
@@ -46,3 +48,4 @@ export * from './ientity_state_repository'
 export * from './imessage_publisher'
 export * from './messages'
 export * from './ilogger'
+

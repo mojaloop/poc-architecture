@@ -61,4 +61,6 @@ export class NetCapLimitExceededEvt extends DomainEventMsg {
       transferId
     }
   }
+
+  validatePayload():void{ }
 }

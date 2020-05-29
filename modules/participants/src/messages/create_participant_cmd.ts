@@ -39,8 +39,12 @@
 
 import { CommandMsg } from '@mojaloop-poc/lib-domain'
 import { ParticipantsAggTopics } from '../domain/participants_agg'
+import {MessageTypes} from '@mojaloop-poc/lib-domain';
+
+
 
 export class CreateParticipantCmd extends CommandMsg {
+
   aggregateId: string
   aggregate_name: string = 'Participants'
   msgKey: string
@@ -65,4 +69,9 @@ export class CreateParticipantCmd extends CommandMsg {
       initialPosition
     }
   }
+
+  validatePayload():void{ }
+
 }
+
+

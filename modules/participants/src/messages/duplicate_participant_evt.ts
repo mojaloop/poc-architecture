@@ -59,4 +59,6 @@ export class DuplicateParticipantDetectedEvt extends DomainEventMsg {
       participantId
     }
   }
+
+  validatePayload():void{ }
 }

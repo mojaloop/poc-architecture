@@ -63,4 +63,6 @@ export class PayerFundsReservedEvt extends DomainEventMsg {
       currentPosition
     }
   }
+
+  validatePayload():void{ }
 }
