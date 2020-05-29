@@ -41,40 +41,38 @@
 import { IDomainMessage, ILogger } from '@mojaloop-poc/lib-domain'
 import { EventEmitter } from 'events'
 
-export type Options<tClientOptions> = {
-  client: tClientOptions,
+export interface Options<tClientOptions> {
+  client: tClientOptions
   topics: string | string[]
 }
 
 export interface iMessageConsumer {
-  init (handlerCallback: (message: IDomainMessage) => void): void
-  destroy (forceCommit: boolean, callback?: (err?: Error) => void): void
-  connect (): void
-  pause (): void
-  resume (): void
-  disconnect (): void
+  init: (handlerCallback: (message: IDomainMessage) => void) => void
+  destroy: (forceCommit: boolean) => Promise<void>
+  connect: () => void
+  pause: () => void
+  resume: () => void
+  disconnect: () => void
 }
 
 export abstract class MessageConsumer extends EventEmitter implements iMessageConsumer {
   abstract init (handlerCallback: (message: IDomainMessage) => void): void
-  abstract destroy (forceCommit: boolean, callback?: (err?: Error) => void): void
+  abstract destroy (forceCommit: boolean): Promise<void>
   abstract connect (): void
   abstract pause (): void
   abstract resume (): void
   abstract disconnect (): void
-  static async Create<tOptions>(options: tOptions, handlerProcessor: (message: IDomainMessage) => void, logger: ILogger): Promise<MessageConsumer> {
+  static Create<tOptions>(options: tOptions, logger: ILogger): MessageConsumer {
     const consumer = Reflect.construct(this, arguments)
-  
-    consumer.on('error', (err?: Error | undefined): void => {
-      logger.error(`event::error - ${err}`)
+
+    consumer.on('error', (err: Error): void => {
+      logger.error(`event::error - ${JSON.stringify(err)}`)
     })
-  
-    consumer.on('commit', (msgMetaData:any) => {
-      logger.info(`event::commit - ${JSON.stringify(msgMetaData)}`)
-    })
-  
-    await consumer.init(handlerProcessor)
-  
+
+    // consumer.on('commit', (msgMetaData:any) => {
+    //   logger.info(`event::commit - ${JSON.stringify(msgMetaData)}`)
+    // })
+
     return consumer
   }
 }

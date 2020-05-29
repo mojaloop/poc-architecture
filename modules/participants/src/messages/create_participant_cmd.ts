@@ -37,10 +37,10 @@
 
 'use strict'
 
-import { IDomainMessage, CommandMsg, MessageTypes } from '@mojaloop-poc/lib-domain'
+import { CommandMsg, MessageTypes } from '@mojaloop-poc/lib-domain'
 import { ParticipantsAggTopics } from '../domain/participants_agg'
 
-export type CreateParticipantCmdPayload = {
+export interface CreateParticipantCmdPayload {
   id: string
   name: string
   limit: number
@@ -56,7 +56,7 @@ export class CreateParticipantCmd extends CommandMsg {
   aggregateName: string = 'Participants'
 
   payload: CreateParticipantCmdPayload
-  
+
   constructor (payload: CreateParticipantCmdPayload) {
     super()
 
@@ -65,6 +65,5 @@ export class CreateParticipantCmd extends CommandMsg {
     this.payload = payload
   }
 
-  validatePayload():void{ }
-
+  validatePayload (): void{ }
 }

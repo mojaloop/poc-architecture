@@ -7,8 +7,7 @@ import * as kafka from 'kafka-node'
 import * as async from 'async'
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 import { ILogger, IDomainMessage } from '@mojaloop-poc/lib-domain'
-import { iMessageConsumer, MessageConsumer, Options } from './imessage_consumer'
-import { EventEmitter } from 'events'
+import { MessageConsumer, Options } from './imessage_consumer'
 
 export enum EnumOffset {
   LATEST= 'latest',
@@ -51,7 +50,7 @@ export class KafkaGenericConsumer extends MessageConsumer {
     this._options = { ...options }
 
     let tempTopics
-    if (typeof options.topics === 'string') { 
+    if (typeof options.topics === 'string') {
       tempTopics = []
       tempTopics.push(options.topics)
     } else {
@@ -62,35 +61,30 @@ export class KafkaGenericConsumer extends MessageConsumer {
       return topicName
     })
 
-    if (logger && typeof (<any>logger).child === 'function') {
-      this._logger = (<any>logger).child({
-        class: 'KafkaConsumer2',
-        kafkaTopics: this._topics.join(','),
-        kafkaGroupname: this._options.client?.groupId
-      })
-    } else {
+    if (logger != null) {
       this._logger = new ConsoleLogger()
     }
 
     this._logger.info('instance created')
   }
 
-  destroy (forceCommit: boolean = false, callback?: (err?: Error) => void) {
-    if (this._consumerGroup && this._consumerGroup.close) {
-      this._consumerGroup.close(forceCommit, (callback ?? (() => {
-      })))
-    } else {
-      if (callback) { return callback() }
-    }
+  async destroy (forceCommit: boolean = false): Promise<void> {
+    return await new Promise((resolve, reject) => {
+      if (this._consumerGroup != null) {
+        this._consumerGroup?.close(forceCommit, () => {
+          resolve()
+        })
+      } else {
+        resolve()
+      }
+    })
   }
 
-  async init (handlerCallback: (message: IDomainMessage) => void) : Promise<void> {
+  /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+  async init (handlerCallback: (message: IDomainMessage) => void): Promise<void> {
     return await new Promise((resolve, reject) => {
       this._logger.info('initialising...')
 
-      if(!handlerCallback){
-        throw new Error('Undefined handlerCallback function')
-      }
       this._handlerCallback = handlerCallback
 
       const defaultConsumerGroupOptions: kafka.ConsumerGroupOptions = {
@@ -98,7 +92,7 @@ export class KafkaGenericConsumer extends MessageConsumer {
         // An array of partition assignment protocols ordered by preference.
         // 'roundrobin' or 'range' string for built ins (see below to pass in custom assignment protocol)
         groupId: 'notset',
-        protocol: [ EnumProtocols.ROUNDROBIN ],
+        protocol: [EnumProtocols.ROUNDROBIN],
         autoCommit: false, // this._auto_commit,
         // Offsets to use for new groups other options could be 'earliest' or 'none' (none will emit an error if no offsets were saved)
         // equivalent to Java client's auto.offset.reset
@@ -114,7 +108,7 @@ export class KafkaGenericConsumer extends MessageConsumer {
         // kafkaHost: 'localhost:9092', // connect directly to kafka broker (instantiates a KafkaClient)
         batch: undefined, // put client batch settings if you need them
         // ssl: true, // optional (defaults to false) or tls options hash
-        encoding: EnumEncoding.UTF8, // default is utf8, use 'buffer' for binary data
+        encoding: EnumEncoding.UTF8 // default is utf8, use 'buffer' for binary data
         // commitOffsetsOnFirstJoin: true, // on the very first time this consumer group subscribes to a topic, record the offset returned in fromOffset (latest/earliest)
         // how to recover from OutOfRangeOffset error (where save offset is past server retention) accepts same value as fromOffset
         // outOfRangeOffset: 'earliest', // default
@@ -126,32 +120,32 @@ export class KafkaGenericConsumer extends MessageConsumer {
       // copy default config
       const consumerGroupOptions = { ...defaultConsumerGroupOptions }
       // override any values with the options given to the client
-      Object.assign(consumerGroupOptions, this._options.client);
+      Object.assign(consumerGroupOptions, this._options.client)
 
       this._logger.info(`options: \n${JSON.stringify(consumerGroupOptions)}`)
-  
+
       this._consumerGroup = new kafka.ConsumerGroup(
         consumerGroupOptions as kafka.ConsumerGroupOptions, this._topics
       )
-  
+
       this._consumerGroup.on('error', (err: Error) => {
         this._logger.error(err, ' - consumer error')
         process.nextTick(() => {
           this.emit('error', err)
         })
       })
-  
+
       this._consumerGroup.on('offsetOutOfRange', (err) => {
         this._logger.error(err, ' - offsetOutOfRange consumer error')
         process.nextTick(() => {
           this.emit('error', err)
         })
       })
-  
+
       this._consumerGroup.on('connect', () => {
         if (!this._initialized) {
           this._logger.info('first on connect')
-  
+
           this._initialized = true
           process.nextTick(() => {
             resolve()
@@ -160,11 +154,11 @@ export class KafkaGenericConsumer extends MessageConsumer {
           this._logger.info('on connect - (re)connected')
         }
       })
-  
+
       this._consumerGroup.client.on('ready', () => {
         this._logger.info('on ready')
       })
-  
+
       this._consumerGroup.client.on('reconnect', () => {
         this._logger.info('on reconnect')
       })
@@ -175,21 +169,22 @@ export class KafkaGenericConsumer extends MessageConsumer {
 
       // hook on message
       // this._consumerGroup.on('message', this.messageHandler.bind(this));
-      
+
       this._consumerGroup.on('message', (message: any) => {
         const logger = this._logger
         // this._logger.info(`MESSAGE:${JSON.stringify(message)}`)
-        if(!this._syncQueue) throw new Error('Async queue has not been defined!')
+        if (this._syncQueue == null) throw new Error('Async queue has not been defined!')
         this._syncQueue.push({ message }, function (err) {
-          if (err) {
-            logger.error(`Consumer::_consumePoller()::syncQueue.push - error: ${err}`)
+          if (err != null) {
+            logger.error(`Consumer::_consumePoller()::syncQueue.push - error: ${JSON.stringify(err)}`)
           }
         })
       })
-
       this._logger.info('async queue created')
 
+      /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
       this._syncQueue = async.queue(async (message) => {
+        this._processing = true
         // this._logger.debug(`async::queue() - message: ${JSON.stringify(message)}`)
 
         const msgMetaData = {
@@ -202,22 +197,20 @@ export class KafkaGenericConsumer extends MessageConsumer {
           commitResult: undefined
         }
 
-        if (!this._handlerCallback) {
-          this._logger.warn(`No handerlCallback set. Received the following message: ${JSON.stringify(message)}`)
-          // perhaps we should throw an error here?
-        }
-
         try {
           const domainMessage = JSON.parse(message.message.value) as IDomainMessage
-          
+
           await this._handlerCallback(domainMessage)
         } catch (err) {
-          this._logger.error(`async::queue() - error: ${err}`)
           this.emit('error', err)
+          // do we throw it?
         } finally {
-          if (!consumerGroupOptions.autoCommit) {
-            const isCommited = await new Promise<boolean>( (resolve, reject) => {
-              this._consumerGroup.commit( function(err, data) {
+          if (consumerGroupOptions.autoCommit === false) {
+            const isCommited = await new Promise<boolean>((resolve, reject): void => {
+              this._consumerGroup.commit(function (err, data) {
+                if (err != null) {
+                  reject(err)
+                }
                 msgMetaData.commitResult = data
                 resolve(true)
               })
@@ -227,30 +220,30 @@ export class KafkaGenericConsumer extends MessageConsumer {
               this.emit('commit', msgMetaData)
             }
           }
+          this._processing = false
         }
       }, 1)
 
       this._syncQueue.drain(() => {
         // do something here...
       })
-
     })
     // TODO need a timeout for this on-ready
   }
 
-  connect () {
+  connect (): void {
     (this._consumerGroup as any).connect()
   }
 
-  pause () {
+  pause (): void {
     this._consumerGroup.pause()
   }
 
-  resume () {
+  resume (): void {
     this._consumerGroup.resume()
   }
 
-  disconnect () {
+  disconnect (): void {
     this._consumerGroup.close(false, () => {
     })
   }

@@ -60,5 +60,5 @@ export class InvalidParticipantEvt extends DomainEventMsg {
     }
   }
 
-  validatePayload():void{ }
+  validatePayload (): void{ }
 }

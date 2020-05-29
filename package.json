@@ -20,8 +20,8 @@
     "test:unit"
   ],
   "scripts": {
-    "start:participants": "npm run build && npx lerna run start:participants",
-    "start:transfers": "npm run build && npx lerna run start:transfers",
+    "start:participants": "npm run build && npx lerna run --no-progress --stream --scope='@mojaloop-poc/participants' start",
+    "start:transfers": "npm run build && npx lerna run --no-progress --stream --scope='@mojaloop-poc/participants' start",
     "build": "npx lerna run build",
     "watch": "npx lerna run --no-progress --parallel watch",
     "clean": "npm run clean:dist && npm run clean:npm",

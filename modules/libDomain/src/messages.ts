@@ -88,25 +88,18 @@ export abstract class DomainMsg implements IDomainMessage {
 
   abstract payload: any
 
-  constructor() {}
-
   // static fromIDomainMessage<T extends DomainMsg>(msg:IDomainMessage):T{
-  static fromIDomainMessage(msg:IDomainMessage):DomainMsg | undefined{
-    let obj: DomainMsg
-    try{
-      obj = Reflect.construct(this, [{}])
+  static fromIDomainMessage (msg: IDomainMessage): DomainMsg | undefined {
+    const obj: DomainMsg = Reflect.construct(this, [{}])
 
-      Object.assign(obj, msg)
-  
-      obj.validatePayload()
+    Object.assign(obj, msg)
 
-    } catch (err) {
-      throw err
-    }
+    obj.validatePayload()
+
     return obj
   }
 
-  abstract validatePayload():void
+  abstract validatePayload(): void
 }
 
 export abstract class DomainEventMsg extends DomainMsg {

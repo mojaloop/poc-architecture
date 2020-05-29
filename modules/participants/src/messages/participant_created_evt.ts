@@ -68,5 +68,5 @@ export class ParticipantCreatedEvt extends DomainEventMsg {
     }
   }
 
-  validatePayload():void{ }
+  validatePayload (): void{ }
 }

@@ -39,7 +39,7 @@
 
 import { BaseEntity } from './base_entity'
 import { BaseEntityState } from './base_entity_state'
-import { CommandMsg, DomainEventMsg, DomainMsg, IDomainMessage } from './messages'
+import { CommandMsg, DomainEventMsg, DomainMsg } from './messages'
 import { IMessagePublisher } from './imessage_publisher'
 import { IEntityStateRepository } from './ientity_state_repository'
 import { IEntityFactory } from './entity_factory'

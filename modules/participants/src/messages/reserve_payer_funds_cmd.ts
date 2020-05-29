@@ -40,7 +40,7 @@
 import { CommandMsg } from '@mojaloop-poc/lib-domain'
 import { ParticipantsAggTopics } from '../domain/participants_agg'
 
-export type ReservePayerFundsCmdPayload = {
+export interface ReservePayerFundsCmdPayload {
   payerId: string
   transferId: string
   amount: number
@@ -61,5 +61,5 @@ export class ReservePayerFundsCmd extends CommandMsg {
     this.payload = payload
   }
 
-  validatePayload():void{ }
+  validatePayload (): void{ }
 }

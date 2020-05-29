@@ -40,7 +40,7 @@
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
 import { ParticipantsAggTopics } from '../domain/participants_agg'
 
-export type DuplicateParticipantDetectedEvtPayload = {
+export interface DuplicateParticipantDetectedEvtPayload {
   participantId: string
 }
 
@@ -60,5 +60,5 @@ export class DuplicateParticipantDetectedEvt extends DomainEventMsg {
     this.payload = payload
   }
 
-  validatePayload():void{ }
+  validatePayload (): void{ }
 }
