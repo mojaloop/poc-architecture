@@ -1,3 +1,4 @@
+
 /*****
  License
  --------------
@@ -37,34 +38,43 @@
 
 'use strict'
 
-import { IDomainMessage, CommandMsg, MessageTypes } from '@mojaloop-poc/lib-domain'
-import { ParticipantsAggTopics } from '../domain/participants_agg'
+import { IDomainMessage, ILogger } from '@mojaloop-poc/lib-domain'
+import { EventEmitter } from 'events'
 
-export type CreateParticipantCmdPayload = {
-  id: string
-  name: string
-  limit: number
-  initialPosition: number
+export type Options<tClientOptions> = {
+  client: tClientOptions,
+  topics: string | string[]
 }
 
-export class CreateParticipantCmd extends CommandMsg {
-  msgType: MessageTypes
-  msgKey: string // usually the id of the aggregate (used for partitioning)
-  msgTopic: string = ParticipantsAggTopics.Commands
+export interface iMessageConsumer {
+  init (handlerCallback: (message: IDomainMessage) => void): void
+  destroy (forceCommit: boolean, callback?: (err?: Error) => void): void
+  connect (): void
+  pause (): void
+  resume (): void
+  disconnect (): void
+}
 
-  aggregateId: string
-  aggregateName: string = 'Participants'
-
-  payload: CreateParticipantCmdPayload
+export abstract class MessageConsumer extends EventEmitter implements iMessageConsumer {
+  abstract init (handlerCallback: (message: IDomainMessage) => void): void
+  abstract destroy (forceCommit: boolean, callback?: (err?: Error) => void): void
+  abstract connect (): void
+  abstract pause (): void
+  abstract resume (): void
+  abstract disconnect (): void
+  static async Create<tOptions>(options: tOptions, handlerProcessor: (message: IDomainMessage) => void, logger: ILogger): Promise<MessageConsumer> {
+    const consumer = Reflect.construct(this, arguments)
   
-  constructor (payload: CreateParticipantCmdPayload) {
-    super()
-
-    this.aggregateId = this.msgKey = payload?.id
-
-    this.payload = payload
+    consumer.on('error', (err?: Error | undefined): void => {
+      logger.error(`event::error - ${err}`)
+    })
+  
+    consumer.on('commit', (msgMetaData:any) => {
+      logger.info(`event::commit - ${JSON.stringify(msgMetaData)}`)
+    })
+  
+    await consumer.init(handlerProcessor)
+  
+    return consumer
   }
-
-  validatePayload():void{ }
-
 }

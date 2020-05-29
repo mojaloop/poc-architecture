@@ -48,7 +48,6 @@
     "@types/lodash": "^4.14.153",
     "async": "^3.2.0",
     "kafka-node": "^5.0.0",
-    "lodash": "^4.17.15",
     "uuid": "^8.1.0"
   },
   "devDependencies": {

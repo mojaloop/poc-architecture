@@ -40,23 +40,25 @@
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
 import { ParticipantsAggTopics } from '../domain/participants_agg'
 
+export type DuplicateParticipantDetectedEvtPayload = {
+  participantId: string
+}
+
 export class DuplicateParticipantDetectedEvt extends DomainEventMsg {
   aggregateId: string
-  aggregate_name: string = 'Participants'
+  aggregateName: string = 'Participants'
   msgKey: string
   msgTopic: string = ParticipantsAggTopics.DomainEvents
 
-  payload: {
-    participantId: string
-  }
+  payload: DuplicateParticipantDetectedEvtPayload
 
-  constructor (participantId: string) {
+  constructor (payload: DuplicateParticipantDetectedEvtPayload) {
     super()
 
-    this.aggregateId = this.msgKey = participantId
+    this.aggregateId = this.msgKey = payload.participantId
 
-    this.payload = {
-      participantId
-    }
+    this.payload = payload
   }
+
+  validatePayload():void{ }
 }

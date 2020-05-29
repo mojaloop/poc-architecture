@@ -3,72 +3,70 @@
  */
 'use strict'
 
-import { EventEmitter } from 'events'
-import * as lo from 'lodash'
 import * as kafka from 'kafka-node'
 import * as async from 'async'
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
-import { ILogger, IMessage } from '@mojaloop-poc/lib-domain'
-import { promises } from 'fs'
-
-const MAX_PROCESSING_TIMEOUT = 30 * 1000
+import { ILogger, IDomainMessage } from '@mojaloop-poc/lib-domain'
+import { iMessageConsumer, MessageConsumer, Options } from './imessage_consumer'
+import { EventEmitter } from 'events'
 
 export enum EnumOffset {
-  LATEST = 'latest'
+  LATEST= 'latest',
+  EARLIEST= 'earliest',
+  NONE = 'none'
 }
 
-export class KafkaGenericConsumer extends EventEmitter {
-  // private _client: kafka.Client;
+export enum EnumEncoding {
+  UTF8 = 'utf8',
+  BUFFER = 'buffer'
+}
+
+export enum EnumProtocols {
+  ROUNDROBIN='roundrobin',
+  RAGE='range'
+}
+
+export type KafkaGenericConsumerOptions = Options<kafka.ConsumerGroupOptions>
+// export class KafkaGenericConsumer extends EventEmitter implements MessageConsumer {
+export class KafkaGenericConsumer extends MessageConsumer {
   private readonly _topics: string[]
   private _consumerGroup!: kafka.ConsumerGroup
-  private readonly _consumerGroupName: string
-  private readonly _kafkaConnStr: string
-  private readonly _kafkaClientName: string
   private _initialized: boolean = false
-  private readonly _envName: string
-  private _syncQueue: async.AsyncQueue<any>
+  private _syncQueue: async.AsyncQueue<any> | undefined
+  private readonly _options: KafkaGenericConsumerOptions
 
   private readonly _queue: any[] = []
   private _processing: boolean = false
-  // private _handlerCallback!: (msg: any, callback: () => void) => void
-  private _handlerCallback!: (msg: any) => void
-  private readonly _fromOffset: EnumOffset
+  private _handlerCallback!: (message: IDomainMessage) => void
 
   protected _logger: ILogger
 
   constructor (
-    kafkaConString: string,
-    kafkaClientName: string,
-    kafkaConsumerGroup: string,
-    topics: string | string[], 
-    envName: string,
-    fromOffset: EnumOffset.LATEST,
+    options: KafkaGenericConsumerOptions,
     logger?: ILogger
   ) {
     super()
 
-    this._kafkaConnStr = kafkaConString
-    this._kafkaClientName = kafkaClientName
-    this._consumerGroupName = kafkaConsumerGroup
+    // make a copy of the options
+    this._options = { ...options }
 
-    
+    let tempTopics
+    if (typeof options.topics === 'string') { 
+      tempTopics = []
+      tempTopics.push(options.topics)
+    } else {
+      tempTopics = options.topics
+    }
 
-    this._envName = envName ?? process.env.NODE_ENV ?? 'dev'
-
-    if (typeof topics === 'string') { topics = [topics] }
-
-    this._topics = topics.map((topic_name) => {
-      return topic_name
-      // return this._envName + '_' + topic_name
+    this._topics = tempTopics.map((topicName: string) => {
+      return topicName
     })
-
-    this._fromOffset = fromOffset
 
     if (logger && typeof (<any>logger).child === 'function') {
       this._logger = (<any>logger).child({
         class: 'KafkaConsumer2',
         kafkaTopics: this._topics.join(','),
-        kafkaGroupname: this._consumerGroupName
+        kafkaGroupname: this._options.client?.groupId
       })
     } else {
       this._logger = new ConsoleLogger()
@@ -86,31 +84,25 @@ export class KafkaGenericConsumer extends EventEmitter {
     }
   }
 
-  removeHandler () {
-    this._handlerCallback = () => {} // noop
-  }
-
-  setHandler (handlerCallback: (msg: any) => void) {
-    this._handlerCallback = handlerCallback
-    // this._processQueue()
-  }
-
-  async init () : Promise<void> {
+  async init (handlerCallback: (message: IDomainMessage) => void) : Promise<void> {
     return await new Promise((resolve, reject) => {
       this._logger.info('initialising...')
 
-      const consumerGroupOptions = {
-        kafkaHost: this._kafkaConnStr,
-        id: this._kafkaClientName,
-        groupId: this._consumerGroupName,
+      if(!handlerCallback){
+        throw new Error('Undefined handlerCallback function')
+      }
+      this._handlerCallback = handlerCallback
+
+      const defaultConsumerGroupOptions: kafka.ConsumerGroupOptions = {
         sessionTimeout: 15000,
         // An array of partition assignment protocols ordered by preference.
         // 'roundrobin' or 'range' string for built ins (see below to pass in custom assignment protocol)
-        protocol: ['roundrobin'],
+        groupId: 'notset',
+        protocol: [ EnumProtocols.ROUNDROBIN ],
         autoCommit: false, // this._auto_commit,
         // Offsets to use for new groups other options could be 'earliest' or 'none' (none will emit an error if no offsets were saved)
         // equivalent to Java client's auto.offset.reset
-        fromOffset: this._fromOffset, // "latest", // default is latest
+        fromOffset: EnumOffset.LATEST, // "latest", // default is latest
         // outOfRangeOffset: 'earliest', // default is earliest
         // migrateHLC: false,    // for details please see Migration section below
         // migrateRolling: true,
@@ -122,15 +114,20 @@ export class KafkaGenericConsumer extends EventEmitter {
         // kafkaHost: 'localhost:9092', // connect directly to kafka broker (instantiates a KafkaClient)
         batch: undefined, // put client batch settings if you need them
         // ssl: true, // optional (defaults to false) or tls options hash
-        encoding: 'utf8', // default is utf8, use 'buffer' for binary data
+        encoding: EnumEncoding.UTF8, // default is utf8, use 'buffer' for binary data
         // commitOffsetsOnFirstJoin: true, // on the very first time this consumer group subscribes to a topic, record the offset returned in fromOffset (latest/earliest)
         // how to recover from OutOfRangeOffset error (where save offset is past server retention) accepts same value as fromOffset
         // outOfRangeOffset: 'earliest', // default
         // Callback to allow consumers with autoCommit false a chance to commit before a rebalance finishes
         // isAlreadyMember will be false on the first connection, and true on rebalances triggered after that
         // onRebalance: (isAlreadyMember, callback) => { callback(); } // or null
-        autoConnect: true,
       }
+
+      // copy default config
+      const consumerGroupOptions = { ...defaultConsumerGroupOptions }
+      // override any values with the options given to the client
+      Object.assign(consumerGroupOptions, this._options.client);
+
       this._logger.info(`options: \n${JSON.stringify(consumerGroupOptions)}`)
   
       this._consumerGroup = new kafka.ConsumerGroup(
@@ -178,9 +175,11 @@ export class KafkaGenericConsumer extends EventEmitter {
 
       // hook on message
       // this._consumerGroup.on('message', this.messageHandler.bind(this));
+      
       this._consumerGroup.on('message', (message: any) => {
         const logger = this._logger
         // this._logger.info(`MESSAGE:${JSON.stringify(message)}`)
+        if(!this._syncQueue) throw new Error('Async queue has not been defined!')
         this._syncQueue.push({ message }, function (err) {
           if (err) {
             logger.error(`Consumer::_consumePoller()::syncQueue.push - error: ${err}`)
@@ -204,16 +203,17 @@ export class KafkaGenericConsumer extends EventEmitter {
         }
 
         if (!this._handlerCallback) {
-          this._logger.debug(`async::queue() - message: ${JSON.stringify(message)}`)
-          // if (queueCallbackDone) queueCallbackDone()
+          this._logger.warn(`No handerlCallback set. Received the following message: ${JSON.stringify(message)}`)
+          // perhaps we should throw an error here?
         }
 
         try {
-          await this._handlerCallback(message)
+          const domainMessage = JSON.parse(message.message.value) as IDomainMessage
+          
+          await this._handlerCallback(domainMessage)
         } catch (err) {
           this._logger.error(`async::queue() - error: ${err}`)
           this.emit('error', err)
-          // if (queueCallbackDone) queueCallbackDone()
         } finally {
           if (!consumerGroupOptions.autoCommit) {
             const isCommited = await new Promise<boolean>( (resolve, reject) => {
@@ -228,21 +228,6 @@ export class KafkaGenericConsumer extends EventEmitter {
             }
           }
         }
-
-
-        // Promise.resolve(this._handlerCallback(message, queueCallbackDone)).then(() => {
-        //   this._logger.info(`Committing ${JSON.stringify(msgMetaData)}`)
-        //   const emitter = super.emit
-        //   this._consumerGroup.commit( function(err, data) {
-        //     // console.log('test')
-        //     // msgMetaData.commitResult = data
-        //     // emitter('commit', msgMetaData)
-        //   })
-        // }).catch((err) => {
-        //   this._logger.error(`async::queue() - error: ${err}`)
-        //   super.emit('error', err)
-        //   queueCallbackDone()
-        // })
       }, 1)
 
       this._syncQueue.drain(() => {
@@ -265,59 +250,8 @@ export class KafkaGenericConsumer extends EventEmitter {
     this._consumerGroup.resume()
   }
 
-  // get_latest_offsets() {
-  // 	return this._startup_latest_offsets;
-  // }
-
-  // messageHandler (message: any) {
-  //   // console.log("message received - topic: '%s' offset: '%d' partition: '%d'", this._get_log_prefix(), message.topic, message.offset, message.partition);
-  //   // let msg = lo.clone(message);
-
-  //   try {
-  //     // get key string from buffer
-  //     // message.key = message.key.toString();
-
-  //     if (!lo.isObject(message.value)) {
-  //       try {
-  //         message.value = JSON.parse(message.value)
-  //       } catch (e) {
-  //         this._logger.error(e, ' - error on messageHandler')
-  //         return
-  //       }
-  //     }
-
-  //     if (!message.value) { return }
-
-  //     this._queue.push(message)
-  //     this._processQueue.call(this)
-  //   } catch (e) {
-  //     this._logger.error(e, 'error sending message to handler - message was not commited to kafka')
-  //   }
-  // }
-
-  close () {
+  disconnect () {
     this._consumerGroup.close(false, () => {
     })
   }
-
-  // _processQueue () {
-  //   if (this._processing || this._queue.length <= 0 || !this._handlerCallback) { 
-  //     return 
-  //   }
-
-  //   this._processing = true
-
-  //   async.whilst(() => { return this._queue.length > 0 }, (next) => {
-  //     const wrapped = async.timeout(this._handlerCallback, MAX_PROCESSING_TIMEOUT)
-
-  //     wrapped(this._queue.shift(), (err: any) => {
-  //       if (err && err.code === 'ETIMEDOUT') { this._logger.warn(`KafkaConsumer2 - handler timedout after ${MAX_PROCESSING_TIMEOUT} ms`) } else if (err) { this._logger.error(err) }
-
-  //       next()
-  //     })
-  //   }, () => {
-  //     this._processing = false
-  //     if (this._queue.length > 0) { setTimeout(() => { this._processQueue() }, 0) }
-  //   })
-  // }
 }

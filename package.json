@@ -23,6 +23,7 @@
     "start:participants": "npm run build && npx lerna run start:participants",
     "start:transfers": "npm run build && npx lerna run start:transfers",
     "build": "npx lerna run build",
+    "watch": "npx lerna run --no-progress --parallel watch",
     "clean": "npm run clean:dist && npm run clean:npm",
     "clean:npm": "npx lerna clean",
     "clean:dist": "npx lerna run clean",
@@ -36,8 +37,8 @@
     "test:coverage-check": "npx lerna run test:coverage-check",
     "audit:resolve": "npx lerna run audit:resolve",
     "audit:check": "npx lerna run audit:check",
-    "dep:check": "npx lerna run dep:check",
-    "dep:update": "npx lerna run dep:update"
+    "dep:check": "npx lerna run --no-progress dep:check",
+    "dep:update": "npx lerna run --no-progress dep:update"
   },
   "dependencies": {
     "lerna": "^3.22.0"
