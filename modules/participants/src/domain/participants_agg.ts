@@ -227,6 +227,7 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
       const currentPosition = this._rootEntity.getCurrentPosition(commandMsg.payload.currency)
       const commitPayeeFundsCmdPayload = {
         transferId: commandMsg.payload.transferId,
+        payerId: commandMsg.payload.payerId,
         payeeId: commandMsg.payload.payeeId,
         currency: commandMsg.payload.currency,
         currentPosition: currentPosition
