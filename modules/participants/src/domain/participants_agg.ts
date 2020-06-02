@@ -42,7 +42,7 @@ import { ParticipantEntity, ParticipantState, InvalidAccountError, InvalidLimitE
 import { ParticipantsFactory } from './participants_factory'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 import { CreateParticipantCmd } from '../messages/create_participant_cmd'
-import { DuplicateParticipantDetectedEvt, InvalidParticipantEvt, PayerFundsReservedEvt, ParticipantCreatedEvt, NetCapLimitExceededEvt, PayerFundsCommittedEvt } from '@mojaloop-poc/lib-public-messages'
+import { DuplicateParticipantDetectedEvt, InvalidParticipantEvt, PayerFundsReservedEvt, ParticipantCreatedEvt, NetCapLimitExceededEvt, PayeeFundsCommittedEvt } from '@mojaloop-poc/lib-public-messages'
 import { IParticipantRepo } from './participant_repo'
 import { CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'
 
@@ -225,14 +225,14 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
       // # Validate PayerFSP Account+Limit, and Reserve-Funds against position if NET_DEBIG_CAP limit has not been exceeded
       this._rootEntity.commitFunds(commandMsg.payload.currency, commandMsg.payload.amount)
       const currentPosition = this._rootEntity.getCurrentPosition(commandMsg.payload.currency)
-      const commitPayeeFundsCmdPayload = {
+      const payeeFundsCommittedEvtPayload = {
         transferId: commandMsg.payload.transferId,
         payerId: commandMsg.payload.payerId,
         payeeId: commandMsg.payload.payeeId,
         currency: commandMsg.payload.currency,
         currentPosition: currentPosition
       }
-      this.recordDomainEvent(new PayerFundsCommittedEvt(commitPayeeFundsCmdPayload))
+      this.recordDomainEvent(new PayeeFundsCommittedEvt(payeeFundsCommittedEvtPayload))
       return true
     } catch (err) {
       switch (err.constructor) {
