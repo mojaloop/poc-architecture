@@ -7,7 +7,7 @@ import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
 import { TransferEntity, TransferInternalState } from '../domain/transfer_entity'
 import { TransfersAggTopics } from '../domain/transfers_agg'
 
-export class TransferCreatedEvt extends DomainEventMsg {
+export class TransferPrepareRequestedEvt extends DomainEventMsg {
   aggregateId: string
   aggregateName: string = 'Transfers'
   msgKey: string
@@ -17,9 +17,9 @@ export class TransferCreatedEvt extends DomainEventMsg {
     id: string
     amount: number
     currencyId: string
-    transferInternalStateId: TransferInternalState
-    payerName: string
-    payeeName: string
+    transferInternalState: TransferInternalState
+    payerId: string
+    payeeId: string
   }
 
   constructor (transfer: TransferEntity) {
@@ -31,9 +31,9 @@ export class TransferCreatedEvt extends DomainEventMsg {
       id: transfer.id,
       amount: transfer.amount,
       currencyId: transfer.currencyId,
-      transferInternalStateId: transfer.transferInternalStateId,
-      payerName: transfer.payerName,
-      payeeName: transfer.payeeName
+      transferInternalState: transfer.transferInternalState,
+      payerId: transfer.payerId,
+      payeeId: transfer.payeeId
     }
   }
 

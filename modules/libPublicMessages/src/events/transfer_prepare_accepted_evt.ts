@@ -26,7 +26,7 @@ export class TransferPrepareAcceptedEvt extends DomainEventMsg {
   constructor (payload: TransferPrepareAcceptedEvtPayload) {
     super()
 
-    this.aggregateId = this.msgKey = payload.id
+    this.aggregateId = this.msgKey = payload.transferId
 
     this.payload = payload
   }
