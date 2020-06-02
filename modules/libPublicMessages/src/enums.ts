@@ -43,3 +43,33 @@ export enum ParticipantsTopics {
   'DomainEvents' = 'ParticipantDomainEvents',
   // "StateEvents" = "ParticipantStateEvents"
 }
+
+export enum ParticipantAccountTypes {
+  POSITION = 'POSITION',
+  SETTLEMENT = 'SETTLEMENT',
+  HUB_RECONCILIATION = 'HUB_RECONCILIATION',
+  HUB_MULTILATERAL_SETTLEMENT = 'HUB_MULTILATERAL_SETTLEMENT',
+  HUB_FEE = 'HUB_FEE',
+  INTERCHANGE_FEE = 'INTERCHANGE_FEE'
+}
+
+export enum TransfersTopics {
+  'Commands' = 'TransferCommands',
+  'DomainEvents' = 'TransferDomainEvents',
+}
+
+export enum TransferInternalState {
+  ABORTED_ERROR = 'ABORTED_ERROR',
+  ABORTED_REJECTED = 'ABORTED_REJECTED',
+  COMMITTED = 'COMMITTED',
+  EXPIRED_PREPARED = 'EXPIRED_PREPARED',
+  EXPIRED_RESERVED = 'EXPIRED_RESERVED',
+  FAILED = 'FAILED',
+  INVALID = 'INVALID',
+  RECEIVED_ERROR = 'RECEIVED_ERROR',
+  RECEIVED_FULFIL = 'RECEIVED_FULFIL',
+  RECEIVED_PREPARE = 'RECEIVED_PREPARE',
+  RECEIVED_REJECT = 'RECEIVED_REJECT',
+  RESERVED = 'RESERVED',
+  RESERVED_TIMEOUT = 'RESERVED_TIMEOUT'
+}
