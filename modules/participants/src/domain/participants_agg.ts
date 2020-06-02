@@ -199,7 +199,7 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
   async processCommitFundsCommand (commandMsg: CommitPayeeFundsCmd): Promise<boolean> {
     await this.load(commandMsg.payload.payeeId, false)
 
-    // # Validate PayerFSP exists
+    // # Validate PayeeFSP exists
     if (this._rootEntity == null) {
       this.recordInvalidParticipantEvt(commandMsg.payload.payeeId, commandMsg.payload.transferId)
       return false
@@ -239,15 +239,6 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
         case InvalidAccountError:
         case InvalidLimitError: {
           this.recordInvalidParticipantEvt(commandMsg.payload.payerId, commandMsg.payload.transferId, err)
-          break
-        }
-        case NetDebitCapLimitExceededError: {
-          const netCapLimitExceededEvtPayload = {
-            transferId: commandMsg.payload.transferId,
-            payerId: commandMsg.payload.payerId,
-            reason: err.message
-          }
-          this.recordDomainEvent(new NetCapLimitExceededEvt(netCapLimitExceededEvtPayload))
           break
         }
         default: {
