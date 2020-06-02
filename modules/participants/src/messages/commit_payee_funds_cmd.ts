@@ -40,24 +40,25 @@
 import { CommandMsg } from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
 
-export interface CommittPayeeFundsCmdPayload {
+export interface CommitPayeeFundsCmdPayload {
   payerId: string
+  payeeId: string
   transferId: string
   currency: string
   amount: number
 }
 
-export class CommittPayeeFundsCmd extends CommandMsg {
+export class CommitPayeeFundsCmd extends CommandMsg {
   aggregateId: string
   aggregateName: string = 'Participants'
   msgKey: string
   msgTopic: string = ParticipantsTopics.Commands
 
-  payload: CommittPayeeFundsCmdPayload
+  payload: CommitPayeeFundsCmdPayload
 
-  constructor (payload: CommittPayeeFundsCmdPayload) {
+  constructor (payload: CommitPayeeFundsCmdPayload) {
     super()
-    this.aggregateId = this.msgKey = payload.payerId
+    this.aggregateId = this.msgKey = payload.payeeId
 
     this.payload = payload
   }

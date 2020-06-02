@@ -42,7 +42,8 @@ import { ParticipantsTopics } from '../enums'
 
 export interface PayerFundsCommittedEvtPayload {
   transferId: string
-  payerId: string
+  payeeId: string
+  currency: string
   currentPosition: number
 }
 
@@ -57,7 +58,7 @@ export class PayerFundsCommittedEvt extends DomainEventMsg {
   constructor (payload: PayerFundsCommittedEvtPayload) {
     super()
 
-    this.aggregateId = this.msgKey = payload.payerId
+    this.aggregateId = this.msgKey = payload.payeeId
 
     this.payload = payload
   }

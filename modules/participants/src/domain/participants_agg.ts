@@ -42,14 +42,16 @@ import { ParticipantEntity, ParticipantState, InvalidAccountError, InvalidLimitE
 import { ParticipantsFactory } from './participants_factory'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 import { CreateParticipantCmd } from '../messages/create_participant_cmd'
-import { DuplicateParticipantDetectedEvt, InvalidParticipantEvt, PayerFundsReservedEvt, ParticipantCreatedEvt, NetCapLimitExceededEvt } from '@mojaloop-poc/lib-public-messages'
+import { DuplicateParticipantDetectedEvt, InvalidParticipantEvt, PayerFundsReservedEvt, ParticipantCreatedEvt, NetCapLimitExceededEvt, PayerFundsCommittedEvt } from '@mojaloop-poc/lib-public-messages'
 import { IParticipantRepo } from './participant_repo'
+import { CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'
 
 export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, ParticipantState> {
   constructor (entityStateRepo: IParticipantRepo, msgPublisher: IMessagePublisher, logger: ILogger) {
     super(ParticipantsFactory.GetInstance(), entityStateRepo, msgPublisher, logger)
     this._registerCommandHandler('CreateParticipantCmd', this.processCreateParticipantCommand)
     this._registerCommandHandler('ReservePayerFundsCmd', this.processReserveFundsCommand)
+    this._registerCommandHandler('CommitPayeeFundsCmd', this.processCommitFundsCommand)
   }
 
   /*
@@ -126,21 +128,21 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
   //   })
   // }
 
+  private recordInvalidParticipantEvt (participantId: string, transferId: string, err?: Error): void {
+    const InvalidParticipantEvtPayload = {
+      id: participantId,
+      transferId: transferId,
+      reason: err?.message
+    }
+    this.recordDomainEvent(new InvalidParticipantEvt(InvalidParticipantEvtPayload))
+  }
+
   async processReserveFundsCommand (commandMsg: ReservePayerFundsCmd): Promise<boolean> {
     await this.load(commandMsg.payload.payerId, false)
 
-    const recordInvalidParticipantEvt = (participantId: string, transferId: string, err?: Error): void => {
-      const InvalidParticipantEvtPayload = {
-        id: participantId,
-        transferId: transferId,
-        reason: err?.message
-      }
-      this.recordDomainEvent(new InvalidParticipantEvt(InvalidParticipantEvtPayload))
-    }
-
     // # Validate PayerFSP exists
     if (this._rootEntity == null) {
-      recordInvalidParticipantEvt(commandMsg.payload.payerId, commandMsg.payload.transferId)
+      this.recordInvalidParticipantEvt(commandMsg.payload.payerId, commandMsg.payload.transferId)
       return false
     }
 
@@ -154,7 +156,7 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
     // # Validate PayeeFSP account
     const payeeHasAccount: boolean = await (this._entity_state_repo as IParticipantRepo).hasAccount(commandMsg.payload.payeeId, commandMsg.payload.currency)
     if (!payeeHasAccount) {
-      recordInvalidParticipantEvt(commandMsg.payload.payeeId, commandMsg.payload.transferId)
+      this.recordInvalidParticipantEvt(commandMsg.payload.payeeId, commandMsg.payload.transferId)
       return false
     }
 
@@ -174,7 +176,68 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
       switch (err.constructor) {
         case InvalidAccountError:
         case InvalidLimitError: {
-          recordInvalidParticipantEvt(commandMsg.payload.payerId, commandMsg.payload.transferId, err)
+          this.recordInvalidParticipantEvt(commandMsg.payload.payerId, commandMsg.payload.transferId, err)
+          break
+        }
+        case NetDebitCapLimitExceededError: {
+          const netCapLimitExceededEvtPayload = {
+            transferId: commandMsg.payload.transferId,
+            payerId: commandMsg.payload.payerId,
+            reason: err.message
+          }
+          this.recordDomainEvent(new NetCapLimitExceededEvt(netCapLimitExceededEvtPayload))
+          break
+        }
+        default: {
+          throw err
+        }
+      }
+    }
+    return false
+  }
+
+  async processCommitFundsCommand (commandMsg: CommitPayeeFundsCmd): Promise<boolean> {
+    await this.load(commandMsg.payload.payeeId, false)
+
+    // # Validate PayerFSP exists
+    if (this._rootEntity == null) {
+      this.recordInvalidParticipantEvt(commandMsg.payload.payeeId, commandMsg.payload.transferId)
+      return false
+    }
+
+    // # Validate PayeeFSP account - commenting this out since we validate the PayerFSP account as part of the reseverFunds
+    const payeeHasAccount: boolean = this._rootEntity.hasAccount(commandMsg.payload.currency)
+    if (!payeeHasAccount) {
+      this.recordInvalidParticipantEvt(commandMsg.payload.payeeId, commandMsg.payload.transferId)
+      return false
+    }
+
+    // # Validate PayerFSP account - Is this required?
+    const payerHasAccount: boolean = await (this._entity_state_repo as IParticipantRepo).hasAccount(commandMsg.payload.payerId, commandMsg.payload.currency)
+    if (!payerHasAccount) {
+      this.recordInvalidParticipantEvt(commandMsg.payload.payerId, commandMsg.payload.transferId)
+      return false
+    }
+
+    // # TODO: Should we also include checks that this commit is in a response to a reserve?
+
+    try {
+      // # Validate PayerFSP Account+Limit, and Reserve-Funds against position if NET_DEBIG_CAP limit has not been exceeded
+      this._rootEntity.commitFunds(commandMsg.payload.currency, commandMsg.payload.amount)
+      const currentPosition = this._rootEntity.getCurrentPosition(commandMsg.payload.currency)
+      const commitPayeeFundsCmdPayload = {
+        transferId: commandMsg.payload.transferId,
+        payeeId: commandMsg.payload.payeeId,
+        currency: commandMsg.payload.currency,
+        currentPosition: currentPosition
+      }
+      this.recordDomainEvent(new PayerFundsCommittedEvt(commitPayeeFundsCmdPayload))
+      return true
+    } catch (err) {
+      switch (err.constructor) {
+        case InvalidAccountError:
+        case InvalidLimitError: {
+          this.recordInvalidParticipantEvt(commandMsg.payload.payerId, commandMsg.payload.transferId, err)
           break
         }
         case NetDebitCapLimitExceededError: {

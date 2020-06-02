@@ -44,6 +44,7 @@ import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffse
 import { ParticpantsAgg } from '../domain/participants_agg'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 import { CreateParticipantCmd } from '../messages/create_participant_cmd'
+import { CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'
 import { RedisParticipantStateRepo } from '../infrastructure/redis_participant_repo'
 import { IParticipantRepo } from '../domain/participant_repo'
 
@@ -88,31 +89,39 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
   // ## Setup participantCmdConsumer
   const participantCmdHandler = async (message: IDomainMessage): Promise<void> => {
     try {
-      // transfer messages into correct Participant Command
+      logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgId} - Start`)
       let participantCmd: CommandMsg | undefined
+      // Transform messages into correct Command
       switch (message.msgName) {
         case CreateParticipantCmd.name: {
-          logger.info(`COMMAND:Type - ${CreateParticipantCmd.name}`)
+          // logger.info(`COMMAND:Type - ${CreateParticipantCmd.name}`)
           participantCmd = CreateParticipantCmd.fromIDomainMessage(message)
           break
         }
         case ReservePayerFundsCmd.name: {
-          logger.info(`COMMAND:Type - ${ReservePayerFundsCmd.name}`)
+          // logger.info(`COMMAND:Type - ${ReservePayerFundsCmd.name}`)
           participantCmd = ReservePayerFundsCmd.fromIDomainMessage(message)
           break
         }
+        case CommitPayeeFundsCmd.name: {
+          // logger.info(`COMMAND:Type - ${CommitPayeeFundsCmd.name}`)
+          participantCmd = CommitPayeeFundsCmd.fromIDomainMessage(message)
+          break
+        }
         default: {
-          const err = new Error(`COMMAND:Type - Unknown - ${message.msgName}`)
+          const err = new Error(`COMMAND:Type - Unknown - ${message?.msgName}:${message?.msgId}`)
           logger.error(err)
           throw err
         }
       }
-
-      if (participantCmd !== undefined) {
-        await agg.processCommand(participantCmd)
+      let processCommandResult = false
+      if (participantCmd != null) {
+        processCommandResult = await agg.processCommand(participantCmd)
       } else {
         logger.warn('participantCmdHandler is Unable to process command')
       }
+      logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgId} - Result: ${processCommandResult}`)
+
     } catch (err) {
       logger.error(err)
     }

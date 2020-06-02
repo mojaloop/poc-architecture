@@ -55,22 +55,25 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
 
   const participantEvtHandler = async (message: IDomainMessage): Promise<void> => {
     try {
-      // transfer messages into correct Participant Command
+      logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Start`)
       // let participantEvt: DomainEventMsg | undefined
+      // Transform messages into correct Command
       switch (message.msgName) {
         default: {
-          const err = new Error(`COMMAND:Type - Unknown - ${message.msgName}`)
+          const err = new Error(`EVENT:Type - Unknown - ${message?.msgName}:${message?.msgId}`)
           logger.error(err)
           throw err
         }
       }
 
-      // if (participantEvt !== undefined) {
+      // let participantEvtResult = false
+      // if (participantEvt != null) {
       //   // TODO: implement event processing here
       //   logger.info('Nothing implemented here')
       // } else {
       //   logger.warn('participantEvtHandler is Unable to process command')
       // }
+      // logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Result: ${participantEvtResult}`)
     } catch (err) {
       logger.error(err)
     }

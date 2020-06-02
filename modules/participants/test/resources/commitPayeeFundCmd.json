@@ -1,7 +1,7 @@
 {
     "msgId": "f54f28ce-7261-4361-956e-5a70e1c2b750",
     "msgTimestamp": 1590742324154,
-    "msgName": "ReservePayerFundsCmd",
+    "msgName": "CommitPayeeFundsCmd",
     "msgType": 2,
     "aggregateName": "Participants",
     "msgTopic": "ParticipantCommands",
