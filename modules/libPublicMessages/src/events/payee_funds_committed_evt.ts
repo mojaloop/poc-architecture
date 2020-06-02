@@ -40,22 +40,22 @@
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics } from '../enums'
 
-export interface PayerFundsCommittedEvtPayload {
+export interface PayeeFundsCommittedEvtPayload {
   transferId: string
   payeeId: string
   currency: string
   currentPosition: number
 }
 
-export class PayerFundsCommittedEvt extends DomainEventMsg {
+export class PayeeFundsCommittedEvt extends DomainEventMsg {
   aggregateId: string
   aggregateName: string = 'Participants'
   msgKey: string
   msgTopic: string = ParticipantsTopics.DomainEvents
 
-  payload: PayerFundsCommittedEvtPayload
+  payload: PayeeFundsCommittedEvtPayload
 
-  constructor (payload: PayerFundsCommittedEvtPayload) {
+  constructor (payload: PayeeFundsCommittedEvtPayload) {
     super()
 
     this.aggregateId = this.msgKey = payload.payeeId

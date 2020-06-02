@@ -4,7 +4,7 @@ import { appConfig, logger } from '../application'
 
 const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
   appConfig.kafka.host,
-  'participants',
+  'participants-utilities',
   'development',
   logger
 )
