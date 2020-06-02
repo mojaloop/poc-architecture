@@ -37,26 +37,16 @@
 
 'use strict'
 
-import { BaseAggregate, IEntityStateRepository, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
-// import {CommandMsg, DomainEventMsg, MessageTypes} from "../../shared/domain_abstractions/messages";
-import { ParticipantEntity, ParticipantState } from './participant_entity'
+import { BaseAggregate, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
+import { ParticipantEntity, ParticipantState, InvalidAccountError, InvalidLimitError, NetDebitCapLimitExceededError } from './participant_entity'
 import { ParticipantsFactory } from './participants_factory'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 import { CreateParticipantCmd } from '../messages/create_participant_cmd'
-import { DuplicateParticipantDetectedEvt } from '../messages/duplicate_participant_evt'
-import { InvalidParticipantEvt } from '../messages/invalid_participant_evt'
-import { PayerFundsReservedEvt } from '../messages/payer_funds_reserved_evt'
-import { ParticipantCreatedEvt } from '../messages/participant_created_evt'
-import { NetCapLimitExceededEvt } from '../messages/netcaplimitexceeded_evt'
-
-export enum ParticipantsAggTopics {
-  'Commands' = 'ParticipantCommands',
-  'DomainEvents' = 'ParticipantDomainEvents',
-  // "StateEvents" = "ParticipantStateEvents"
-}
+import { DuplicateParticipantDetectedEvt, InvalidParticipantEvt, PayerFundsReservedEvt, ParticipantCreatedEvt, NetCapLimitExceededEvt } from '@mojaloop-poc/lib-public-messages'
+import { IParticipantRepo } from './participant_repo'
 
 export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, ParticipantState> {
-  constructor (entityStateRepo: IEntityStateRepository<ParticipantState>, msgPublisher: IMessagePublisher, logger: ILogger) {
+  constructor (entityStateRepo: IParticipantRepo, msgPublisher: IMessagePublisher, logger: ILogger) {
     super(ParticipantsFactory.GetInstance(), entityStateRepo, msgPublisher, logger)
     this._registerCommandHandler('CreateParticipantCmd', this.processCreateParticipantCommand)
     this._registerCommandHandler('ReservePayerFundsCmd', this.processReserveFundsCommand)
@@ -91,20 +81,22 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
     // try loadling first to detect duplicates
     await this.load(commandMsg.payload.id, false)
     if (this._rootEntity != null) {
-      this.recordDomainEvent(new DuplicateParticipantDetectedEvt({
-        participantId: commandMsg.payload.id
-      }))
+      const duplicateParticipantDetectedEvtPayload = {
+        id: commandMsg.payload.id
+      }
+      this.recordDomainEvent(new DuplicateParticipantDetectedEvt(duplicateParticipantDetectedEvtPayload))
       return false
     }
 
     this.create(commandMsg.payload.id)
-    this._rootEntity!.setupInitialState(
-      commandMsg.payload.name,
-      commandMsg.payload.limit,
-      commandMsg.payload.initialPosition
-    )
 
-    this.recordDomainEvent(new ParticipantCreatedEvt(this._rootEntity!))
+    const initialState = Object.assign({}, new ParticipantState(), commandMsg.payload)
+
+    this._rootEntity!.setupInitialState(initialState)
+
+    // TODO: Do mapping from rootEntity to participantCreatedEvtPayload
+    const participantCreatedEvtPayload = { ...initialState }
+    this.recordDomainEvent(new ParticipantCreatedEvt(participantCreatedEvtPayload))
 
     return true
   }
@@ -135,22 +127,70 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
   // }
 
   async processReserveFundsCommand (commandMsg: ReservePayerFundsCmd): Promise<boolean> {
-    await this.load(commandMsg.payload.payerId)
+    await this.load(commandMsg.payload.payerId, false)
 
+    const recordInvalidParticipantEvt = (participantId: string, transferId: string, err?: Error): void => {
+      const InvalidParticipantEvtPayload = {
+        id: participantId,
+        transferId: transferId,
+        reason: err?.message
+      }
+      this.recordDomainEvent(new InvalidParticipantEvt(InvalidParticipantEvtPayload))
+    }
+
+    // # Validate PayerFSP exists
     if (this._rootEntity == null) {
-      this.recordDomainEvent(new InvalidParticipantEvt(commandMsg.payload.payerId))
+      recordInvalidParticipantEvt(commandMsg.payload.payerId, commandMsg.payload.transferId)
       return false
     }
 
-    if (!this._rootEntity.canReserveFunds(commandMsg.payload.amount)) {
-      this.recordDomainEvent(new NetCapLimitExceededEvt(this._rootEntity.id, commandMsg.payload.transferId))
-      return true
+    // # Validate PayerFSP account - commenting this out since we validate the PayerFSP account as part of the reseverFunds
+    // const payerHasAccount: boolean = this._rootEntity.hasAccount(commandMsg.payload.currency)
+    // if (!payerHasAccount) {
+    //   recordInvalidParticipantEvt(commandMsg.payload.payerId, commandMsg.payload.transferId)
+    //   return false
+    // }
+
+    // # Validate PayeeFSP account
+    const payeeHasAccount: boolean = await (this._entity_state_repo as IParticipantRepo).hasAccount(commandMsg.payload.payeeId, commandMsg.payload.currency)
+    if (!payeeHasAccount) {
+      recordInvalidParticipantEvt(commandMsg.payload.payeeId, commandMsg.payload.transferId)
+      return false
     }
 
-    this._rootEntity.reserveFunds(commandMsg.payload.amount)
-
-    this.recordDomainEvent(new PayerFundsReservedEvt(commandMsg.payload.transferId, commandMsg.payload.payerId, this._rootEntity.position))
-
-    return true
+    try {
+      // # Validate PayerFSP Account+Limit, and Reserve-Funds against position if NET_DEBIG_CAP limit has not been exceeded
+      this._rootEntity.reserveFunds(commandMsg.payload.currency, commandMsg.payload.amount)
+      const currentPosition = this._rootEntity.getCurrentPosition(commandMsg.payload.currency)
+      const payerFundsReservedEvtPayload = {
+        transferId: commandMsg.payload.transferId,
+        payerId: commandMsg.payload.payerId,
+        currency: commandMsg.payload.currency,
+        currentPosition: currentPosition
+      }
+      this.recordDomainEvent(new PayerFundsReservedEvt(payerFundsReservedEvtPayload))
+      return true
+    } catch (err) {
+      switch (err.constructor) {
+        case InvalidAccountError:
+        case InvalidLimitError: {
+          recordInvalidParticipantEvt(commandMsg.payload.payerId, commandMsg.payload.transferId, err)
+          break
+        }
+        case NetDebitCapLimitExceededError: {
+          const netCapLimitExceededEvtPayload = {
+            transferId: commandMsg.payload.transferId,
+            payerId: commandMsg.payload.payerId,
+            reason: err.message
+          }
+          this.recordDomainEvent(new NetCapLimitExceededEvt(netCapLimitExceededEvtPayload))
+          break
+        }
+        default: {
+          throw err
+        }
+      }
+    }
+    return false
   }
 }

@@ -37,30 +37,6 @@
 
 'use strict'
 
-import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
-import { ParticipantsAggTopics } from '../domain/participants_agg'
-
-export class NetCapLimitExceededEvt extends DomainEventMsg {
-  aggregateId: string
-  aggregateName: string = 'Participants'
-  msgKey: string
-  msgTopic: string = ParticipantsAggTopics.DomainEvents
-
-  payload: {
-    participantId: string
-    transferId: string
-  }
-
-  constructor (participantId: string, transferId: string) {
-    super()
-
-    this.aggregateId = this.msgKey = participantId
-
-    this.payload = {
-      participantId,
-      transferId
-    }
-  }
-
-  validatePayload (): void{ }
+export enum LIMIT_TYPES {
+  NET_DEBIT_CAP = 'NET_DEBIT_CAP'
 }

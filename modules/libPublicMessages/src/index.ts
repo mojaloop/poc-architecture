@@ -37,28 +37,11 @@
 
 'use strict'
 
-import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
-import { ParticipantsAggTopics } from '../domain/participants_agg'
-
-export class InvalidParticipantEvt extends DomainEventMsg {
-  aggregateId: string
-  aggregateName: string = 'Participants'
-  msgKey: string
-  msgTopic: string = ParticipantsAggTopics.DomainEvents
-
-  payload: {
-    participantId: string
-  }
-
-  constructor (participantId: string) {
-    super()
-
-    this.aggregateId = this.msgKey = participantId
-
-    this.payload = {
-      participantId
-    }
-  }
-
-  validatePayload (): void{ }
-}
+// Exports for Public Messages
+export * from './enums'
+export * from './events/duplicate_participant_evt'
+export * from './events/invalid_participant_evt'
+export * from './events/netcaplimitexceeded_evt'
+export * from './events/participant_created_evt'
+export * from './events/payee_funds_committed_evt'
+export * from './events/payer_funds_reserved_evt'

@@ -1,16 +1,43 @@
 {
-    "msgId": "59857fcd-d3e3-4f26-ac6c-0ec44f0d13be",
+    "msgId": "participant-payerfsp",
     "msgTimestamp": 1590742178040,
     "msgName": "CreateParticipantCmd",
     "msgType": 2,
     "aggregateName": "Participants",
     "msgTopic": "ParticipantCommands",
-    "msgKey": "2830cf06-c89d-4d1f-bd0a-df8bfb989fe9",
+    "msgKey": "participant-payerfsp",
     "aggregateId": "2830cf06-c89d-4d1f-bd0a-df8bfb989fe9",
     "payload": {
-        "id": "2830cf06-c89d-4d1f-bd0a-df8bfb989fe9",
-        "name": "participant 1",
-        "limit": 1000,
-        "initialPosition": 100
+        "id": "fsp-1",
+        "name": "fsp-1",
+        "accounts": {
+            "USD": {
+                "id": "participant-acc-fsp-1-USD",
+                "currency": "USD",
+                "initialPosition": 0,
+                "position": 0,
+                "limits": {
+                    "NET_DEBIT_CAP": {
+                        "id": "participant-acc-fsp-1-limit-USD-NET_DEBIT_CAP",
+                        "type": "NET_DEBIT_CAP",
+                        "value": 100
+                    }
+                }
+            }
+        },
+        "endpoints": {
+            "FSPIOP_CALLBACK_URL_TRANSFER_POST" : {
+                "type": "FSPIOP_CALLBACK_URL_TRANSFER",
+                "value": "http://test"
+            },
+            "FSPIOP_CALLBACK_URL_QUOTES" : {
+                "type": "FSPIOP_CALLBACK_URL_TRANSFER",
+                "value": "http://test"
+            },
+            "SETTLEMENT_TRANSFER_POSITION_CHANGE_EMAIL" : {
+                "type": "SETTLEMENT_TRANSFER_POSITION_CHANGE_EMAIL",
+                "value": "joe@test.com"
+            }
+        }
     }
 }
