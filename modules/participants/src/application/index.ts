@@ -36,16 +36,10 @@
 ******/
 
 'use strict'
-// import { v4 as uuidv4 } from 'uuid'
-// import {InMemoryParticipantStateRepo} from "../infrastructure/inmemory_participant_repo";
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
-import { CommandMsg, IDomainMessage, IEntityStateRepository, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
-import { KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions } from '@mojaloop-poc/lib-infrastructure'
-import { ParticipantState } from '../domain/participant_entity'
-import { ParticpantsAgg, ParticipantsAggTopics } from '../domain/participants_agg'
-import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
-import { CreateParticipantCmd } from '../messages/create_participant_cmd'
-import { RedisParticipantStateRepo } from '../infrastructure/redis_participant_repo'
+import { ILogger } from '@mojaloop-poc/lib-domain'
+import { MessageConsumer } from '@mojaloop-poc/lib-infrastructure'
+import * as ParticipantCmdHandler from './participantCmdHandler'
 
 const logger: ILogger = new ConsoleLogger()
 
@@ -59,100 +53,27 @@ const appConfig = {
 }
 
 const start = async (): Promise<void> => {
-  // const repo: IEntityStateRepository<ParticipantState> = new InMemoryParticipantStateRepo();
-  const repo: IEntityStateRepository<ParticipantState> = new RedisParticipantStateRepo(appConfig.redis.host, logger)
+  // list of all handlers
+  const consumerHandlerList: MessageConsumer[] = []
 
-  await repo.init()
+  // start all handlers here
+  consumerHandlerList.push(await ParticipantCmdHandler.start(appConfig, logger))
 
-  const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
-    appConfig.kafka.host,
-    'participants',
-    'development',
-    logger
-  )
-
-  await kafkaMsgPublisher.init()
-
-  const agg: ParticpantsAgg = new ParticpantsAgg(repo, kafkaMsgPublisher, logger)
-
-  // ## Local Test
-  // // const payerId: string = '47fca31d-6784-4ac2-afd2-03af341df7e1' // Use this to validate duplicate insert logic for participants
-  // const payerId: string = uuidv4() // Use this to create a new participant record
-
-  // const transferId: string = uuidv4()
-
-  // const createParticipantCmd: CreateParticipantCmd = new CreateParticipantCmd({
-  //   id: payerId,
-  //   name: 'participant 1',
-  //   limit: 1000,
-  //   initialPosition: 100
-  // })
-  // await agg.processCommand(createParticipantCmd)
-
-  // const reserveCmd: ReservePayerFundsCmd = new ReservePayerFundsCmd({
-  //   payerId,
-  //   transferId: transferId,
-  //   amount: 50
-  // })
-  // await agg.processCommand(reserveCmd)
-
-  // ## Setup participantCmdConsumer
-  const participantCmdHandler = async (message: IDomainMessage): Promise<void> => {
-    try {
-      // transfer messages into correct Participant Command
-      let participantCmd: CommandMsg | undefined
-      switch (message.msgName) {
-        case CreateParticipantCmd.name: {
-          logger.info(`COMMAND:Type - ${CreateParticipantCmd.name}`)
-          participantCmd = CreateParticipantCmd.fromIDomainMessage(message)
-          break
-        }
-        case ReservePayerFundsCmd.name: {
-          logger.info(`COMMAND:Type - ${ReservePayerFundsCmd.name}`)
-          participantCmd = ReservePayerFundsCmd.fromIDomainMessage(message)
-          break
-        }
-        default: {
-          const err = new Error(`COMMAND:Type - Unknown - ${message.msgName}`)
-          logger.error(err)
-          throw err
-        }
-      }
-
-      if (participantCmd !== undefined) {
-        await agg.processCommand(participantCmd)
-      } else {
-        logger.warn('participantCmdHandler is Unable to process command')
-      }
-    } catch (err) {
-      logger.error(err)
-    }
-  }
-
-  const participantCmdConsumerOptions: KafkaGenericConsumerOptions = {
-    client: {
-      kafkaHost: appConfig.kafka.host,
-      id: 'participantCmdConsumer',
-      groupId: 'participantCmdGroup',
-      fromOffset: EnumOffset.LATEST
-    },
-    topics: [ParticipantsAggTopics.Commands]
-  }
-
-  logger.info('Creating participantCmdConsumer...')
-  const participantCmdConsumer = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(participantCmdConsumerOptions, logger)
-
+  // lets clean up all consumers here
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-  // process.on('exit', async (): Promise<void> => {
-  //   logger.info('Exiting process...')
-  //   logger.info('Disconnecting handlers...')
-  //   await createParticipantCmdConsumer.disconnect()
-  //   logger.info('Exit complete')
-  // })
-
-  logger.info('Initializing participantCmdConsumer...')
+  const killProcess = async (): Promise<void> => {
+    logger.info('Exiting process...')
+    logger.info('Disconnecting handlers...')
+    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+    consumerHandlerList.forEach(async (consumer) => {
+      logger.info(`\tDestroying handler...${consumer.constructor.name}`)
+      await consumer.destroy(true)
+    })
+    logger.info('Exit complete!')
+    process.exit(2)
+  }
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-  await participantCmdConsumer.init(participantCmdHandler)
+  process.on('SIGINT', killProcess)
 }
 
 start().catch((err) => {

@@ -38,19 +38,44 @@
 'use strict'
 
 import { CommandMsg, MessageTypes } from '@mojaloop-poc/lib-domain'
-import { ParticipantsAggTopics } from '../domain/participants_agg'
+import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
+
+export interface ParticipantLimit {
+  id: string
+  type: string
+  value: number // TODO: these need to be replaced to support 64bit floating point precission
+}
+
+export interface ParticipantAccount {
+  id: string
+  currency: string
+  position: number // TODO: these need to be replaced to support 64bit floating point precission
+  initialPosition: number // TODO: these need to be replaced to support 64bit floating point precission
+  limits: {
+    [key: string]: ParticipantLimit
+  }
+}
+
+export interface ParticipantEndpoint {
+  type: string
+  value: string
+}
 
 export interface CreateParticipantCmdPayload {
   id: string
   name: string
-  limit: number
-  initialPosition: number
+  accounts: {
+    [key: string]: ParticipantAccount
+  }
+  endpoints: {
+    [key: string]: ParticipantEndpoint
+  }
 }
 
 export class CreateParticipantCmd extends CommandMsg {
   msgType: MessageTypes
   msgKey: string // usually the id of the aggregate (used for partitioning)
-  msgTopic: string = ParticipantsAggTopics.Commands
+  msgTopic: string = ParticipantsTopics.Commands
 
   aggregateId: string
   aggregateName: string = 'Participants'
@@ -60,7 +85,7 @@ export class CreateParticipantCmd extends CommandMsg {
   constructor (payload: CreateParticipantCmdPayload) {
     super()
 
-    this.aggregateId = this.msgKey = payload?.id
+    this.aggregateId = this.msgKey = payload.id
 
     this.payload = payload
   }

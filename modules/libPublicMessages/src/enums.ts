@@ -37,36 +37,9 @@
 
 'use strict'
 
-import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
-import { ParticipantEntity } from '../domain/participant_entity'
-import { ParticipantsAggTopics } from '../domain/participants_agg'
-
-export class ParticipantCreatedEvt extends DomainEventMsg {
-  aggregateId: string
-  aggregateName: string = 'Participants'
-  msgKey: string
-  msgTopic: string = ParticipantsAggTopics.DomainEvents
-
-  payload: {
-    id: string
-    name: string
-    limit: number
-    position: number
-  }
-
-  constructor (participant: ParticipantEntity) {
-    super()
-
-    this.aggregateId = this.msgKey = participant.id
-
-    this.payload = {
-      id: participant.id,
-      name: participant.name,
-      limit: participant.limit,
-      position: participant.position
-
-    }
-  }
-
-  validatePayload (): void{ }
+// TODO: Move to config management in future
+export enum ParticipantsTopics {
+  'Commands' = 'ParticipantCommands',
+  'DomainEvents' = 'ParticipantDomainEvents',
+  // "StateEvents" = "ParticipantStateEvents"
 }

@@ -37,28 +37,27 @@
 
 'use strict'
 
-import { CommandMsg } from '@mojaloop-poc/lib-domain'
-import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
+import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
+import { ParticipantsTopics } from '../enums'
 
-export interface ReservePayerFundsCmdPayload {
-  payerId: string
-  payeeId: string
+export interface InvalidParticipantEvtPayload {
+  id: string
   transferId: string
-  currency: string
-  amount: number
+  reason?: string
 }
 
-export class ReservePayerFundsCmd extends CommandMsg {
+export class InvalidParticipantEvt extends DomainEventMsg {
   aggregateId: string
   aggregateName: string = 'Participants'
   msgKey: string
-  msgTopic: string = ParticipantsTopics.Commands
+  msgTopic: string = ParticipantsTopics.DomainEvents
 
-  payload: ReservePayerFundsCmdPayload
+  payload: InvalidParticipantEvtPayload
 
-  constructor (payload: ReservePayerFundsCmdPayload) {
+  constructor (payload: InvalidParticipantEvtPayload) {
     super()
-    this.aggregateId = this.msgKey = payload.payerId
+
+    this.aggregateId = this.msgKey = payload.id
 
     this.payload = payload
   }

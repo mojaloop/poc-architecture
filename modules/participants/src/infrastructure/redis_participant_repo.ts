@@ -38,11 +38,11 @@
 'use strict'
 
 import * as redis from 'redis'
-import { IEntityStateRepository, ILogger } from '@mojaloop-poc/lib-domain'
-
+import { ILogger } from '@mojaloop-poc/lib-domain'
 import { ParticipantState } from '../domain/participant_entity'
+import { IParticipantRepo } from '../domain/participant_repo'
 
-export class RedisParticipantStateRepo implements IEntityStateRepository<ParticipantState> {
+export class RedisParticipantStateRepo implements IParticipantRepo {
   protected _redisClient!: redis.RedisClient
   private readonly _redisConnStr: string
   private readonly _logger: ILogger
@@ -159,5 +159,11 @@ export class RedisParticipantStateRepo implements IEntityStateRepository<Partici
 
   private keyWithPrefix (key: string): string {
     return this.keyPrefix + key
+  }
+
+  async hasAccount (participantId: string, currency: string): Promise<boolean> {
+    const participant = await this.load(participantId)
+    // if (participant !== null && participant?.accounts[currency] !== null) return true
+    return participant?.accounts[currency] != null
   }
 }

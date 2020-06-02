@@ -38,24 +38,26 @@
 'use strict'
 
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
-import { ParticipantsAggTopics } from '../domain/participants_agg'
+import { ParticipantsTopics } from '../enums'
 
-export interface DuplicateParticipantDetectedEvtPayload {
-  participantId: string
+export interface NetCapLimitExceededEvtPayload {
+  payerId: string
+  transferId: string
+  reason?: string
 }
 
-export class DuplicateParticipantDetectedEvt extends DomainEventMsg {
+export class NetCapLimitExceededEvt extends DomainEventMsg {
   aggregateId: string
   aggregateName: string = 'Participants'
   msgKey: string
-  msgTopic: string = ParticipantsAggTopics.DomainEvents
+  msgTopic: string = ParticipantsTopics.DomainEvents
 
-  payload: DuplicateParticipantDetectedEvtPayload
+  payload: NetCapLimitExceededEvtPayload
 
-  constructor (payload: DuplicateParticipantDetectedEvtPayload) {
+  constructor (payload: NetCapLimitExceededEvtPayload) {
     super()
 
-    this.aggregateId = this.msgKey = payload.participantId
+    this.aggregateId = this.msgKey = payload.payerId
 
     this.payload = payload
   }

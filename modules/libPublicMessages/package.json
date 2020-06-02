@@ -1,7 +1,7 @@
 {
-  "name": "@mojaloop-poc/participants",
+  "name": "@mojaloop-poc/lib-public-messages",
   "version": "0.1.0",
-  "description": "mojaloop arch poc service - participants",
+  "description": "mojaloop arch poc library - public-messages",
   "license": "Apache-2.0",
   "homepage": "https://github.com/mojaloop/poc-architecture",
   "bugs": {
@@ -13,8 +13,8 @@
     "Donovan Changfoot <donovan.changfoot@coil.com>",
     "Roman Pietrzak <roman.pietrzak@modusbox.com>"
   ],
-  "main": "./dist/application/index.js",
-  "types": "./dist/application/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
     "/dist"
   ],
@@ -43,10 +43,6 @@
   },
   "dependencies": {
     "@mojaloop-poc/lib-domain": "^0.1.0",
-    "@mojaloop-poc/lib-infrastructure": "^0.1.0",
-    "@mojaloop-poc/lib-utilities": "^0.1.0",
-    "@mojaloop-poc/lib-public-messages": "^0.1.0",
-    "redis": "^3.0.2",
     "uuid": "^8.1.0"
   },
   "devDependencies": {

@@ -37,28 +37,53 @@
 
 'use strict'
 
-import { CommandMsg } from '@mojaloop-poc/lib-domain'
-import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
+import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
+import { ParticipantsTopics } from '../enums'
 
-export interface ReservePayerFundsCmdPayload {
-  payerId: string
-  payeeId: string
-  transferId: string
-  currency: string
-  amount: number
+export interface ParticipantLimit {
+  id: string
+  type: string
+  value: number // TODO: these need to be replaced to support 64bit floating point precission
 }
 
-export class ReservePayerFundsCmd extends CommandMsg {
+export interface ParticipantAccount {
+  id: string
+  currency: string
+  position: number // TODO: these need to be replaced to support 64bit floating point precission
+  initialPosition: number // TODO: these need to be replaced to support 64bit floating point precission
+  limits: {
+    [key: string]: ParticipantLimit
+  }
+}
+
+export interface ParticipantEndpoint {
+  type: string
+  value: string
+}
+
+export interface ParticipantCreatedEvtPayload {
+  id: string
+  name: string
+  accounts: {
+    [key: string]: ParticipantAccount
+  }
+  endpoints: {
+    [key: string]: ParticipantEndpoint
+  }
+}
+
+export class ParticipantCreatedEvt extends DomainEventMsg {
   aggregateId: string
   aggregateName: string = 'Participants'
   msgKey: string
-  msgTopic: string = ParticipantsTopics.Commands
+  msgTopic: string = ParticipantsTopics.DomainEvents
 
-  payload: ReservePayerFundsCmdPayload
+  payload: ParticipantCreatedEvtPayload
 
-  constructor (payload: ReservePayerFundsCmdPayload) {
+  constructor (payload: ParticipantCreatedEvtPayload) {
     super()
-    this.aggregateId = this.msgKey = payload.payerId
+
+    this.aggregateId = this.msgKey = payload.id
 
     this.payload = payload
   }
