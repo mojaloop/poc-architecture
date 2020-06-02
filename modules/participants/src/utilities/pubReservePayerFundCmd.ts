@@ -1,6 +1,6 @@
 // import { logger } from '../application'
-import { ReservePayerFundsCmdPayload, ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 import { publishMessage } from './publisher'
+import { ReservePayerFundsCmdPayload, ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 
 const reservePayerFundsCmdPayload: ReservePayerFundsCmdPayload = {
   "payerId": "fsp-1",
@@ -11,4 +11,9 @@ const reservePayerFundsCmdPayload: ReservePayerFundsCmdPayload = {
 }
 const reservePayerFundsCmd = new ReservePayerFundsCmd(reservePayerFundsCmdPayload)
 
-publishMessage(reservePayerFundsCmd)
+const start = async () => {
+  await publishMessage(reservePayerFundsCmd)
+  process.exit(0)  
+}
+
+start()

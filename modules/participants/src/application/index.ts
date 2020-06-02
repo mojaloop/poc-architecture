@@ -41,9 +41,9 @@ import { ILogger } from '@mojaloop-poc/lib-domain'
 import { MessageConsumer } from '@mojaloop-poc/lib-infrastructure'
 import * as ParticipantCmdHandler from './participantCmdHandler'
 
-const logger: ILogger = new ConsoleLogger()
+export const logger: ILogger = new ConsoleLogger()
 
-const appConfig = {
+export const appConfig = {
   kafka: {
     host: 'localhost:9092'
   },
