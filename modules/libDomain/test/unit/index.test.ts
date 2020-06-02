@@ -5,7 +5,7 @@
 "use strict";
 
 
-import {CreateTestCommand} from './domain/test_messages'
+import {CreateTestCommand, UnrecognisedTestCommand, DuplicateTestDetectedEvent, TestCreatedEvent} from './domain/test_messages'
 import {SimpleLogger} from './utilities/simple_logger'
 import {TestAgg} from './domain/test_aggregate'
 import {ILogger} from '../../src/ilogger'
@@ -17,26 +17,82 @@ import {InMemMessagePublisher} from './infrastructure/in_mem_publisher';
 
 const logger: ILogger = new SimpleLogger()
 let repo: InMemoryTestEntityStateRepo
-let in_mem_publisher: IMessagePublisher
+let inMemPublisher: IMessagePublisher
 let testAgg: TestAgg
 
 describe('libDomain entities', () => {
-  beforeAll(async (done:()=>void)=>{
+
+  beforeEach(async () => {
     repo = new InMemoryTestEntityStateRepo()
     await repo.init()
 
-    in_mem_publisher = new InMemMessagePublisher(logger)
+    inMemPublisher = new InMemMessagePublisher(logger)
 
-    await in_mem_publisher.init()
+    await inMemPublisher.init()
 
-    testAgg = new TestAgg(repo, in_mem_publisher, logger);
-
-    done()
+    testAgg = new TestAgg(repo, inMemPublisher, logger);
   })
 
-  test('test commands fromIDomainMessage', () => {
+  test('aggregrate will fail when trying to process a command when there\'s no registered handler', async () => {
+    const unrecognisedCommand = new UnrecognisedTestCommand({
+      id:' id',
+      name: 'name'
+    })
 
-// const idm:TestCommand = TestCommand.fromIDomainMessage<TestCommand>({
+    await expect(testAgg.processCommand(unrecognisedCommand)).rejects.toThrow()
+  })
+
+  test('aggregrate will publish events raised during processing of command', async () => {
+    const publishSpy = jest.spyOn(inMemPublisher, 'publish')
+    const create_cmd = new CreateTestCommand({
+      id: 'my_id',
+      name: 'Test name 2'
+    });
+
+    await testAgg.processCommand(create_cmd)
+
+    expect(publishSpy).toHaveBeenCalledTimes(1)
+    expect(publishSpy.mock.calls[0][0]).toBeInstanceOf(TestCreatedEvent)
+  })
+
+  test('aggregrate will store the state after successfully processing command', async () => {
+    const create_cmd = new CreateTestCommand({
+      id: 'my_id',
+      name: 'Test name 2'
+    })
+    expect(await repo.load('my_id')).toBe(null)
+
+    await testAgg.processCommand(create_cmd)
+
+    expect(await repo.load('my_id')).toMatchObject({ id: 'my_id', name: '', runCount: 0, version: 0 })
+  })
+
+  test('aggregrate does not store state if processing a command fails', async () => {
+    const create_cmd = new CreateTestCommand({
+      id: 'my_id',
+      name: 'Test name 2'
+    })
+    await testAgg.processCommand(create_cmd)
+    const storeSpy = jest.spyOn(repo, 'store')
+    const publishSpy = jest.spyOn(inMemPublisher, 'publish')
+    expect(storeSpy).not.toHaveBeenCalled()
+
+    await testAgg.processCommand(create_cmd) // Duplicate will trigger command to fail
+
+    expect(publishSpy).toHaveBeenCalledTimes(1)
+    expect(publishSpy.mock.calls[0][0]).toBeInstanceOf(DuplicateTestDetectedEvent)
+    expect(storeSpy).not.toHaveBeenCalled()
+  })
+
+  test('aggregrate will throw a not found error if entity is not in repo when throwNotFound is true', async () => {
+    await expect(testAgg.load('1', true)).rejects.toThrow('Aggregate not found')
+  })
+
+  test('aggregrate will not throw a not found error if entity is not in repo when throwNotFound is false', async () => {
+    await expect(testAgg.load('1', false)).resolves.toBe(undefined)  
+  })
+
+  test('can create command fromIDomainMessage', () => {
     const idm:CreateTestCommand =  CreateTestCommand.fromIDomainMessage({
       aggregate_name:"aggregate_name",
       aggregateId: "aggregateId",
@@ -55,21 +111,9 @@ describe('libDomain entities', () => {
     }) as CreateTestCommand
 
     const ret = idm.specialMethod()
-  // expect(ret).to.eq('worked')
 
+    expect(ret).toBe('worked')
   })
-
-  test('aggregate process cmd', async(done:()=>void) => {
-    const create_cmd = new CreateTestCommand({
-      id: 'my_id',
-      name: 'Test name 2'
-    });
-
-    await testAgg.processCommand(create_cmd)
-    logger.info("cmd complete")
-    done()
-  })
-
 })
 
 

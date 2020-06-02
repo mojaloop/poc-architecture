@@ -12,6 +12,31 @@ export type TestCommandPayload = {
   name: string
 }
 
+export class UnrecognisedTestCommand extends CommandMsg {
+  aggregate_name: string = 'Test'
+  msgTopic: string = 'TestTopic'
+
+  aggregateId!: string;
+  msgKey!: string
+
+  payload!: TestCommandPayload
+
+  constructor (payload:TestCommandPayload){
+    super()
+
+    if(!payload)
+      return
+
+    this.payload = payload
+
+    this.aggregateId = this.msgKey = this.payload.id
+  }
+
+  validatePayload():void{
+
+  }
+}
+
 export class CreateTestCommand extends CommandMsg {
   aggregate_name: string = 'Test'
   msgTopic: string = 'TestTopic'

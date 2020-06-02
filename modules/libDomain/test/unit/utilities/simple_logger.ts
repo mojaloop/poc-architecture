@@ -12,28 +12,13 @@ export class SimpleLogger implements ILogger {
   //  console.trace.apply(this, anything);
   // }
 
-  debug (message?: any, ...optional: any[]): void {
-    // @ts-expect-error
-    console.log.apply(this, arguments)
-  }
+  debug = jest.fn()
+  
+  info = jest.fn()
 
-  info (message?: any, ...optionalParams: any[]): void {
-    // @ts-expect-error
-    console.info.apply(this, arguments)
-  }
+  warn = jest.fn()
 
-  warn (message?: any, ...optional: any[]): void {
-    // @ts-expect-error
-    console.warn.apply(this, arguments)
-  }
+  error = jest.fn()
 
-  error (message?: any, ...optional: any[]): void {
-    // @ts-expect-error
-    console.error.apply(this, arguments)
-  }
-
-  fatal (message?: any, ...optional: any[]): void {
-    // @ts-expect-error
-    console.error.apply(this, arguments)
-  }
+  fatal = jest.fn()
 }

@@ -11,6 +11,7 @@ import {ILogger} from "../../../src/ilogger";
 import {TestEntity, TestEntityState} from "./test_entity";
 import {TestEntityFactory} from "./test_factory";
 import {CreateTestCommand, DuplicateTestDetectedEvent, TestCreatedEvent} from "./test_messages";
+import { CommandMsg } from "../../../src/messages";
 
 export class TestAgg extends BaseAggregate<TestEntity, TestEntityState> {
   constructor (entityStateRepo: IEntityStateRepository<TestEntityState>, msgPublisher: IMessagePublisher, logger: ILogger) {
@@ -19,7 +20,7 @@ export class TestAgg extends BaseAggregate<TestEntity, TestEntityState> {
 
   }
 
-  protected async processCreateTestCommandCommand (commandMsg: CreateTestCommand): Promise<boolean> {
+  protected async processCreateTestCommandCommand (commandMsg: CommandMsg): Promise<boolean> {
     // try loadling first to detect duplicates
     await this.load(commandMsg.payload.id, false)
     if (this._rootEntity != null) {
@@ -33,6 +34,10 @@ export class TestAgg extends BaseAggregate<TestEntity, TestEntityState> {
     this.recordDomainEvent(new TestCreatedEvent(this._rootEntity!.id))
 
     return true
+  }
+
+  async load (id: string, throwNotFound: boolean): Promise<void> {
+    await super.load(id, throwNotFound)
   }
 
 }
