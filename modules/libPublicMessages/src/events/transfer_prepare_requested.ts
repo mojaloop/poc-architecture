@@ -6,26 +6,26 @@
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
 import { TransfersTopics } from '../enums'
 
-export interface TransferCreatedEvtPayload {
-  id: string
+export interface TransferPrepareRequestedEvtPayload {
+  transferId: string
   amount: number
   currencyId: string
-  payerName: string
-  payeeName: string
+  payerId: string
+  payeeId: string
 }
 
-export class TransferCreatedEvt extends DomainEventMsg {
+export class TransferPrepareRequestedEvt extends DomainEventMsg {
   aggregateId: string
   aggregateName: string = 'Transfers'
   msgKey: string
   msgTopic: string = TransfersTopics.DomainEvents
 
-  payload: TransferCreatedEvtPayload
+  payload: TransferPrepareRequestedEvtPayload
 
-  constructor (payload: TransferCreatedEvtPayload) {
+  constructor (payload: TransferPrepareRequestedEvtPayload) {
     super()
 
-    this.aggregateId = this.msgKey = payload.id
+    this.aggregateId = this.msgKey = payload.transferId
 
     this.payload = payload
   }

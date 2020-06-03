@@ -37,5 +37,5 @@
 
 'use strict'
 
-export class InvalidParticipantEvt extends Error {}
-export class InvalidParticipantCmd extends Error {}
+export class InvalidParticipantEvtError extends Error {}
+export class InvalidParticipantCmdError extends Error {}

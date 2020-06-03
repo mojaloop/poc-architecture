@@ -37,18 +37,5 @@
 
 'use strict'
 
-// Exports for Public Messages
-export * from './enums'
-export * from './events/duplicate_participant_evt'
-export * from './events/duplicate_transfer_evt'
-export * from './events/invalid_participant_evt'
-export * from './events/invalid_transfer_evt'
-export * from './events/netcaplimitexceeded_evt'
-export * from './events/participant_created_evt'
-export * from './events/payee_funds_committed_evt'
-export * from './events/payer_funds_reserved_evt'
-export * from './events/transfer_prepare_accepted_evt'
-export * from './events/transfer_fulfil_accepted_evt'
-export * from './events/transfer_reserved_evt'
-export * from './events/transfer_not_found_evt'
-
+export class InvalidTransferEvtError extends Error {}
+export class InvalidTransferCmdError extends Error {}

@@ -44,7 +44,7 @@ import { TransferPrepareAcceptedEvt, TransferFulfilAcceptedEvt, TransfersTopics 
 import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { ReservePayerFundsCmd, ReservePayerFundsCmdPayload } from '../messages/reserve_payer_funds_cmd'
 import { CommitPayeeFundsCmd, CommitPayeeFundsCmdPayload } from '../messages/commit_payee_funds_cmd'
-import { InvalidParticipantEvt } from './errors'
+import { InvalidParticipantEvtError } from './errors'
 
 export const start = async (appConfig: any, logger: ILogger): Promise<MessageConsumer> => {
   const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
@@ -65,14 +65,14 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
       switch (message.msgName) {
         case TransferPrepareAcceptedEvt.name: {
           participantEvt = TransferPrepareAcceptedEvt.fromIDomainMessage(message)
-          if (participantEvt == null) throw new InvalidParticipantEvt(`ParticipantEvtHandler is unable to process event - ${TransferPrepareAcceptedEvt.name} is Invalid - ${message?.msgName}:${message?.msgId}`)
+          if (participantEvt == null) throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - ${TransferPrepareAcceptedEvt.name} is Invalid - ${message?.msgName}:${message?.msgId}`)
           const reservePayerFundsCmdPayload: ReservePayerFundsCmdPayload = participantEvt.payload
           participantCmd = new ReservePayerFundsCmd(reservePayerFundsCmdPayload)
           break
         }
         case TransferFulfilAcceptedEvt.name: {
           participantEvt = TransferPrepareAcceptedEvt.fromIDomainMessage(message)
-          if (participantEvt == null) throw new InvalidParticipantEvt(`ParticipantEvtHandler is unable to process event - ${TransferFulfilAcceptedEvt.name} is Invalid - ${message?.msgName}:${message?.msgId}`)
+          if (participantEvt == null) throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - ${TransferFulfilAcceptedEvt.name} is Invalid - ${message?.msgName}:${message?.msgId}`)
           const commitPayeeFundsCmdPayload: CommitPayeeFundsCmdPayload = participantEvt.payload
           participantCmd = new CommitPayeeFundsCmd(commitPayeeFundsCmdPayload)
           break
