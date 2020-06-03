@@ -61,7 +61,7 @@ Program.command('handler')
 
   // function to execute when command is uses
   .action(async (args: any): Promise<void> => {
-    //#env file
+    // #env file
     const configFilePath = args.config
     const dotenvConfig: any = {
       debug: true
@@ -71,7 +71,7 @@ Program.command('handler')
     }
     dotenv.config(dotenvConfig)
 
-    //# setup application config
+    // # setup application config
     const appConfig = {
       kafka: {
         host: process.env.KAFKA_HOST
