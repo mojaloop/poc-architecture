@@ -5,13 +5,13 @@
 'use strict'
 
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
-import { TransfersAggTopics } from '../domain/transfers_agg'
+import { TransfersTopics } from '../enums'
 
 export class DuplicateTransferDetectedEvt extends DomainEventMsg {
   aggregateId: string
   aggregateName: string = 'Transfers'
   msgKey: string
-  msgTopic: string = TransfersAggTopics.DomainEvents
+  msgTopic: string = TransfersTopics.DomainEvents
 
   payload: {
     id: string

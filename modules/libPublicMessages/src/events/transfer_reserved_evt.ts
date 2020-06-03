@@ -4,34 +4,39 @@
 'use strict'
 
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
-import { TransferEntity, TransferInternalStates } from '../domain/transfer_entity'
-import { TransfersAggTopics } from '../domain/transfers_agg'
+import { TransfersTopics } from '../enums'
+
+export interface TransferPreparedEvtPayload {
+  id: string
+  amount: number
+  currencyId: string
+  payerId: string
+  payeeId: string
+}
 
 export class TransferPreparedEvt extends DomainEventMsg {
   aggregateId: string
   aggregateName: string = 'Transfers'
   msgKey: string
-  msgTopic: string = TransfersAggTopics.DomainEvents
+  msgTopic: string = TransfersTopics.DomainEvents
 
   payload: {
     transferId: string
     amount: number
     currencyId: string
-    TransferInternalStates: TransferInternalStates
     payerId: string
     payeeId: string
   }
 
-  constructor (transfer: TransferEntity) {
+  constructor (transfer: TransferPreparedEvtPayload) {
     super()
 
-    this.aggregateId = this.msgKey = transfer.transferId
+    this.aggregateId = this.msgKey = transfer.id
 
     this.payload = {
-      transferId: transfer.transferId,
+      transferId: transfer.id,
       amount: transfer.amount,
       currencyId: transfer.currencyId,
-      TransferInternalStates: transfer.TransferInternalStates,
       payerId: transfer.payerId,
       payeeId: transfer.payeeId
     }

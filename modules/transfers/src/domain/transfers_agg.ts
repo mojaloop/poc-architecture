@@ -4,13 +4,10 @@
 'use strict'
 
 import { BaseAggregate, IEntityStateRepository, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
-import { /* PayerFundsReservedEvt, PayeeFundsCommittedEvt, */ TransferPrepareAcceptedEvt } from '@mojaloop-poc/lib-public-messages'
+import { DuplicateTransferDetectedEvt, TransferPrepareAcceptedEvt, TransferNotFoundEvt, TransferPreparedEvt } from '@mojaloop-poc/lib-public-messages'
 import { PrepareTransferCmd } from '../messages/create_transfer_cmd'
-import { DuplicateTransferDetectedEvt } from '../messages/duplicate_transfer_evt'
-import { UnknownTransferEvt } from '../messages/unknown_transfer_evt'
 import { TransferEntity, TransferState, TransferInternalStates } from './transfer_entity'
 import { TransfersFactory } from './transfers_factory'
-import { TransferPreparedEvt } from '../messages/transfer_reserved_evt'
 import { AckPayerFundsReservedCmd } from '../messages/acknowledge_transfer_funds_cmd'
 
 export enum TransfersAggTopics {
@@ -57,7 +54,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
     await this.load(commandMsg.payload.id, false)
 
     if (this._rootEntity === null) {
-      this.recordDomainEvent(new UnknownTransferEvt(commandMsg.payload.id))
+      this.recordDomainEvent(new TransferNotFoundEvt(commandMsg.payload.id))
       return false
     }
 
