@@ -93,7 +93,8 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
 
       logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Result: true`)
     } catch (err) {
-      logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Error: ${err?.message.toString()}`)
+      const errMsg: string = err?.message?.toString()
+      logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Error: ${errMsg}`)
       logger.error(err)
     }
   }
