@@ -47,7 +47,7 @@ export class RedisTransferStateRepo implements ITransfersRepo {
   private readonly _redisConnStr: string
   private readonly _logger: ILogger
   private _initialized: boolean = false
-  private readonly keyPrefix: string = 'participant_'
+  private readonly keyPrefix: string = 'transfer_'
 
   constructor (connStr: string, logger: ILogger) {
     this._redisConnStr = connStr
