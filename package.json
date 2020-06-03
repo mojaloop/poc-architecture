@@ -22,7 +22,7 @@
   "scripts": {
     "start": "npx lerna run --no-progress --stream  start",
     "start:participants": "npm run build && npx lerna run --no-progress --stream --scope='@mojaloop-poc/participants' start",
-    "start:transfers": "npm run build && npx lerna run --no-progress --stream --scope='@mojaloop-poc/participants' start",
+    "start:transfers": "npm run build && npx lerna run --no-progress --stream --scope='@mojaloop-poc/transfers' start",
     "build": "npx lerna run --stream build",
     "watch": "npx lerna run --no-progress --stream --parallel watch",
     "clean": "npm run clean:dist && npm run clean:npm",
@@ -32,6 +32,8 @@
     "pretest": "echo 'FIX ME'",
     "standard": "npm run lint'",
     "lint": "npx lerna run lint",
+    "lint:participants": "npx lerna run lint --scope='@mojaloop-poc/participants'",
+    "lint:transfers": "npx lerna run lint --scope='@mojaloop-poc/transfers'",
     "lint:fix": "npx lerna run lint:fix",
     "test:unit": "npx lerna run test:unit",
     "test:coverage": "npx lerna run test:coverage",

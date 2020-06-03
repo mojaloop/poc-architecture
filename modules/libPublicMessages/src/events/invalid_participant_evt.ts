@@ -41,7 +41,7 @@ import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics } from '../enums'
 
 export interface InvalidParticipantEvtPayload {
-  id: string
+  participantId: string
   transferId: string
   reason?: string
 }
@@ -57,7 +57,7 @@ export class InvalidParticipantEvt extends DomainEventMsg {
   constructor (payload: InvalidParticipantEvtPayload) {
     super()
 
-    this.aggregateId = this.msgKey = payload.id
+    this.aggregateId = this.msgKey = payload.participantId
 
     this.payload = payload
   }

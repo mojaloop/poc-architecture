@@ -41,6 +41,7 @@ import * as redis from 'redis'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { ParticipantState } from '../domain/participant_entity'
 import { IParticipantRepo } from '../domain/participant_repo'
+import { ParticipantAccountTypes } from '@mojaloop-poc/lib-public-messages'
 
 export class RedisParticipantStateRepo implements IParticipantRepo {
   protected _redisClient!: redis.RedisClient
@@ -161,9 +162,8 @@ export class RedisParticipantStateRepo implements IParticipantRepo {
     return this.keyPrefix + key
   }
 
-  async hasAccount (participantId: string, currency: string): Promise<boolean> {
+  async hasAccount (participantId: string, accType: ParticipantAccountTypes, currency: string): Promise<boolean> {
     const participant = await this.load(participantId)
-    // if (participant !== null && participant?.accounts[currency] !== null) return true
-    return participant?.accounts[currency] != null
+    return participant?.accounts?.find(account => account.type === accType && account.currency === currency) != null
   }
 }

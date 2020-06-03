@@ -5,7 +5,7 @@
 
 import { BaseEntityState, BaseEntity } from '@mojaloop-poc/lib-domain'
 
-export enum TransferInternalState {
+export enum TransferInternalStates {
   ABORTED_ERROR = 'ABORTED_ERROR',
   ABORTED_REJECTED = 'ABORTED_REJECTED',
   COMMITTED = 'COMMITTED',
@@ -23,10 +23,10 @@ export enum TransferInternalState {
 
 export class TransferState extends BaseEntityState {
   amount: number = 0
-  currencyId: string = ''
-  transferInternalStateId: TransferInternalState = TransferInternalState.INVALID
-  payerName: string = ''
-  payeeName: string = ''
+  currency: string = ''
+  TransferInternalStates: TransferInternalStates = TransferInternalStates.INVALID
+  payerId: string = ''
+  payeeId: string = ''
 }
 
 export class TransferEntity extends BaseEntity<TransferState> {
@@ -34,20 +34,20 @@ export class TransferEntity extends BaseEntity<TransferState> {
     return this._state.amount
   }
 
-  get currencyId (): string {
-    return this._state.currencyId
+  get currency (): string {
+    return this._state.currency
   }
 
-  get transferInternalStateId (): TransferInternalState {
-    return this._state.transferInternalStateId
+  get TransferInternalStates (): TransferInternalStates {
+    return this._state.TransferInternalStates
   }
 
-  get payerName (): string {
-    return this._state.currencyId
+  get payerId (): string {
+    return this._state.payerId
   }
 
-  get payeeName (): string {
-    return this._state.currencyId
+  get payeeId (): string {
+    return this._state.payeeId
   }
 
   static CreateInstance (initialState?: TransferState): TransferEntity {
@@ -58,15 +58,11 @@ export class TransferEntity extends BaseEntity<TransferState> {
     return entity
   }
 
-  setupInitialState (amount: number, currencyId: string, payerName: string, payeeName: string): void {
-    this._state.amount = amount
-    this._state.currencyId = currencyId
-    this._state.payerName = payerName
-    this._state.payeeName = payeeName
-    this._state.transferInternalStateId = TransferInternalState.RECEIVED_PREPARE
+  setupInitialState (initialState: TransferState): void {
+    this._state = { ...initialState }
   }
 
-  changeStateTo (newState: TransferInternalState): void {
-    this._state.transferInternalStateId = newState
+  changeStateTo (newState: TransferInternalStates): void {
+    this._state.TransferInternalStates = newState
   }
 }

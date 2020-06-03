@@ -4,14 +4,11 @@
 'use strict'
 
 import { BaseAggregate, IEntityStateRepository, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
-import { CreateTransferCmd } from '../messages/create_transfer_cmd'
-import { TransferCreatedEvt } from '../messages/transfer_created_evt'
-import { DuplicateTransferDetectedEvt } from '../messages/duplicate_transfer_evt'
-import { UnknownTransferEvt } from '../messages/unknown_transfer_evt'
-import { TransferEntity, TransferState, TransferInternalState } from './transfer_entity'
+import { DuplicateTransferDetectedEvt, TransferPrepareAcceptedEvt, TransferNotFoundEvt, TransferPreparedEvt } from '@mojaloop-poc/lib-public-messages'
+import { PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
+import { TransferEntity, TransferState, TransferInternalStates } from './transfer_entity'
 import { TransfersFactory } from './transfers_factory'
-import { TransferReservedEvt } from '../messages/transfer_reserved_evt'
-import { AcknowledgeTransferFundsCmd } from '../messages/acknowledge_transfer_funds_cmd'
+import { AckPayerFundsReservedCmd } from '../messages/acknowledge_transfer_funds_cmd'
 
 export enum TransfersAggTopics {
   'Commands' = 'TransferCommands',
@@ -21,46 +18,54 @@ export enum TransfersAggTopics {
 export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
   constructor (entityStateRepo: IEntityStateRepository<TransferState>, msgPublisher: IMessagePublisher, logger: ILogger) {
     super(TransfersFactory.GetInstance(), entityStateRepo, msgPublisher, logger)
-    this._registerCommandHandler('CreateTransferCmd', this.processCreateTransferCommand)
-    this._registerCommandHandler('AcknowledgeTransferFundsCmd', this.processAcknowledgeTransferFundsReservedCommand)
+    this._registerCommandHandler('PrepareTransferCmd', this.processPrepareTransferCommand)
+    this._registerCommandHandler('AckPayerFundsReservedCmd', this.processAckPayerFundsReservedCommand)
   }
 
-  async processCreateTransferCommand (commandMsg: CreateTransferCmd): Promise<boolean> {
+  async processPrepareTransferCommand (commandMsg: PrepareTransferCmd): Promise<boolean> {
     // try loading first to detect duplicates
-    await this.load(commandMsg.payload.id, false)
+
+    await this.load(commandMsg.payload.transferId, false)
 
     if (this._rootEntity != null) {
-      this.recordDomainEvent(new DuplicateTransferDetectedEvt(commandMsg.payload.id))
+      this.recordDomainEvent(new DuplicateTransferDetectedEvt(commandMsg.payload.transferId))
       return false
     }
 
     /* TODO: validation of incoming payload */
 
-    this.create(commandMsg.payload.id)
+    this.create()
+    const initialState: TransferState = new TransferState()
+    initialState.id = commandMsg.payload.transferId
+    initialState.amount = commandMsg.payload.amount
+    initialState.currency = commandMsg.payload.currency
+    initialState.payerId = commandMsg.payload.payerId
+    initialState.payeeId = commandMsg.payload.payeeId
+    this._rootEntity!.setupInitialState(initialState)
 
-    this._rootEntity!.setupInitialState(
-      commandMsg.payload.amount,
-      commandMsg.payload.currencyId,
-      commandMsg.payload.payerName,
-      commandMsg.payload.payeeName
-    )
-
-    this.recordDomainEvent(new TransferCreatedEvt(this._rootEntity!))
+    const transferPrepareAcceptedEvtPayload = {
+      transferId: initialState.id,
+      amount: initialState.amount,
+      currency: initialState.currency,
+      payerId: initialState.payerId,
+      payeeId: initialState.payeeId
+    }
+    this.recordDomainEvent(new TransferPrepareAcceptedEvt(transferPrepareAcceptedEvtPayload))
 
     return true
   }
 
-  async processAcknowledgeTransferFundsReservedCommand (commandMsg: AcknowledgeTransferFundsCmd): Promise<boolean> {
-    await this.load(commandMsg.payload.id, false)
+  async processAckPayerFundsReservedCommand (commandMsg: AckPayerFundsReservedCmd): Promise<boolean> {
+    await this.load(commandMsg.payload.transferId, false)
 
     if (this._rootEntity === null) {
-      this.recordDomainEvent(new UnknownTransferEvt(commandMsg.payload.id))
+      this.recordDomainEvent(new TransferNotFoundEvt(commandMsg.payload.transferId))
       return false
     }
 
-    this._rootEntity.changeStateTo(TransferInternalState.RESERVED)
+    this._rootEntity.changeStateTo(TransferInternalStates.RESERVED)
 
-    this.recordDomainEvent(new TransferReservedEvt(this._rootEntity))
+    this.recordDomainEvent(new TransferPreparedEvt(this._rootEntity))
 
     return true
   }

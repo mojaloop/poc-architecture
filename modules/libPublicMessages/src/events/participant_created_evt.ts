@@ -38,22 +38,19 @@
 'use strict'
 
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
-import { ParticipantsTopics } from '../enums'
+import { ParticipantsTopics, ParticipantAccountTypes, AccountLimitTypes, CurrencyTypes } from '../enums'
 
 export interface ParticipantLimit {
-  id: string
-  type: string
+  type: AccountLimitTypes
   value: number // TODO: these need to be replaced to support 64bit floating point precission
 }
 
 export interface ParticipantAccount {
-  id: string
-  currency: string
+  type: ParticipantAccountTypes
+  currency: CurrencyTypes
   position: number // TODO: these need to be replaced to support 64bit floating point precission
   initialPosition: number // TODO: these need to be replaced to support 64bit floating point precission
-  limits: {
-    [key: string]: ParticipantLimit
-  }
+  limits: ParticipantLimit[]
 }
 
 export interface ParticipantEndpoint {
@@ -62,13 +59,11 @@ export interface ParticipantEndpoint {
 }
 
 export interface ParticipantCreatedEvtPayload {
-  id: string
-  name: string
-  accounts: {
-    [key: string]: ParticipantAccount
-  }
-  endpoints: {
-    [key: string]: ParticipantEndpoint
+  participant: {
+    id: string
+    name: string
+    // accounts: ParticipantAccount[]
+    // endpoints: ParticipantEndpoint[]
   }
 }
 
@@ -83,7 +78,7 @@ export class ParticipantCreatedEvt extends DomainEventMsg {
   constructor (payload: ParticipantCreatedEvtPayload) {
     super()
 
-    this.aggregateId = this.msgKey = payload.id
+    this.aggregateId = this.msgKey = payload?.participant?.id
 
     this.payload = payload
   }

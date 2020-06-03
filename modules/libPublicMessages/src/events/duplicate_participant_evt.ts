@@ -41,7 +41,7 @@ import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics } from '../enums'
 
 export interface DuplicateParticipantDetectedEvtPayload {
-  id: string
+  participantId: string
 }
 
 export class DuplicateParticipantDetectedEvt extends DomainEventMsg {
@@ -55,7 +55,7 @@ export class DuplicateParticipantDetectedEvt extends DomainEventMsg {
   constructor (payload: DuplicateParticipantDetectedEvtPayload) {
     super()
 
-    this.aggregateId = this.msgKey = payload.id
+    this.aggregateId = this.msgKey = payload.participantId
 
     this.payload = payload
   }

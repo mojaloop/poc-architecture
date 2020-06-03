@@ -37,6 +37,8 @@
 
 'use strict'
 
-export enum LIMIT_TYPES {
-  NET_DEBIT_CAP = 'NET_DEBIT_CAP'
+import { IEntityStateRepository } from '@mojaloop-poc/lib-domain'
+import { TransferState } from './transfer_entity'
+
+export interface ITransfersRepo extends IEntityStateRepository<TransferState> {
 }

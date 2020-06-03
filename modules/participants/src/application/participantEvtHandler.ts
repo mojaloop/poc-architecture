@@ -38,15 +38,17 @@
 'use strict'
 // import { v4 as uuidv4 } from 'uuid'
 // import {InMemoryParticipantStateRepo} from "../infrastructure/inmemory_participant_repo";
-// import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
-import { IDomainMessage, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
-import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
+import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
+import { TransferPrepareAcceptedEvt, TransferFulfilAcceptedEvt, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
 import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { ReservePayerFundsCmd, ReservePayerFundsCmdPayload } from '../messages/reserve_payer_funds_cmd'
+import { CommitPayeeFundsCmd, CommitPayeeFundsCmdPayload } from '../messages/commit_payee_funds_cmd'
+import { InvalidParticipantEvtError } from './errors'
 
 export const start = async (appConfig: any, logger: ILogger): Promise<MessageConsumer> => {
   const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
     appConfig.kafka.host,
-    'participants',
+    'participantEvtHandler',
     'development',
     logger
   )
@@ -55,23 +57,42 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
 
   const participantEvtHandler = async (message: IDomainMessage): Promise<void> => {
     try {
-      // transfer messages into correct Participant Command
-      // let participantEvt: DomainEventMsg | undefined
+      logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Start`)
+      let participantEvt: DomainEventMsg | undefined
+      let participantCmd: CommandMsg | undefined
+      // # Transform messages into correct Command
       switch (message.msgName) {
+        case TransferPrepareAcceptedEvt.name: {
+          participantEvt = TransferPrepareAcceptedEvt.fromIDomainMessage(message)
+          if (participantEvt == null) throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - ${TransferPrepareAcceptedEvt.name} is Invalid - ${message?.msgName}:${message?.msgId}`)
+          const reservePayerFundsCmdPayload: ReservePayerFundsCmdPayload = participantEvt.payload
+          participantCmd = new ReservePayerFundsCmd(reservePayerFundsCmdPayload)
+          break
+        }
+        case TransferFulfilAcceptedEvt.name: {
+          participantEvt = TransferPrepareAcceptedEvt.fromIDomainMessage(message)
+          if (participantEvt == null) throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - ${TransferFulfilAcceptedEvt.name} is Invalid - ${message?.msgName}:${message?.msgId}`)
+          const commitPayeeFundsCmdPayload: CommitPayeeFundsCmdPayload = participantEvt.payload
+          participantCmd = new CommitPayeeFundsCmd(commitPayeeFundsCmdPayload)
+          break
+        }
         default: {
-          const err = new Error(`COMMAND:Type - Unknown - ${message.msgName}`)
-          logger.error(err)
-          throw err
+          logger.warn(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Skipping unknown event`)
+          break
         }
       }
 
-      // if (participantEvt !== undefined) {
-      //   // TODO: implement event processing here
-      //   logger.info('Nothing implemented here')
-      // } else {
-      //   logger.warn('participantEvtHandler is Unable to process command')
-      // }
+      if (participantCmd != null) {
+        logger.info(`participantEvtHandler publishing cmd - ${message?.msgName}:${message?.msgId} - Cmd: ${participantCmd?.msgName}:${participantCmd?.msgId}`)
+        await kafkaMsgPublisher.publish(participantCmd)
+      } else {
+        logger.warn(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Unable to process event`)
+      }
+
+      logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Result: true`)
     } catch (err) {
+      const errMsg: string = err?.message?.toString()
+      logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Error: ${errMsg}`)
       logger.error(err)
     }
   }
@@ -83,7 +104,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
       groupId: 'participantEvtGroup',
       fromOffset: EnumOffset.LATEST
     },
-    topics: [ParticipantsTopics.Commands]
+    topics: [TransfersTopics.DomainEvents]
   }
 
   logger.info('Creating participantEvtConsumer...')

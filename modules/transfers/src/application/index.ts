@@ -37,49 +37,88 @@
 
 'use strict'
 
-import { v4 as uuidv4 } from 'uuid'
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
-import { IEntityStateRepository, IMessagePublisher } from '@mojaloop-poc/lib-domain'
-import { KafkaMessagePublisher } from '@mojaloop-poc/lib-infrastructure'
-import { TransferState } from '../domain/transfer_entity'
-import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
-import { TransfersAgg } from '../domain/transfers_agg'
-import { CreateTransferCmd } from '../messages/create_transfer_cmd'
-import { AcknowledgeTransferFundsCmd } from '../messages/acknowledge_transfer_funds_cmd'
+import { ILogger } from '@mojaloop-poc/lib-domain'
+import { MessageConsumer } from '@mojaloop-poc/lib-infrastructure'
+import * as TransferCmdHandler from './transferCmdHandler'
+import * as TransferEvtHandler from './transferEvtHandler'
+import * as dotenv from 'dotenv'
+import { Command } from 'commander'
+import { resolve as Resolve } from 'path'
 
-const logger: ConsoleLogger = new ConsoleLogger()
+export const logger: ILogger = new ConsoleLogger()
 
-async function start (): Promise<void> {
-  const repo: IEntityStateRepository<TransferState> = new InMemoryTransferStateRepo()
-  // const repo: IEntityStateRepository<TransferState> = new RedisParticipantStateRepo('redis://localhost:6379', logger)
+const Program = new Command()
+Program
+  .version('0.1')
+  .description('CLI to manage Transfers Handlers')
+Program.command('handler')
+  .alias('h')
+  .description('Start Transfers Handlers') // command description
+  .option('-c, --config [configFilePath]', '.env config file')
+  .option('--transferEvt', 'Start the Transfers Evt Handler')
+  .option('--transferCmd', 'Start the Transfers Cmd Handler')
 
-  await repo.init()
+  // function to execute when command is uses
+  .action(async (args: any): Promise<void> => {
+    // #env file
+    const configFilePath = args.config
+    const dotenvConfig: any = {
+      debug: true
+    }
+    if (configFilePath != null) {
+      dotenvConfig.path = Resolve(process.cwd(), configFilePath)
+    }
+    dotenv.config(dotenvConfig)
 
-  const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
-    'localhost:9092',
-    'client_a',
-    'development',
-    logger
-  )
+    // # setup application config
+    const appConfig = {
+      kafka: {
+        host: process.env.KAFKA_HOST
+      },
+      redis: {
+        host: process.env.REDIS_HOST
+      }
+    }
 
-  await kafkaMsgPublisher.init()
+    logger.debug(`appConfig=${JSON.stringify(appConfig)}`)
 
-  const agg: TransfersAgg = new TransfersAgg(repo, kafkaMsgPublisher, logger)
+    // list of all handlers
+    const consumerHandlerList: MessageConsumer[] = []
 
-  const transferId: string = uuidv4()
+    // start all handlers here
+    if (args.transferEvt == null && args.transferCmd == null) {
+      consumerHandlerList.push(await TransferEvtHandler.start(appConfig, logger))
+      consumerHandlerList.push(await TransferCmdHandler.start(appConfig, logger))
+    }
+    if (args.transferEvt != null) {
+      consumerHandlerList.push(await TransferEvtHandler.start(appConfig, logger))
+    }
+    if (args.transferCmd != null) {
+      consumerHandlerList.push(await TransferCmdHandler.start(appConfig, logger))
+    }
 
-  const createTransferCmd: CreateTransferCmd = new CreateTransferCmd(transferId, 100, 'USD', 'participant_1', 'participant_2')
-  await agg.processCommand(createTransferCmd)
+    // lets clean up all consumers here
+    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+    const killProcess = async (): Promise<void> => {
+      logger.info('Exiting process...')
+      logger.info('Disconnecting handlers...')
+      /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+      consumerHandlerList.forEach(async (consumer) => {
+        logger.info(`\tDestroying handler...${consumer.constructor.name}`)
+        await consumer.destroy(true)
+      })
+      logger.info('Exit complete!')
+      process.exit(2)
+    }
+    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+    process.on('SIGINT', killProcess)
+  })
 
-  const acknowledgeTransferFundsCmd: AcknowledgeTransferFundsCmd = new AcknowledgeTransferFundsCmd(transferId)
-  await agg.processCommand(acknowledgeTransferFundsCmd)
-
-  const acknowledgeTransferFundsCmdTriggerErrorUnknown: AcknowledgeTransferFundsCmd = new AcknowledgeTransferFundsCmd(uuidv4())
-  await agg.processCommand(acknowledgeTransferFundsCmdTriggerErrorUnknown)
+if (Array.isArray(process.argv) && process.argv.length > 2) {
+  // parse command line vars
+  Program.parse(process.argv)
+} else {
+  // display default help
+  Program.help()
 }
-
-start().catch((err) => {
-  logger.error(err)
-}).finally(() => {
-  process.exit(0)
-})
