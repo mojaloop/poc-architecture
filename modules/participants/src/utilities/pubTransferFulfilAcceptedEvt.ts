@@ -1,22 +1,24 @@
 // import { logger } from '../application'
 import { publishMessage } from './publisher'
-import { TransferPrepareAcceptedEvtPayload, TransferPrepareAcceptedEvt, CurrencyTypes } from '@mojaloop-poc/lib-public-messages'
+import { TransferFulfilAcceptedEvtPayload, TransferFulfilAcceptedEvt, CurrencyTypes } from '@mojaloop-poc/lib-public-messages'
 
 import { v4 as uuidv4 } from 'uuid'
 
-const transferPrepareAcceptedEvtPayload: TransferPrepareAcceptedEvtPayload = {
+const transferFulfilAcceptedEvtPayload: TransferFulfilAcceptedEvtPayload = {
   transferId: uuidv4(),
   amount: 1,
   currency: CurrencyTypes.USD,
+  // payerId: 'fsp-24',
+  // payeeId: 'fsp-14'
   payerId: 'fsp-14',
   payeeId: 'fsp-24'
 }
 
-const transferPrepareAcceptedEvt = new TransferPrepareAcceptedEvt(transferPrepareAcceptedEvtPayload)
+const transferFulfilAcceptedEvt = new TransferFulfilAcceptedEvt(transferFulfilAcceptedEvtPayload)
 
 /* eslint-disable-next-line @typescript-eslint/explicit-function-return-type */
 const start = async () => {
-  await publishMessage(transferPrepareAcceptedEvt)
+  await publishMessage(transferFulfilAcceptedEvt)
   process.exit(0)
 }
 

@@ -122,7 +122,7 @@ export class KafkaGenericConsumer extends MessageConsumer {
       // override any values with the options given to the client
       Object.assign(consumerGroupOptions, this._options.client)
 
-      this._logger.info(`options: \n${JSON.stringify(consumerGroupOptions)}`)
+      this._logger.debug(`options: \n${JSON.stringify(consumerGroupOptions)}`)
 
       this._consumerGroup = new kafka.ConsumerGroup(
         consumerGroupOptions as kafka.ConsumerGroupOptions, this._topics

@@ -4,13 +4,12 @@
 'use strict'
 
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
-import { TransfersTopics, TransferInternalStates } from '../enums'
+import { TransfersTopics } from '../enums'
 
 export interface TransferFulfilAcceptedEvtPayload {
   transferId: string
   amount: number
   currency: string
-  TransferInternalStates: TransferInternalStates
   payerId: string
   payeeId: string
 }
