@@ -38,12 +38,12 @@
 'use strict'
 
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
-import { ParticipantsTopics } from '../enums'
+import { ParticipantsTopics, CurrencyTypes } from '../enums'
 
 export interface PayerFundsReservedEvtPayload {
   transferId: string
   payerId: string
-  currency: string
+  currency: CurrencyTypes
   currentPosition: number
 }
 

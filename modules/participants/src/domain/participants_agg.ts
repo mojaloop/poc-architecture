@@ -45,6 +45,8 @@ import { CreateParticipantCmd } from '../messages/create_participant_cmd'
 import { DuplicateParticipantDetectedEvt, InvalidParticipantEvt, PayerFundsReservedEvt, ParticipantCreatedEvt, NetCapLimitExceededEvt, PayeeFundsCommittedEvt } from '@mojaloop-poc/lib-public-messages'
 import { IParticipantRepo } from './participant_repo'
 import { CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'
+import { ParticipantAccountTypes } from '@mojaloop-poc/lib-public-messages'
+
 
 export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, ParticipantState> {
   constructor (entityStateRepo: IParticipantRepo, msgPublisher: IMessagePublisher, logger: ILogger) {
@@ -81,23 +83,29 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
 
   async processCreateParticipantCommand (commandMsg: CreateParticipantCmd): Promise<boolean> {
     // try loadling first to detect duplicates
-    await this.load(commandMsg.payload.id, false)
+    await this.load(commandMsg.payload?.participant?.id, false)
     if (this._rootEntity != null) {
       const duplicateParticipantDetectedEvtPayload = {
-        id: commandMsg.payload.id
+        participantId: commandMsg.payload?.participant?.id
       }
       this.recordDomainEvent(new DuplicateParticipantDetectedEvt(duplicateParticipantDetectedEvtPayload))
       return false
     }
 
-    this.create(commandMsg.payload.id)
+    this.create(commandMsg.payload?.participant?.id)
 
-    const initialState = Object.assign({}, new ParticipantState(), commandMsg.payload)
-
+    const initialState = Object.assign({}, new ParticipantState(), commandMsg.payload.participant)
+    // initialState.id = commandMsg.payload.participantId
     this._rootEntity!.setupInitialState(initialState)
 
     // TODO: Do mapping from rootEntity to participantCreatedEvtPayload
-    const participantCreatedEvtPayload = { ...initialState }
+    // const participantCreatedEvtPayload = { ...initialState }
+    const participantCreatedEvtPayload = {
+      participant: {
+        id: initialState.id,
+        name: initialState.name
+      }
+    }
     this.recordDomainEvent(new ParticipantCreatedEvt(participantCreatedEvtPayload))
 
     return true
@@ -130,7 +138,7 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
 
   private recordInvalidParticipantEvt (participantId: string, transferId: string, err?: Error): void {
     const InvalidParticipantEvtPayload = {
-      id: participantId,
+      participantId,
       transferId: transferId,
       reason: err?.message
     }
@@ -154,7 +162,7 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
     // }
 
     // # Validate PayeeFSP account
-    const payeeHasAccount: boolean = await (this._entity_state_repo as IParticipantRepo).hasAccount(commandMsg.payload.payeeId, commandMsg.payload.currency)
+    const payeeHasAccount: boolean = await (this._entity_state_repo as IParticipantRepo).hasAccount(commandMsg.payload.payeeId, ParticipantAccountTypes.POSITION, commandMsg.payload.currency)
     if (!payeeHasAccount) {
       this.recordInvalidParticipantEvt(commandMsg.payload.payeeId, commandMsg.payload.transferId)
       return false
@@ -206,14 +214,14 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
     }
 
     // # Validate PayeeFSP account - commenting this out since we validate the PayerFSP account as part of the reseverFunds
-    const payeeHasAccount: boolean = this._rootEntity.hasAccount(commandMsg.payload.currency)
+    const payeeHasAccount: boolean = this._rootEntity.hasAccount(ParticipantAccountTypes.POSITION, commandMsg.payload.currency)
     if (!payeeHasAccount) {
       this.recordInvalidParticipantEvt(commandMsg.payload.payeeId, commandMsg.payload.transferId)
       return false
     }
 
     // # Validate PayerFSP account - Is this required?
-    const payerHasAccount: boolean = await (this._entity_state_repo as IParticipantRepo).hasAccount(commandMsg.payload.payerId, commandMsg.payload.currency)
+    const payerHasAccount: boolean = await (this._entity_state_repo as IParticipantRepo).hasAccount(commandMsg.payload.payerId, ParticipantAccountTypes.POSITION, commandMsg.payload.currency)
     if (!payerHasAccount) {
       this.recordInvalidParticipantEvt(commandMsg.payload.payerId, commandMsg.payload.transferId)
       return false

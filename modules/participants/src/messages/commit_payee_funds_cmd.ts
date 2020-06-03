@@ -38,13 +38,13 @@
 'use strict'
 
 import { CommandMsg } from '@mojaloop-poc/lib-domain'
-import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
+import { ParticipantsTopics, CurrencyTypes } from '@mojaloop-poc/lib-public-messages'
 
 export interface CommitPayeeFundsCmdPayload {
   payerId: string
   payeeId: string
   transferId: string
-  currency: string
+  currency: CurrencyTypes
   amount: number
 }
 
