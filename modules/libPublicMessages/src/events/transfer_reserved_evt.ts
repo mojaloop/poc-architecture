@@ -9,7 +9,7 @@ import { TransfersTopics } from '../enums'
 export interface TransferPreparedEvtPayload {
   id: string
   amount: number
-  currencyId: string
+  currency: string
   payerId: string
   payeeId: string
 }
@@ -20,13 +20,7 @@ export class TransferPreparedEvt extends DomainEventMsg {
   msgKey: string
   msgTopic: string = TransfersTopics.DomainEvents
 
-  payload: {
-    transferId: string
-    amount: number
-    currencyId: string
-    payerId: string
-    payeeId: string
-  }
+  payload: TransferPreparedEvtPayload
 
   constructor (transfer: TransferPreparedEvtPayload) {
     super()
@@ -34,9 +28,9 @@ export class TransferPreparedEvt extends DomainEventMsg {
     this.aggregateId = this.msgKey = transfer.id
 
     this.payload = {
-      transferId: transfer.id,
+      id: transfer.id,
       amount: transfer.amount,
-      currencyId: transfer.currencyId,
+      currency: transfer.currency,
       payerId: transfer.payerId,
       payeeId: transfer.payeeId
     }
