@@ -4,7 +4,7 @@
 'use strict'
 
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
-import { TransferEntity, TransferInternalState } from '../domain/transfer_entity'
+import { TransferEntity, TransferInternalStates } from '../domain/transfer_entity'
 import { TransfersAggTopics } from '../domain/transfers_agg'
 
 export class TransferCreatedEvt extends DomainEventMsg {
@@ -17,7 +17,7 @@ export class TransferCreatedEvt extends DomainEventMsg {
     id: string
     amount: number
     currencyId: string
-    transferInternalStateId: TransferInternalState
+    transferInternalStateId: TransferInternalStates
     payerName: string
     payeeName: string
   }

@@ -5,7 +5,7 @@
 
 import { BaseEntityState, BaseEntity } from '@mojaloop-poc/lib-domain'
 
-export enum TransferInternalState {
+export enum TransferInternalStates {
   ABORTED_ERROR = 'ABORTED_ERROR',
   ABORTED_REJECTED = 'ABORTED_REJECTED',
   COMMITTED = 'COMMITTED',
@@ -24,7 +24,7 @@ export enum TransferInternalState {
 export class TransferState extends BaseEntityState {
   amount: number = 0
   currencyId: string = ''
-  transferInternalStateId: TransferInternalState = TransferInternalState.INVALID
+  transferInternalStateId: TransferInternalStates = TransferInternalStates.INVALID
   payerName: string = ''
   payeeName: string = ''
 }
@@ -38,7 +38,7 @@ export class TransferEntity extends BaseEntity<TransferState> {
     return this._state.currencyId
   }
 
-  get transferInternalStateId (): TransferInternalState {
+  get transferInternalStateId (): TransferInternalStates {
     return this._state.transferInternalStateId
   }
 
@@ -63,10 +63,10 @@ export class TransferEntity extends BaseEntity<TransferState> {
     this._state.currencyId = currencyId
     this._state.payerName = payerName
     this._state.payeeName = payeeName
-    this._state.transferInternalStateId = TransferInternalState.RECEIVED_PREPARE
+    this._state.transferInternalStateId = TransferInternalStates.RECEIVED_PREPARE
   }
 
-  changeStateTo (newState: TransferInternalState): void {
+  changeStateTo (newState: TransferInternalStates): void {
     this._state.transferInternalStateId = newState
   }
 }

@@ -5,7 +5,7 @@
 
 import { CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransfersAggTopics } from '../domain/transfers_agg'
-import { TransferInternalState } from '../domain/transfer_entity'
+import { TransferInternalStates } from '../domain/transfer_entity'
 
 export class CreateTransferCmd extends CommandMsg {
   aggregateId: string
@@ -17,7 +17,7 @@ export class CreateTransferCmd extends CommandMsg {
     id: string
     amount: number
     currencyId: string
-    transferInternalStateId: TransferInternalState
+    transferInternalStateId: TransferInternalStates
     payerName: string
     payeeName: string
   }
@@ -31,7 +31,7 @@ export class CreateTransferCmd extends CommandMsg {
       id,
       amount,
       currencyId,
-      transferInternalStateId: TransferInternalState.INVALID,
+      transferInternalStateId: TransferInternalStates.INVALID,
       payerName,
       payeeName
     }

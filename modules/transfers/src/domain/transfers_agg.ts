@@ -8,7 +8,7 @@ import { CreateTransferCmd } from '../messages/create_transfer_cmd'
 import { TransferCreatedEvt } from '../messages/transfer_created_evt'
 import { DuplicateTransferDetectedEvt } from '../messages/duplicate_transfer_evt'
 import { UnknownTransferEvt } from '../messages/unknown_transfer_evt'
-import { TransferEntity, TransferState, TransferInternalState } from './transfer_entity'
+import { TransferEntity, TransferState, TransferInternalStates } from './transfer_entity'
 import { TransfersFactory } from './transfers_factory'
 import { TransferReservedEvt } from '../messages/transfer_reserved_evt'
 import { AcknowledgeTransferFundsCmd } from '../messages/acknowledge_transfer_funds_cmd'
@@ -58,7 +58,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       return false
     }
 
-    this._rootEntity.changeStateTo(TransferInternalState.RESERVED)
+    this._rootEntity.changeStateTo(TransferInternalStates.RESERVED)
 
     this.recordDomainEvent(new TransferReservedEvt(this._rootEntity))
 
