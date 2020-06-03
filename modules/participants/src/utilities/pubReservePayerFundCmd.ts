@@ -2,11 +2,14 @@
 import { publishMessage } from './publisher'
 import { ReservePayerFundsCmdPayload, ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 import { CurrencyTypes } from '@mojaloop-poc/lib-public-messages'
+import { v4 as uuidv4 } from 'uuid'
 
 const reservePayerFundsCmdPayload: ReservePayerFundsCmdPayload = {
-  "payerId": "fsp-10",
-  "payeeId": "fsp-20",
-  "transferId": "34e6af77-d05d-43e8-ae49-1a2571510697",
+  // "payerId": "fsp-24",
+  // "payeeId": "fsp-14",
+  "payerId": "fsp-14",
+  "payeeId": "fsp-24",
+  "transferId": uuidv4(),
   "currency": CurrencyTypes.USD,
   "amount": 1
 }

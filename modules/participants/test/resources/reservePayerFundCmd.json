@@ -8,8 +8,8 @@
     "msgKey": "2830cf06-c89d-4d1f-bd0a-df8bfb989fe9",
     "aggregateId": "2830cf06-c89d-4d1f-bd0a-df8bfb989fe9",
     "payload": {
-        "payerId": "fsp-1",
-        "payeeId": "fsp-2",
+        "payerId": "fsp-10",
+        "payeeId": "fsp-20",
         "transferId": "34e6af77-d05d-43e8-ae49-1a2571510697",
         "currency": "USD",
         "amount": 1

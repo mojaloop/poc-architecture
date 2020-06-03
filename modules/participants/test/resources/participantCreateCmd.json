@@ -8,36 +8,35 @@
     "msgKey": "participant-payerfsp",
     "aggregateId": "2830cf06-c89d-4d1f-bd0a-df8bfb989fe9",
     "payload": {
-        "id": "fsp-1",
-        "name": "fsp-1",
-        "accounts": {
-            "USD": {
-                "id": "participant-acc-fsp-1-USD",
+        "id": "fsp-10",
+        "name": "fsp-10",
+        "accounts": [
+            {
+                "type": "POSITION",
                 "currency": "USD",
                 "initialPosition": 0,
                 "position": 0,
-                "limits": {
-                    "NET_DEBIT_CAP": {
-                        "id": "participant-acc-fsp-1-limit-USD-NET_DEBIT_CAP",
+                "limits": [
+                    {
                         "type": "NET_DEBIT_CAP",
                         "value": 100
                     }
-                }
+                ]
             }
-        },
-        "endpoints": {
-            "FSPIOP_CALLBACK_URL_TRANSFER_POST" : {
+        ],
+        "endpoints": [
+            {
                 "type": "FSPIOP_CALLBACK_URL_TRANSFER",
                 "value": "http://test"
             },
-            "FSPIOP_CALLBACK_URL_QUOTES" : {
+            {
                 "type": "FSPIOP_CALLBACK_URL_TRANSFER",
                 "value": "http://test"
             },
-            "SETTLEMENT_TRANSFER_POSITION_CHANGE_EMAIL" : {
+            {
                 "type": "SETTLEMENT_TRANSFER_POSITION_CHANGE_EMAIL",
                 "value": "joe@test.com"
             }
-        }
+        ]
     }
 }

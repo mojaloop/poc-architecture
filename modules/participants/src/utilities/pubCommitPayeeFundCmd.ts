@@ -2,12 +2,12 @@
 import { publishMessage } from './publisher'
 import { CommitPayeeFundsCmdPayload, CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'
 import { CurrencyTypes } from '@mojaloop-poc/lib-public-messages'
-
+import { v4 as uuidv4 } from 'uuid'
 
 const commitPayeeFundsCmdPayload: CommitPayeeFundsCmdPayload = {
-  "payerId": "fsp-10",
-  "payeeId": "fsp-20",
-  "transferId": "34e6af77-d05d-43e8-ae49-1a2571510697",
+  "payerId": "fsp-14",
+  "payeeId": "fsp-24",
+  "transferId": uuidv4(),
   "currency": CurrencyTypes.USD,
   "amount": 1
 }
