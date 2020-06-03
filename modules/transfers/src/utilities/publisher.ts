@@ -1,9 +1,22 @@
-import { IMessagePublisher, IMessage } from '@mojaloop-poc/lib-domain'
+import { IMessagePublisher, IMessage, ILogger } from '@mojaloop-poc/lib-domain'
 import { KafkaMessagePublisher } from '@mojaloop-poc/lib-infrastructure'
-import { appConfig, logger } from '../application'
+import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
+
+import * as dotenv from 'dotenv'
+
+dotenv.config({ path: '../../.env' })
+
+const logger: ILogger = new ConsoleLogger()
+
+// # setup application config
+const appConfig = {
+  kafka: {
+    host: process.env.KAFKA_HOST
+  }
+}
 
 const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
-  appConfig.kafka.host,
+  appConfig.kafka.host!,
   'transfer-utilities',
   'development',
   logger

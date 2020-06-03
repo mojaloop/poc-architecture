@@ -92,8 +92,7 @@ Program.command('handler')
       consumerHandlerList.push(await ParticipantCmdHandler.start(appConfig, logger))
     }
     if (args.participantsEvtHandler != null) {
-      const participantEvtHandlerawait = await ParticipantEvtHandler.start(appConfig, logger)
-      consumerHandlerList.push(participantEvtHandlerawait)
+      consumerHandlerList.push(await ParticipantEvtHandler.start(appConfig, logger))
     }
     if (args.participantsCmdHandler != null) {
       consumerHandlerList.push(await ParticipantCmdHandler.start(appConfig, logger))
