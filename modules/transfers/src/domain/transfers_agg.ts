@@ -5,7 +5,7 @@
 
 import { BaseAggregate, IEntityStateRepository, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
 import { DuplicateTransferDetectedEvt, TransferPrepareAcceptedEvt, TransferNotFoundEvt, TransferPreparedEvt } from '@mojaloop-poc/lib-public-messages'
-import { PrepareTransferCmd } from '../messages/create_transfer_cmd'
+import { PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
 import { TransferEntity, TransferState, TransferInternalStates } from './transfer_entity'
 import { TransfersFactory } from './transfers_factory'
 import { AckPayerFundsReservedCmd } from '../messages/acknowledge_transfer_funds_cmd'
@@ -24,25 +24,19 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
 
   async processPrepareTransferCommand (commandMsg: PrepareTransferCmd): Promise<boolean> {
     // try loading first to detect duplicates
-    await this.load(commandMsg.payload.id, false)
+    await this.load(commandMsg.payload.transfer.id, false)
 
     if (this._rootEntity != null) {
-      this.recordDomainEvent(new DuplicateTransferDetectedEvt(commandMsg.payload.id))
+      this.recordDomainEvent(new DuplicateTransferDetectedEvt(commandMsg.payload.transfer.id))
       return false
     }
 
     /* TODO: validation of incoming payload */
 
+    this.create(commandMsg.payload?.transfer?.id)
+
     const initialState = Object.assign({}, new TransferState(), commandMsg.payload)
-
-    this.create(commandMsg.payload.id)
-
-    this._rootEntity!.setupInitialState(
-      commandMsg.payload.amount,
-      commandMsg.payload.currencyId,
-      commandMsg.payload.payerId,
-      commandMsg.payload.payeeId
-    )
+    this._rootEntity!.setupInitialState(initialState)
 
     const TransferPrepareAcceptedEvtPayload = { ...initialState }
     this.recordDomainEvent(new TransferPrepareAcceptedEvt(TransferPrepareAcceptedEvtPayload))

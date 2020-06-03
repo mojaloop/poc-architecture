@@ -37,49 +37,48 @@
 
 'use strict'
 
-import { v4 as uuidv4 } from 'uuid'
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
-import { IEntityStateRepository, IMessagePublisher } from '@mojaloop-poc/lib-domain'
-import { KafkaMessagePublisher } from '@mojaloop-poc/lib-infrastructure'
-import { TransferState } from '../domain/transfer_entity'
-import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
-import { TransfersAgg } from '../domain/transfers_agg'
-import { PrepareTransferCmd } from '../messages/create_transfer_cmd'
-import { AckPayerFundsReservedCmd } from '../messages/acknowledge_transfer_funds_cmd'
+import { ILogger } from '@mojaloop-poc/lib-domain'
+import { MessageConsumer } from '@mojaloop-poc/lib-infrastructure'
+import * as TransferCmdHandler from './transferCmdHandler'
 
-const logger: ConsoleLogger = new ConsoleLogger()
+export const logger: ILogger = new ConsoleLogger()
 
-async function start (): Promise<void> {
-  const repo: IEntityStateRepository<TransferState> = new InMemoryTransferStateRepo()
-  // const repo: IEntityStateRepository<TransferState> = new RedisParticipantStateRepo('redis://localhost:6379', logger)
+export const appConfig = {
+  kafka: {
+    host: 'localhost:9092'
+  },
+  redis: {
+    host: 'redis://localhost:6379'
+  }
+}
 
-  await repo.init()
+const start = async (): Promise<void> => {
+  // list of all handlers
+  const consumerHandlerList: MessageConsumer[] = []
 
-  const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
-    'localhost:9092',
-    'client_a',
-    'development',
-    logger
-  )
+  // start all handlers here
+  consumerHandlerList.push(await TransferCmdHandler.start(appConfig, logger))
+  // consumerHandlerList.push(await ParticipantEvtHandler.start(appConfig, logger))
 
-  await kafkaMsgPublisher.init()
-
-  const agg: TransfersAgg = new TransfersAgg(repo, kafkaMsgPublisher, logger)
-
-  const transferId: string = uuidv4()
-
-  const prepareTransferCmd: PrepareTransferCmd = new PrepareTransferCmd(transferId, 100, 'USD', 'participant_1', 'participant_2')
-  await agg.processCommand(prepareTransferCmd)
-
-  const ackPayerFundsReservedCmd: AckPayerFundsReservedCmd = new AckPayerFundsReservedCmd(transferId)
-  await agg.processCommand(ackPayerFundsReservedCmd)
-
-  const ackPayerFundsReservedCmdTriggerErrorUnknown: AckPayerFundsReservedCmd = new AckPayerFundsReservedCmd(uuidv4())
-  await agg.processCommand(ackPayerFundsReservedCmdTriggerErrorUnknown)
+  // lets clean up all consumers here
+  /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+  const killProcess = async (): Promise<void> => {
+    logger.info('Exiting process...')
+    logger.info('Disconnecting handlers...')
+    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+    consumerHandlerList.forEach(async (consumer) => {
+      logger.info(`\tDestroying handler...${consumer.constructor.name}`)
+      await consumer.destroy(true)
+    })
+    logger.info('Exit complete!')
+    process.exit(2)
+  }
+  /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+  process.on('SIGINT', killProcess)
 }
 
 start().catch((err) => {
   logger.error(err)
 }).finally(() => {
-  process.exit(0)
 })

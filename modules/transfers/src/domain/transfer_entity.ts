@@ -63,12 +63,8 @@ export class TransferEntity extends BaseEntity<TransferState> {
     return entity
   }
 
-  setupInitialState (amount: number, currency: string, payerId: string, payeeId: string): void {
-    this._state.amount = amount
-    this._state.currency = currency
-    this._state.payerId = payerId
-    this._state.payeeId = payeeId
-    this._state.TransferInternalStates = TransferInternalStates.RECEIVED_PREPARE
+  setupInitialState (initialState: TransferState): void {
+    this._state = { ...initialState }
   }
 
   changeStateTo (newState: TransferInternalStates): void {

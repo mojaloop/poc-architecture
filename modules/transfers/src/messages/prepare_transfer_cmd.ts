@@ -5,7 +5,6 @@
 
 import { CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransfersAggTopics } from '../domain/transfers_agg'
-import { TransferInternalStates } from '../domain/transfer_entity'
 
 export interface PrepareTransferCmdPayload {
   transfer: {
