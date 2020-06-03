@@ -106,9 +106,8 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
           break
         }
         default: {
-          const err = new Error(`COMMAND:Type - Unknown - ${message?.msgName}:${message?.msgId}`)
-          logger.error(err)
-          throw err
+          logger.warn(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgId} - Skipping unknown event`)
+          break
         }
       }
       let processCommandResult: boolean = false
