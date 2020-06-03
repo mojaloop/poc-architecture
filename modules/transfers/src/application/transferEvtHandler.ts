@@ -38,10 +38,11 @@
 'use strict'
 // import {InMemoryTransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
-import { TransfersTopics, PayerFundsReservedEvt } from '@mojaloop-poc/lib-public-messages'
+import { TransfersTopics, ParticipantsTopics, PayerFundsReservedEvt, TransferPrepareRequestedEvt, TransferPrepareAcceptedEvt } from '@mojaloop-poc/lib-public-messages'
 import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { AckPayerFundsReservedCmdPayload, AckPayerFundsReservedCmd } from '../messages/acknowledge_transfer_funds_cmd'
 import { InvalidTransferEvtError } from './errors'
+import { PrepareTransferCmdPayload, PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
 
 export const start = async (appConfig: any, logger: ILogger): Promise<MessageConsumer> => {
   const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
@@ -57,7 +58,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
     try {
       logger.info(`transferEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Start`)
       let transferEvt: DomainEventMsg | undefined
-      let transferCmd: CommandMsg | undefined
+      let transferCmd: CommandMsg | null = null
       // # Transform messages into correct Command
       switch (message.msgName) {
         case PayerFundsReservedEvt.name: {
@@ -67,28 +68,27 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
           transferCmd = new AckPayerFundsReservedCmd(ackPayerFundsReservedCmdPayload)
           break
         }
-        /* case TransferFulfilAcceptedEvt.name: {
-          transferEvt = TransferPrepareAcceptedEvt.fromIDomainMessage(message)
-          if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${TransferFulfilAcceptedEvt.name} is Invalid - ${message?.msgName}:${message?.msgId}`)
-          const commitPayeeFundsCmdPayload: CommitPayeeFundsCmdPayload = transferEvt.payload
-          transferCmd = new CommitPayeeFundsCmd(commitPayeeFundsCmdPayload)
+        case TransferPrepareRequestedEvt.name: {
+          transferEvt = TransferPrepareRequestedEvt.fromIDomainMessage(message)
+          if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${TransferPrepareRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgId}`)
+          const commitPayeeFundsCmdPayload: PrepareTransferCmdPayload = transferEvt.payload
+          transferCmd = new PrepareTransferCmd(commitPayeeFundsCmdPayload)
           break
-        } */
+        }
+        case TransferPrepareAcceptedEvt.name: {
+          // logger.info(`EVENT:Type TransferPrepareAcceptedEvt ignored for now... TODO: refactor the topic names`)
+          break
+        }
         default: {
-          const err = new Error(`EVENT:Type - Unknown - ${message?.msgName}:${message?.msgId}`)
-          logger.error(err)
-          throw err
+          logger.warn(`TransferEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Skipping unknown event`)
         }
       }
 
       if (transferCmd != null) {
         logger.info(`transferEvtHandler publishing cmd - ${message?.msgName}:${message?.msgId} - Cmd: ${transferCmd?.msgName}:${transferCmd?.msgId}`)
         await kafkaMsgPublisher.publish(transferCmd)
-      } else {
-        logger.warn(`transferEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Unable to process event`)
+        logger.info(`transferEvtHandler publishing cmd Finished - ${message?.msgName}:${message?.msgId}`)
       }
-
-      logger.info(`transferEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Result: true`)
     } catch (err) {
       const errMsg: string = err?.message?.toString()
       logger.info(`transferEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Error: ${errMsg}`)
@@ -103,7 +103,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
       groupId: 'transferEvtGroup',
       fromOffset: EnumOffset.LATEST
     },
-    topics: [TransfersTopics.DomainEvents]
+    topics: [TransfersTopics.DomainEvents, ParticipantsTopics.DomainEvents]
   }
 
   logger.info('Creating transferEvtConsumer...')

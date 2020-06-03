@@ -7,13 +7,11 @@ import { CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransfersAggTopics } from '../domain/transfers_agg'
 
 export interface PrepareTransferCmdPayload {
-  transfer: {
-    id: string
-    amount: number
-    currencyId: string
-    payerId: string
-    payeeId: string
-  }
+  transferId: string
+  amount: number
+  currency: string
+  payerId: string
+  payeeId: string
 }
 
 export class PrepareTransferCmd extends CommandMsg {
@@ -27,7 +25,7 @@ export class PrepareTransferCmd extends CommandMsg {
   constructor (payload: PrepareTransferCmdPayload) {
     super()
 
-    this.aggregateId = this.msgKey = payload?.transfer?.id
+    this.aggregateId = this.msgKey = payload?.transferId
 
     this.payload = payload
   }

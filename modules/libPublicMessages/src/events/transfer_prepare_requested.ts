@@ -9,7 +9,7 @@ import { TransfersTopics } from '../enums'
 export interface TransferPrepareRequestedEvtPayload {
   transferId: string
   amount: number
-  currencyId: string
+  currency: string
   payerId: string
   payeeId: string
 }

@@ -7,9 +7,7 @@ import { CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransfersAggTopics } from '../domain/transfers_agg'
 
 export interface AckPayerFundsReservedCmdPayload {
-  transfer: {
-    id: string
-  }
+  transferId: string
 }
 
 export class AckPayerFundsReservedCmd extends CommandMsg {
@@ -23,7 +21,7 @@ export class AckPayerFundsReservedCmd extends CommandMsg {
   constructor (payload: AckPayerFundsReservedCmdPayload) {
     super()
 
-    this.aggregateId = this.msgKey = payload?.transfer?.id
+    this.aggregateId = this.msgKey = payload?.transferId
 
     this.payload = payload
   }

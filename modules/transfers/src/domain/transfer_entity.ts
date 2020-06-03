@@ -22,7 +22,6 @@ export enum TransferInternalStates {
 }
 
 export class TransferState extends BaseEntityState {
-  transferId: string = ''
   amount: number = 0
   currency: string = ''
   TransferInternalStates: TransferInternalStates = TransferInternalStates.INVALID
@@ -31,15 +30,11 @@ export class TransferState extends BaseEntityState {
 }
 
 export class TransferEntity extends BaseEntity<TransferState> {
-  get transferId (): string {
-    return this._state.transferId
-  }
-
   get amount (): number {
     return this._state.amount
   }
 
-  get currencyId (): string {
+  get currency (): string {
     return this._state.currency
   }
 
