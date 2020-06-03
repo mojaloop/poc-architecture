@@ -4,7 +4,7 @@
 'use strict'
 
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
-import { TransferEntity, TransferInternalStates } from '../domain/transfer_entity'
+import { TransferInternalStates } from '../domain/transfer_entity'
 import { TransfersAggTopics } from '../domain/transfers_agg'
 
 export interface TransferCreatedEvtPayload {
