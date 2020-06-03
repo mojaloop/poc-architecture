@@ -13,6 +13,7 @@
     "Donovan Changfoot <donovan.changfoot@coil.com>",
     "Roman Pietrzak <roman.pietrzak@modusbox.com>"
   ],
+  "private": true,
   "main": "./dist/application/index.js",
   "types": "./dist/application/index.d.ts",
   "files": [
@@ -25,7 +26,7 @@
     "test:unit"
   ],
   "scripts": {
-    "start": "tsc && node dist/application/index.js",
+    "start": "tsc && node dist/application/index.js handler --config ../../.env",
     "build": "tsc",
     "watch": "tsc -w",
     "clean": "rm -Rf dist",
@@ -44,10 +45,13 @@
   "dependencies": {
     "@mojaloop-poc/lib-domain": "^0.1.0",
     "@mojaloop-poc/lib-infrastructure": "^0.1.0",
-    "@mojaloop-poc/lib-utilities": "^0.1.0",
     "@mojaloop-poc/lib-public-messages": "^0.1.0",
-    "redis": "^3.0.2",
-    "uuid": "^8.1.0"
+    "@mojaloop-poc/lib-utilities": "^0.1.0",
+    "@types/dotenv": "^8.2.0",
+    "commander": "^5.1.0",
+    "dotenv": "^8.2.0",
+    "path": "^0.12.7",
+    "redis": "^3.0.2"
   },
   "devDependencies": {
     "@types/kafka-node": "^3.0.0",

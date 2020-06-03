@@ -39,7 +39,6 @@
 // import { v4 as uuidv4 } from 'uuid'
 // import {InMemoryParticipantStateRepo} from "../infrastructure/inmemory_participant_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
-// import { IDomainMessage, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
 import { TransferPrepareAcceptedEvt, TransferFulfilAcceptedEvt, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
 import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { ReservePayerFundsCmd, ReservePayerFundsCmdPayload } from '../messages/reserve_payer_funds_cmd'

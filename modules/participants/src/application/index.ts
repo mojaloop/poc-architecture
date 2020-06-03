@@ -36,49 +36,90 @@
 ******/
 
 'use strict'
+
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { MessageConsumer } from '@mojaloop-poc/lib-infrastructure'
 import * as ParticipantCmdHandler from './participantCmdHandler'
 import * as ParticipantEvtHandler from './participantEvtHandler'
+import * as dotenv from 'dotenv'
+import { Command } from 'commander'
+import { resolve as Resolve } from 'path'
 
 export const logger: ILogger = new ConsoleLogger()
 
-export const appConfig = {
-  kafka: {
-    host: 'localhost:9092'
-  },
-  redis: {
-    host: 'redis://localhost:6379'
-  }
-}
+const Program = new Command()
+Program
+  .version('0.1')
+  .description('CLI to manage Participant Handlers')
+Program.command('handler')
+  .alias('h')
+  .description('Start Participant Handlers') // command description
+  .option('-c, --config [configFilePath]', '.env config file')
+  .option('--participantsEvt', 'Start the Participant Evt Handler')
+  .option('--participantsCmd', 'Start the Participant Cmd Handler')
 
-const start = async (): Promise<void> => {
-  // list of all handlers
-  const consumerHandlerList: MessageConsumer[] = []
+  // function to execute when command is uses
+  .action(async (args: any): Promise<void> => {
+    //#env file
+    const configFilePath = args.config
+    const dotenvConfig: any = {
+      debug: true
+    }
+    if (configFilePath != null) {
+      dotenvConfig.path = Resolve(process.cwd(), configFilePath)
+    }
+    dotenv.config(dotenvConfig)
 
-  // start all handlers here
-  consumerHandlerList.push(await ParticipantCmdHandler.start(appConfig, logger))
-  consumerHandlerList.push(await ParticipantEvtHandler.start(appConfig, logger))
+    //# setup application config
+    const appConfig = {
+      kafka: {
+        host: process.env.KAFKA_HOST
+      },
+      redis: {
+        host: process.env.REDIS_HOST
+      }
+    }
 
-  // lets clean up all consumers here
-  /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-  const killProcess = async (): Promise<void> => {
-    logger.info('Exiting process...')
-    logger.info('Disconnecting handlers...')
+    logger.debug(`appConfig=${JSON.stringify(appConfig)}`)
+
+    // list of all handlers
+    const consumerHandlerList: MessageConsumer[] = []
+
+    // start all handlers here
+    if (args.participantsEvtHandler == null && args.participantsCmdHandler == null) {
+      consumerHandlerList.push(await ParticipantEvtHandler.start(appConfig, logger))
+      consumerHandlerList.push(await ParticipantCmdHandler.start(appConfig, logger))
+    }
+    if (args.participantsEvtHandler != null) {
+      const participantEvtHandlerawait = await ParticipantEvtHandler.start(appConfig, logger)
+      consumerHandlerList.push(participantEvtHandlerawait)
+    }
+    if (args.participantsCmdHandler != null) {
+      consumerHandlerList.push(await ParticipantCmdHandler.start(appConfig, logger))
+    }
+
+    // lets clean up all consumers here
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-    consumerHandlerList.forEach(async (consumer) => {
-      logger.info(`\tDestroying handler...${consumer.constructor.name}`)
-      await consumer.destroy(true)
-    })
-    logger.info('Exit complete!')
-    process.exit(2)
-  }
-  /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-  process.on('SIGINT', killProcess)
-}
+    const killProcess = async (): Promise<void> => {
+      logger.info('Exiting process...')
+      logger.info('Disconnecting handlers...')
+      /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+      consumerHandlerList.forEach(async (consumer) => {
+        logger.info(`\tDestroying handler...${consumer.constructor.name}`)
+        await consumer.destroy(true)
+      })
+      logger.info('Exit complete!')
+      process.exit(2)
+    }
+    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+    process.on('SIGINT', killProcess)
+  })
 
-start().catch((err) => {
-  logger.error(err)
-}).finally(() => {
-})
+if (Array.isArray(process.argv) && process.argv.length > 2) {
+  // parse command line vars
+  Program.parse(process.argv)
+} else {
+  // display default help
+  Program.help()
+}
