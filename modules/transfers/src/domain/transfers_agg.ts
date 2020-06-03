@@ -45,10 +45,10 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
   }
 
   async processAckPayerFundsReservedCommand (commandMsg: AckPayerFundsReservedCmd): Promise<boolean> {
-    await this.load(commandMsg.payload.id, false)
+    await this.load(commandMsg.payload.transfer.id, false)
 
     if (this._rootEntity === null) {
-      this.recordDomainEvent(new TransferNotFoundEvt(commandMsg.payload.id))
+      this.recordDomainEvent(new TransferNotFoundEvt(commandMsg.payload.transfer.id))
       return false
     }
 
