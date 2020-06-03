@@ -56,7 +56,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
 
   const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
     appConfig.kafka.host,
-    'participants',
+    'participantCmdHandler',
     'development',
     logger
   )
@@ -91,20 +91,17 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
     try {
       logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgId} - Start`)
       let participantCmd: CommandMsg | undefined
-      // Transform messages into correct Command
+      // # Transform messages into correct Command
       switch (message.msgName) {
         case CreateParticipantCmd.name: {
-          // logger.info(`COMMAND:Type - ${CreateParticipantCmd.name}`)
           participantCmd = CreateParticipantCmd.fromIDomainMessage(message)
           break
         }
         case ReservePayerFundsCmd.name: {
-          // logger.info(`COMMAND:Type - ${ReservePayerFundsCmd.name}`)
           participantCmd = ReservePayerFundsCmd.fromIDomainMessage(message)
           break
         }
         case CommitPayeeFundsCmd.name: {
-          // logger.info(`COMMAND:Type - ${CommitPayeeFundsCmd.name}`)
           participantCmd = CommitPayeeFundsCmd.fromIDomainMessage(message)
           break
         }
@@ -118,10 +115,11 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
       if (participantCmd != null) {
         processCommandResult = await agg.processCommand(participantCmd)
       } else {
-        logger.warn('participantCmdHandler is Unable to process command')
+        logger.warn(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgId} - Unable to process event`)
       }
       logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
     } catch (err) {
+      logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgId} - Error: ${err.message}`)
       logger.error(err)
     }
   }

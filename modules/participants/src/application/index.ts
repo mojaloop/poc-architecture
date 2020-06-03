@@ -40,6 +40,7 @@ import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { MessageConsumer } from '@mojaloop-poc/lib-infrastructure'
 import * as ParticipantCmdHandler from './participantCmdHandler'
+import * as ParticipantEvtHandler from './participantEvtHandler'
 
 export const logger: ILogger = new ConsoleLogger()
 
@@ -58,6 +59,7 @@ const start = async (): Promise<void> => {
 
   // start all handlers here
   consumerHandlerList.push(await ParticipantCmdHandler.start(appConfig, logger))
+  consumerHandlerList.push(await ParticipantEvtHandler.start(appConfig, logger))
 
   // lets clean up all consumers here
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */

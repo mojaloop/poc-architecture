@@ -38,15 +38,17 @@
 'use strict'
 // import { v4 as uuidv4 } from 'uuid'
 // import {InMemoryParticipantStateRepo} from "../infrastructure/inmemory_participant_repo";
-// import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
-import { IDomainMessage, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
-import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
+import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
+// import { IDomainMessage, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
+import { ParticipantsTopics, TransferPrepareAcceptedEvt, TransferFulfilAcceptedEvt, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
 import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
+import { CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'
 
 export const start = async (appConfig: any, logger: ILogger): Promise<MessageConsumer> => {
   const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
     appConfig.kafka.host,
-    'participants',
+    'participantEvtHandler',
     'development',
     logger
   )
@@ -56,25 +58,34 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
   const participantEvtHandler = async (message: IDomainMessage): Promise<void> => {
     try {
       logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Start`)
-      // let participantEvt: DomainEventMsg | undefined
-      // Transform messages into correct Command
+      let participantCmd: CommandMsg | undefined
+      // # Transform messages into correct Command
       switch (message.msgName) {
+        case TransferPrepareAcceptedEvt.name: {
+          participantCmd = ReservePayerFundsCmd.fromIDomainMessage(message)
+          break
+        }
+        case TransferFulfilAcceptedEvt.name: {
+          participantCmd = CommitPayeeFundsCmd.fromIDomainMessage(message)
+          break
+        }
         default: {
           const err = new Error(`EVENT:Type - Unknown - ${message?.msgName}:${message?.msgId}`)
           logger.error(err)
           throw err
         }
       }
-
-      // let participantEvtResult = false
-      // if (participantEvt != null) {
-      //   // TODO: implement event processing here
-      //   logger.info('Nothing implemented here')
-      // } else {
-      //   logger.warn('participantEvtHandler is Unable to process command')
-      // }
-      // logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Result: ${participantEvtResult}`)
+      
+      if (participantCmd != null) {
+        logger.info(`participantEvtHandler publishing cmd - ${participantCmd?.msgName}:${participantCmd?.msgId}`)
+        await kafkaMsgPublisher.publish(participantCmd)
+      } else {
+        logger.warn(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Unable to process event`)
+      }
+    
+      logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Result: ${true}`)
     } catch (err) {
+      logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Error: ${err.message}`)
       logger.error(err)
     }
   }
@@ -86,7 +97,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
       groupId: 'participantEvtGroup',
       fromOffset: EnumOffset.LATEST
     },
-    topics: [ParticipantsTopics.Commands]
+    topics: [TransfersTopics.DomainEvents]
   }
 
   logger.info('Creating participantEvtConsumer...')

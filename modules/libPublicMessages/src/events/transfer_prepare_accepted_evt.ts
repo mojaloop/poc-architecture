@@ -10,7 +10,6 @@ export interface TransferPrepareAcceptedEvtPayload {
   transferId: string
   amount: number
   currency: string
-  TransferInternalStates: TransferInternalStates
   payerId: string
   payeeId: string
 }
