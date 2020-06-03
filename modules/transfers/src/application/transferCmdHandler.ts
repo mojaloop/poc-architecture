@@ -40,16 +40,18 @@
 // import {InMemorytransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { CommandMsg, IDomainMessage, IMessagePublisher, ILogger, IEntityStateRepository } from '@mojaloop-poc/lib-domain'
 import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions } from '@mojaloop-poc/lib-infrastructure'
-import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
-import { TransferState } from '../domain/transfer_entity'
+// import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
+// import { TransferState } from '../domain/transfer_entity'
 import { TransfersTopics } from '@mojaloop-poc/lib-public-messages'
 import { TransfersAgg } from '../domain/transfers_agg'
 import { PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
 import { AckPayerFundsReservedCmd } from '../messages/acknowledge_transfer_funds_cmd'
+import { RedisTransferStateRepo } from '../infrastructure/redis_participant_repo'
+import { ITransfersRepo } from '../domain/transfers_repo'
 
 export const start = async (appConfig: any, logger: ILogger): Promise<MessageConsumer> => {
-  const repo: IEntityStateRepository<TransferState> = new InMemoryTransferStateRepo()
-  // const repo: ItransferRepo = new RedistransferStateRepo(appConfig.redis.host, logger)
+  // const repo: IEntityStateRepository<TransferState> = new InMemoryTransferStateRepo()
+  const repo: ITransfersRepo = new RedisTransferStateRepo(appConfig.redis.host, logger)
 
   await repo.init()
 
