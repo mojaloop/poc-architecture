@@ -22,32 +22,37 @@ export enum TransferInternalStates {
 }
 
 export class TransferState extends BaseEntityState {
+  transferId: string = ''
   amount: number = 0
-  currencyId: string = ''
-  transferInternalStateId: TransferInternalStates = TransferInternalStates.INVALID
-  payerName: string = ''
-  payeeName: string = ''
+  currency: string = ''
+  TransferInternalStates: TransferInternalStates = TransferInternalStates.INVALID
+  payerId: string = ''
+  payeeId: string = ''
 }
 
 export class TransferEntity extends BaseEntity<TransferState> {
+  get transferId (): string {
+    return this._state.transferId
+  }
+
   get amount (): number {
     return this._state.amount
   }
 
   get currencyId (): string {
-    return this._state.currencyId
+    return this._state.currency
   }
 
-  get transferInternalStateId (): TransferInternalStates {
-    return this._state.transferInternalStateId
+  get TransferInternalStates (): TransferInternalStates {
+    return this._state.TransferInternalStates
   }
 
-  get payerName (): string {
-    return this._state.currencyId
+  get payerId (): string {
+    return this._state.payerId
   }
 
-  get payeeName (): string {
-    return this._state.currencyId
+  get payeeId (): string {
+    return this._state.payeeId
   }
 
   static CreateInstance (initialState?: TransferState): TransferEntity {
@@ -58,15 +63,15 @@ export class TransferEntity extends BaseEntity<TransferState> {
     return entity
   }
 
-  setupInitialState (amount: number, currencyId: string, payerName: string, payeeName: string): void {
+  setupInitialState (amount: number, currency: string, payerId: string, payeeId: string): void {
     this._state.amount = amount
-    this._state.currencyId = currencyId
-    this._state.payerName = payerName
-    this._state.payeeName = payeeName
-    this._state.transferInternalStateId = TransferInternalStates.RECEIVED_PREPARE
+    this._state.currency = currency
+    this._state.payerId = payerId
+    this._state.payeeId = payeeId
+    this._state.TransferInternalStates = TransferInternalStates.RECEIVED_PREPARE
   }
 
   changeStateTo (newState: TransferInternalStates): void {
-    this._state.transferInternalStateId = newState
+    this._state.TransferInternalStates = newState
   }
 }

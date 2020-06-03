@@ -44,8 +44,8 @@ import { KafkaMessagePublisher } from '@mojaloop-poc/lib-infrastructure'
 import { TransferState } from '../domain/transfer_entity'
 import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
 import { TransfersAgg } from '../domain/transfers_agg'
-import { CreateTransferCmd } from '../messages/create_transfer_cmd'
-import { AcknowledgeTransferFundsCmd } from '../messages/acknowledge_transfer_funds_cmd'
+import { PrepareTransferCmd } from '../messages/create_transfer_cmd'
+import { AckPayerFundsReservedCmd } from '../messages/acknowledge_transfer_funds_cmd'
 
 const logger: ConsoleLogger = new ConsoleLogger()
 
@@ -68,14 +68,14 @@ async function start (): Promise<void> {
 
   const transferId: string = uuidv4()
 
-  const createTransferCmd: CreateTransferCmd = new CreateTransferCmd(transferId, 100, 'USD', 'participant_1', 'participant_2')
-  await agg.processCommand(createTransferCmd)
+  const prepareTransferCmd: PrepareTransferCmd = new PrepareTransferCmd(transferId, 100, 'USD', 'participant_1', 'participant_2')
+  await agg.processCommand(prepareTransferCmd)
 
-  const acknowledgeTransferFundsCmd: AcknowledgeTransferFundsCmd = new AcknowledgeTransferFundsCmd(transferId)
-  await agg.processCommand(acknowledgeTransferFundsCmd)
+  const ackPayerFundsReservedCmd: AckPayerFundsReservedCmd = new AckPayerFundsReservedCmd(transferId)
+  await agg.processCommand(ackPayerFundsReservedCmd)
 
-  const acknowledgeTransferFundsCmdTriggerErrorUnknown: AcknowledgeTransferFundsCmd = new AcknowledgeTransferFundsCmd(uuidv4())
-  await agg.processCommand(acknowledgeTransferFundsCmdTriggerErrorUnknown)
+  const ackPayerFundsReservedCmdTriggerErrorUnknown: AckPayerFundsReservedCmd = new AckPayerFundsReservedCmd(uuidv4())
+  await agg.processCommand(ackPayerFundsReservedCmdTriggerErrorUnknown)
 }
 
 start().catch((err) => {

@@ -6,7 +6,7 @@
 import { CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransfersAggTopics } from '../domain/transfers_agg'
 
-export class AcknowledgeTransferFundsCmd extends CommandMsg {
+export class AckPayerFundsReservedCmd extends CommandMsg {
   aggregateId: string
   aggregateName: string = 'Transfers'
   msgKey: string
