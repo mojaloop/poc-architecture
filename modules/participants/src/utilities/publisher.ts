@@ -1,4 +1,4 @@
-import { IMessagePublisher, IMessage } from "@mojaloop-poc/lib-domain"
+import { IMessagePublisher, IMessage } from '@mojaloop-poc/lib-domain'
 import { KafkaMessagePublisher } from '@mojaloop-poc/lib-infrastructure'
 import { appConfig, logger } from '../application'
 
@@ -9,8 +9,8 @@ const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
   logger
 )
 
-export const publishMessage = async (message: IMessage) => {
-  await kafkaMsgPublisher.init()  
+export const publishMessage = async (message: IMessage): Promise<void> => {
+  await kafkaMsgPublisher.init()
   await kafkaMsgPublisher.publish(message)
   await kafkaMsgPublisher.destroy()
 }

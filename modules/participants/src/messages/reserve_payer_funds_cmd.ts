@@ -38,7 +38,7 @@
 'use strict'
 
 import { CommandMsg } from '@mojaloop-poc/lib-domain'
-import { ParticipantsTopics, ParticipantAccountTypes, AccountLimitTypes, CurrencyTypes } from '@mojaloop-poc/lib-public-messages'
+import { ParticipantsTopics, CurrencyTypes } from '@mojaloop-poc/lib-public-messages'
 
 export interface ReservePayerFundsCmdPayload {
   payerId: string

@@ -42,11 +42,9 @@ import { ParticipantEntity, ParticipantState, InvalidAccountError, InvalidLimitE
 import { ParticipantsFactory } from './participants_factory'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 import { CreateParticipantCmd } from '../messages/create_participant_cmd'
-import { DuplicateParticipantDetectedEvt, InvalidParticipantEvt, PayerFundsReservedEvt, ParticipantCreatedEvt, NetCapLimitExceededEvt, PayeeFundsCommittedEvt } from '@mojaloop-poc/lib-public-messages'
+import { DuplicateParticipantDetectedEvt, InvalidParticipantEvt, PayerFundsReservedEvt, ParticipantCreatedEvt, NetCapLimitExceededEvt, PayeeFundsCommittedEvt, ParticipantAccountTypes } from '@mojaloop-poc/lib-public-messages'
 import { IParticipantRepo } from './participant_repo'
 import { CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'
-import { ParticipantAccountTypes } from '@mojaloop-poc/lib-public-messages'
-
 
 export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, ParticipantState> {
   constructor (entityStateRepo: IParticipantRepo, msgPublisher: IMessagePublisher, logger: ILogger) {

@@ -7,17 +7,21 @@ import { v4 as uuidv4 } from 'uuid'
 const reservePayerFundsCmdPayload: ReservePayerFundsCmdPayload = {
   // "payerId": "fsp-24",
   // "payeeId": "fsp-14",
-  "payerId": "fsp-14",
-  "payeeId": "fsp-24",
-  "transferId": uuidv4(),
-  "currency": CurrencyTypes.USD,
-  "amount": 1
+  payerId: 'fsp-14',
+  payeeId: 'fsp-24',
+  transferId: uuidv4(),
+  currency: CurrencyTypes.USD,
+  amount: 1
 }
 const reservePayerFundsCmd = new ReservePayerFundsCmd(reservePayerFundsCmdPayload)
 
+/* eslint-disable-next-line @typescript-eslint/explicit-function-return-type */
 const start = async () => {
   await publishMessage(reservePayerFundsCmd)
-  process.exit(0)  
+  process.exit(0)
 }
 
-start()
+start().catch((err) => {
+  console.error(err)
+}).finally(() => {
+})

@@ -62,7 +62,7 @@ export interface CreateParticipantCmdPayload {
   participant: {
     id: string
     name: string
-    accounts: ParticipantAccount[]  
+    accounts: ParticipantAccount[]
     endpoints: ParticipantEndpoint[]
   }
 }

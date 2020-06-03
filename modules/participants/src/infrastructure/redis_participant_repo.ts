@@ -162,8 +162,8 @@ export class RedisParticipantStateRepo implements IParticipantRepo {
     return this.keyPrefix + key
   }
 
-  async hasAccount (participantId: string, accType:ParticipantAccountTypes, currency: string): Promise<boolean> {
+  async hasAccount (participantId: string, accType: ParticipantAccountTypes, currency: string): Promise<boolean> {
     const participant = await this.load(participantId)
-    return participant?.accounts?.find( account => account.type === accType && account.currency === currency) != null
+    return participant?.accounts?.find(account => account.type === accType && account.currency === currency) != null
   }
 }

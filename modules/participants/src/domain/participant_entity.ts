@@ -100,7 +100,7 @@ export class ParticipantEntity extends BaseEntity<ParticipantState> {
 
   private getAccount (accType: ParticipantAccountTypes, currency: CurrencyTypes): ParticipantAccountState | null {
     if (accType == null || currency == null) return null
-    const accountState = this._state?.accounts?.find( account => account.type === accType && account.currency === currency)
+    const accountState = this._state?.accounts?.find(account => account.type === accType && account.currency === currency)
     if (accountState == null) return null
     return accountState
   }
@@ -108,15 +108,14 @@ export class ParticipantEntity extends BaseEntity<ParticipantState> {
   private getLimit (accType: ParticipantAccountTypes, currency: CurrencyTypes, limitType: AccountLimitTypes): ParticipantLimitState | null {
     if (accType != null && currency != null && limitType != null) {
       const accountState = this.getAccount(accType, currency)
-      if (accountState != null )
-        return this.getLimitFromAccount(accountState, limitType)
+      if (accountState != null) { return this.getLimitFromAccount(accountState, limitType) }
     }
     return null
   }
 
   private getLimitFromAccount (account: ParticipantAccountState, limitType: AccountLimitTypes): ParticipantLimitState | null {
     if (account != null && limitType != null) {
-      const limitState = account?.limits?.find( limit => limit.type = limitType)
+      const limitState = account?.limits?.find(limit => limit.type === limitType)
       if (limitState == null) return null
       return limitState
     }
@@ -133,7 +132,7 @@ export class ParticipantEntity extends BaseEntity<ParticipantState> {
 
   private getEndpoint (type: string): ParticipantEndpointState | null {
     if (type == null) return null
-    const endpointState = this._state?.endpoints?.find( endpoint => endpoint.type === type )
+    const endpointState = this._state?.endpoints?.find(endpoint => endpoint.type === type)
     if (endpointState == null) return null
     return endpointState
   }

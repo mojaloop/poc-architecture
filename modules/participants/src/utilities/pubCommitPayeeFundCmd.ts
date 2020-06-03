@@ -5,17 +5,21 @@ import { CurrencyTypes } from '@mojaloop-poc/lib-public-messages'
 import { v4 as uuidv4 } from 'uuid'
 
 const commitPayeeFundsCmdPayload: CommitPayeeFundsCmdPayload = {
-  "payerId": "fsp-14",
-  "payeeId": "fsp-24",
-  "transferId": uuidv4(),
-  "currency": CurrencyTypes.USD,
-  "amount": 1
+  payerId: 'fsp-14',
+  payeeId: 'fsp-24',
+  transferId: uuidv4(),
+  currency: CurrencyTypes.USD,
+  amount: 1
 }
 const commitPayeeFundsCmd = new CommitPayeeFundsCmd(commitPayeeFundsCmdPayload)
 
+/* eslint-disable-next-line @typescript-eslint/explicit-function-return-type */
 const start = async () => {
   await publishMessage(commitPayeeFundsCmd)
-  process.exit(0)  
+  process.exit(0)
 }
 
-start()
+start().catch((err) => {
+  console.error(err)
+}).finally(() => {
+})

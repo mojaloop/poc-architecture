@@ -114,14 +114,13 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
           throw err
         }
       }
-      let processCommandResult = false
+      let processCommandResult: boolean = false
       if (participantCmd != null) {
         processCommandResult = await agg.processCommand(participantCmd)
       } else {
         logger.warn('participantCmdHandler is Unable to process command')
       }
-      logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgId} - Result: ${processCommandResult}`)
-
+      logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
     } catch (err) {
       logger.error(err)
     }
