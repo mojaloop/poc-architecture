@@ -38,7 +38,7 @@
 'use strict'
 // import { v4 as uuidv4 } from 'uuid'
 // import {InMemorytransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
-import { CommandMsg, IDomainMessage, IMessagePublisher, ILogger, IEntityStateRepository } from '@mojaloop-poc/lib-domain'
+import { CommandMsg, IDomainMessage, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
 import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions } from '@mojaloop-poc/lib-infrastructure'
 // import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
 // import { TransferState } from '../domain/transfer_entity'

@@ -38,7 +38,6 @@
 'use strict'
 
 import { IEntityStateRepository } from '@mojaloop-poc/lib-domain'
-import { ParticipantAccountTypes } from '@mojaloop-poc/lib-public-messages'
 import { TransferState } from './transfer_entity'
 
 export interface ITransfersRepo extends IEntityStateRepository<TransferState> {

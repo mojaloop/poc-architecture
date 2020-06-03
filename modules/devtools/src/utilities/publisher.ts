@@ -4,7 +4,7 @@ import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 
 import * as dotenv from 'dotenv'
 
-//TODO: Figure a better way to handle env config here
+// TODO: Figure a better way to handle env config here
 dotenv.config({ path: '../../.env' })
 
 const logger: ILogger = new ConsoleLogger()

@@ -1,7 +1,7 @@
 // import { logger } from '../application'
 import { publishMessage } from '../utilities/publisher'
 // import { CreateParticipantCmdPayload, CreateParticipantCmd } from '../messages/create_participant_cmd'
-//# HACK-ALERT: Importing directly from the node_modules folder as Commands are not publically accessible until some additional re-factoring can be done. Note that this "tool" module is only for development purposes.
+// # HACK-ALERT: Importing directly from the node_modules folder as Commands are not publically accessible until some additional re-factoring can be done. Note that this "tool" module is only for development purposes.
 import { CreateParticipantCmdPayload, CreateParticipantCmd } from '../../node_modules/@mojaloop-poc/participants/dist/messages/create_participant_cmd'
 import { ParticipantAccountTypes, AccountLimitTypes, CurrencyTypes } from '@mojaloop-poc/lib-public-messages'
 
