@@ -36,12 +36,12 @@ services:
        - ./docker/wait4:/opt/participants/wait4
     environment:
       - LOG_LEVEL=info
-      - PARTICIPANTS_REDIS_CONNECTION=redis-participants
-      - PARTICIPANTS_KAFKA_CONNECTION="kafka:9092"
+      - REDIS_HOST=redis
+      - KAFKA_HOST="kafka:9092"
     networks:
       - mojaloop-poc
     depends_on:
-      - redis-participants
+      - redis
       - kafka
     # healthcheck:
     #   test: wget -q http://172.17.0.1:3001/health -O /dev/null || exit 1
@@ -49,8 +49,8 @@ services:
     #   retries: 30
     #   interval: 15s
 
-  redis-participants:
-    container_name: redis-participants
+  redis:
+    container_name: redis
     image: "redis:5.0.4-alpine"
     ports:
       - "6379:6379"
@@ -70,7 +70,8 @@ services:
        - ./docker/wait4:/opt/transfers/wait4
     environment:
       - LOG_LEVEL=info
-      - TRANSFERS_KAFKA_CONNECTION="kafka:9092"
+      - REDIS_HOST=redis
+      - KAFKA_HOST="kafka:9092"
     networks:
       - mojaloop-poc
     depends_on:
