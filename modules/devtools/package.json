@@ -1,0 +1,85 @@
+{
+  "name": "@mojaloop-poc/dev-tools",
+  "version": "0.1.0",
+  "description": "mojaloop arch poc development - tools",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/mojaloop/poc-architecture",
+  "bugs": {
+    "url": "https://github.com/mojaloop/<repo-name>/issues#readme"
+  },
+  "author": "Pedro Sousa Barreto <pedrob@crosslaketech.com>",
+  "contributors": [
+    "Miguel de Barros <miguel.debarros@modusbox.com>",
+    "Donovan Changfoot <donovan.changfoot@coil.com>",
+    "Roman Pietrzak <roman.pietrzak@modusbox.com>"
+  ],
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "/dist"
+  ],
+  "pre-commit": [
+    "dep:check",
+    "build",
+    "lint"
+  ],
+  "scripts": {
+    "pubCommitPayeeFundCmd": "tsc && node ./dist/participants/pubCommitPayeeFundCmd.js",
+    "pubCreateParticipantCmd": "tsc && node ./dist/participants/pubCreateParticipantCmd.js",
+    "pubReservePayerFundCmd": "tsc && node ./dist/participants/pubReservePayerFundCmd.js",
+    "pubTransferFulfilAcceptedEvt": "tsc && node ./dist/participants/pubTransferFulfilAcceptedEvt.js",
+    "pubTransferPrepareAcceptedEvt": "tsc && node ./dist/participants/pubTransferPrepareAcceptedEvt.js",
+    "build": "tsc",
+    "watch": "tsc -w",
+    "clean": "rm -Rf dist",
+    "pretest": "npm run build",
+    "standard": "npm run lint",
+    "lint": "npm run build && npx eslint ./src",
+    "lint:fix": "npm run build && npx eslint ./src --fix",
+    "test:unit": "jest --testMatch '**/test/unit/**/*.test.ts'",
+    "test:coverage": "jest --coverage --coverageThreshold='{}' --testMatch '**/test/unit/**/*.test.ts'",
+    "test:coverage-check": "jest --coverage --testMatch '**/test/unit/**/*.test.ts'",
+    "audit:resolve": "SHELL=sh resolve-audit",
+    "audit:check": "SHELL=sh check-audit",
+    "dep:check": "npx ncu -e 2",
+    "dep:update": "npx ncu -u"
+  },
+  "dependencies": {
+    "@mojaloop-poc/lib-domain": "^0.1.0",
+    "@mojaloop-poc/lib-infrastructure": "^0.1.0",
+    "@mojaloop-poc/lib-public-messages": "^0.1.0",
+    "@mojaloop-poc/lib-utilities": "^0.1.0",
+    "@mojaloop-poc/participants": "^0.1.0",
+    "@mojaloop-poc/transfers": "^0.1.0",
+    "@types/dotenv": "^8.2.0",
+    "commander": "^5.1.0",
+    "dotenv": "^8.2.0",
+    "path": "^0.12.7",
+    "redis": "^3.0.2"
+  },
+  "devDependencies": {
+    "@types/kafka-node": "^3.0.0",
+    "@types/node": "^14.0.9",
+    "@types/redis": "^2.8.22",
+    "@types/uuid": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^3.1.0",
+    "eslint": "^7.1.0",
+    "eslint-config-prettier": "^6.11.0",
+    "eslint-config-standard-with-typescript": "^18.0.2",
+    "eslint-plugin-import": "^2.20.2",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-standard": "^4.0.1",
+    "faucet": "0.0.1",
+    "jest": "^26.0.1",
+    "jest-junit": "^10.0.0",
+    "npm-audit-resolver": "^2.2.0",
+    "npm-check-updates": "^6.0.1",
+    "nyc": "^15.1.0",
+    "pre-commit": "^1.2.2",
+    "ts-jest": "^26.1.0",
+    "typedoc": "^0.17.7",
+    "typescript": "^3.9.3"
+  }
+}
