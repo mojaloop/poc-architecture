@@ -67,14 +67,13 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
           transferCmd = new AckPayerFundsReservedCmd(ackPayerFundsReservedCmdPayload)
           break
         }
-      /*
-        case TransferFulfilAcceptedEvt.name: {
+        /* case TransferFulfilAcceptedEvt.name: {
           transferEvt = TransferPrepareAcceptedEvt.fromIDomainMessage(message)
           if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${TransferFulfilAcceptedEvt.name} is Invalid - ${message?.msgName}:${message?.msgId}`)
           const commitPayeeFundsCmdPayload: CommitPayeeFundsCmdPayload = transferEvt.payload
           transferCmd = new CommitPayeeFundsCmd(commitPayeeFundsCmdPayload)
           break
-        }*/
+        } */
         default: {
           const err = new Error(`EVENT:Type - Unknown - ${message?.msgName}:${message?.msgId}`)
           logger.error(err)

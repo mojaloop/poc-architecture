@@ -51,4 +51,3 @@ export * from './events/transfer_prepare_accepted_evt'
 export * from './events/transfer_fulfil_accepted_evt'
 export * from './events/transfer_reserved_evt'
 export * from './events/transfer_not_found_evt'
-
