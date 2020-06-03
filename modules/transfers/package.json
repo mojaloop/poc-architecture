@@ -45,7 +45,11 @@
     "@mojaloop-poc/lib-domain": "^0.1.0",
     "@mojaloop-poc/lib-infrastructure": "^0.1.0",
     "@mojaloop-poc/lib-utilities": "^0.1.0",
-    "@mojaloop-poc/lib-public-messages": "^0.1.0"
+    "@mojaloop-poc/lib-public-messages": "^0.1.0",
+    "@types/dotenv": "^8.2.0",
+    "commander": "^5.1.0",
+    "dotenv": "^8.2.0",
+    "path": "^0.12.7"
   },
   "devDependencies": {
     "@types/kafka-node": "^3.0.0",
