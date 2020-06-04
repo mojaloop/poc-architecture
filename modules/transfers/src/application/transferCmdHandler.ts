@@ -45,9 +45,11 @@ import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffse
 import { TransfersTopics } from '@mojaloop-poc/lib-public-messages'
 import { TransfersAgg } from '../domain/transfers_agg'
 import { PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
-import { AckPayerFundsReservedCmd } from '../messages/acknowledge_transfer_funds_cmd'
+import { AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { RedisTransferStateRepo } from '../infrastructure/redis_participant_repo'
 import { ITransfersRepo } from '../domain/transfers_repo'
+import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
+import { AckPayeeFundsReservedCmd } from '../messages/ack_payee_funds_reserved_cmd'
 
 export const start = async (appConfig: any, logger: ILogger): Promise<MessageConsumer> => {
   // const repo: IEntityStateRepository<TransferState> = new InMemoryTransferStateRepo()
@@ -74,13 +76,19 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
       // Transform messages into correct Command
       switch (message.msgName) {
         case PrepareTransferCmd.name: {
-          // logger.info(`COMMAND:Type - ${ReservePayerFundsCmd.name}`)
           transferCmd = PrepareTransferCmd.fromIDomainMessage(message)
           break
         }
         case AckPayerFundsReservedCmd.name: {
-          // logger.info(`COMMAND:Type - ${CommitPayeeFundsCmd.name}`)
           transferCmd = AckPayerFundsReservedCmd.fromIDomainMessage(message)
+          break
+        }
+        case AckPayeeFundsReservedCmd.name: {
+          transferCmd = AckPayeeFundsReservedCmd.fromIDomainMessage(message)
+          break
+        }
+        case FulfilTransferCmd.name: {
+          transferCmd = FulfilTransferCmd.fromIDomainMessage(message)
           break
         }
         default: {
