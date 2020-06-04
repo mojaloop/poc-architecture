@@ -5,13 +5,14 @@ import { publishMessage } from '../utilities/publisher'
 import { ReservePayerFundsCmdPayload, ReservePayerFundsCmd } from '../../node_modules/@mojaloop-poc/participants/dist/messages/reserve_payer_funds_cmd'
 import { CurrencyTypes } from '@mojaloop-poc/lib-public-messages'
 import { v4 as uuidv4 } from 'uuid'
-import { logger } from '..'
+import { ILogger } from '@mojaloop-poc/lib-domain'
+import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
+
+const logger: ILogger = new ConsoleLogger()
 
 const reservePayerFundsCmdPayload: ReservePayerFundsCmdPayload = {
-  // "payerId": "fsp-24",
-  // "payeeId": "fsp-14",
-  payerId: 'fsp-14',
-  payeeId: 'fsp-24',
+  payerId: 'fsp-1',
+  payeeId: 'fsp-2',
   transferId: uuidv4(),
   currency: CurrencyTypes.USD,
   amount: 1
