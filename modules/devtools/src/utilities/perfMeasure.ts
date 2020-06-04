@@ -1,17 +1,17 @@
 /**
  * Created by pedrosousabarreto@gmail.com on 04/Jun/2020.
  */
-'use strict';
+'use strict'
 
-import {IDomainMessage, ILogger} from '@mojaloop-poc/lib-domain'
-import {KafkaGenericConsumer, KafkaGenericConsumerOptions} from '@mojaloop-poc/lib-infrastructure'
-import {ConsoleLogger} from '@mojaloop-poc/lib-utilities'
+import { IDomainMessage, ILogger } from '@mojaloop-poc/lib-domain'
+import { KafkaGenericConsumer, KafkaGenericConsumerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 
 import * as dotenv from 'dotenv'
-import {TransfersTopics} from '@mojaloop-poc/lib-public-messages'
+import { TransfersTopics } from '@mojaloop-poc/lib-public-messages'
 
 // TODO: Figure a better way to handle env config here
-dotenv.config({path: '../../.env'})
+dotenv.config({ path: '../../.env' })
 
 const logger: ILogger = new ConsoleLogger()
 
@@ -41,19 +41,18 @@ function recordCompleted (timeMs: number): void {
   buckets.set(currentSecond, bucketData)
 }
 
-function logRPS ():void {
+function logRPS (): void {
   const lastSecond = Math.floor(Date.now() / 1000) - 1
   const bucketData = buckets.get(lastSecond)
-  if(bucketData === undefined) {
-    console.log('\n *** 0 requests per second - 0 average ms per transfer *** \n')
-  }else {
-    console.log(`\n *** ${bucketData.counter} requests per second - ${Math.floor(bucketData.totalTimeMs / bucketData.counter)} average ms per transfer *** \n`)
+  if (bucketData === undefined) {
+    logger.info('\n *** 0 requests per second - 0 average ms per transfer *** \n')
+  } else {
+    logger.info(`\n *** ${bucketData.counter} requests per second - ${Math.floor(bucketData.totalTimeMs / bucketData.counter)} average ms per transfer *** \n`)
   }
 
-  if(buckets.has(lastSecond - 1))
-    buckets.delete(lastSecond - 1) // clean up old
+  if (buckets.has(lastSecond - 1)) { buckets.delete(lastSecond - 1) } // clean up old
 
-  setTimeout(()=>{
+  setTimeout(() => {
     logRPS()
   }, 1000)
 }
@@ -67,7 +66,7 @@ const evtHandler = async (message: IDomainMessage): Promise<void> => {
     // console.log(`Prepare leg started for transfer id: ${message.aggregateId} at: - ${new Date(message.msgTimestamp).toISOString()}`)
   } else if (message.msgName === 'TransferPrepareAcceptedEvt') {
     const reqReceivedAt = evtMap.get(message.aggregateId)
-    if (reqReceivedAt){
+    if (reqReceivedAt != null) {
       // console.log(`Prepare leg completed for transfer id: ${message.aggregateId} took: - ${message.msgTimestamp - reqReceivedAt} ms`)
       recordCompleted(message.msgTimestamp - reqReceivedAt)
     }
@@ -78,11 +77,12 @@ const evtHandler = async (message: IDomainMessage): Promise<void> => {
 const start = async () => {
   logRPS()
   const kafkaEvtConsumer = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(kafkaConsumerOptions, logger)
+  /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
   await kafkaEvtConsumer.init(evtHandler)
 }
 
 start().catch((err) => {
-  console.error(err)
+  logger.error(err)
 }).finally(() => {
   // process.exit(0)
 })

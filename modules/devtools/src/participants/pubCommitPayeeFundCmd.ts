@@ -5,6 +5,7 @@ import { publishMessage } from '../utilities/publisher'
 import { CommitPayeeFundsCmdPayload, CommitPayeeFundsCmd } from '../../node_modules/@mojaloop-poc/participants/dist/messages/commit_payee_funds_cmd'
 import { CurrencyTypes } from '@mojaloop-poc/lib-public-messages'
 import { v4 as uuidv4 } from 'uuid'
+import { logger } from '..'
 
 const commitPayeeFundsCmdPayload: CommitPayeeFundsCmdPayload = {
   payerId: 'fsp-14',
@@ -22,6 +23,6 @@ const start = async () => {
 }
 
 start().catch((err) => {
-  console.error(err)
+  logger.error(err)
 }).finally(() => {
 })

@@ -92,8 +92,9 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
 
     this.create(commandMsg.payload?.participant?.id)
 
+    // TODO: re-do-mappping here
     const initialState = Object.assign({}, new ParticipantState(), commandMsg.payload.participant)
-    // initialState.id = commandMsg.payload.participantId
+
     this._rootEntity!.setupInitialState(initialState)
 
     // TODO: Do mapping from rootEntity to participantCreatedEvtPayload

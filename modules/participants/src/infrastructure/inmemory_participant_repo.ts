@@ -37,10 +37,9 @@
 
 'use strict'
 
-import { IEntityStateRepository } from '@mojaloop-poc/lib-domain'
 import { ParticipantState } from '../domain/participant_entity'
-import {IParticipantRepo} from '../domain/participant_repo'
-import {ParticipantAccountTypes} from "../../../libPublicMessages/dist/enums";
+import { IParticipantRepo } from '../domain/participant_repo'
+import { ParticipantAccountTypes } from '../../../libPublicMessages/dist/enums'
 
 // export class InMemoryParticipantStateRepo implements IEntityStateRepository<ParticipantState> {
 export class InMemoryParticipantStateRepo implements IParticipantRepo {

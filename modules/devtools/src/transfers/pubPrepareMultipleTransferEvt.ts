@@ -2,12 +2,14 @@
 import { publishMessageMultiple } from '../utilities/publisher'
 import { CurrencyTypes, TransferPrepareRequestedEvt } from '@mojaloop-poc/lib-public-messages'
 import { v4 as uuidv4 } from 'uuid'
+import { logger } from '..'
 
-const send = async()=>{
-  return new Promise(async (resolve, reject)=>{
-    let evts: TransferPrepareRequestedEvt[] = []
+const send = async (): Promise<void> => {
+  /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+  return await new Promise(async (resolve, reject) => {
+    const evts: TransferPrepareRequestedEvt[] = []
 
-    for(let i=0; i<80; i++){
+    for (let i = 0; i < 80; i++) {
       evts.push(new TransferPrepareRequestedEvt({
         transferId: uuidv4(),
         payerId: 'fsp-14',
@@ -18,8 +20,8 @@ const send = async()=>{
     }
 
     await publishMessageMultiple(evts)
-
-    setTimeout(async () =>{
+    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+    setTimeout(async () => {
       resolve()
     }, 1000)
   })
@@ -27,14 +29,13 @@ const send = async()=>{
 
 /* eslint-disable-next-line @typescript-eslint/explicit-function-return-type */
 const start = async () => {
-
-  while(1) {
+  while (true) {
     await send()
   }
   // process.exit(0)
 }
 
 start().catch((err) => {
-  console.error(err)
+  logger.error(err)
 }).finally(() => {
 })
