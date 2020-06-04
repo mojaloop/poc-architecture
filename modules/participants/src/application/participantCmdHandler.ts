@@ -40,7 +40,7 @@
 // import {InMemoryParticipantStateRepo} from "../infrastructure/inmemory_participant_repo";
 import { CommandMsg, IDomainMessage, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
-import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { ParticpantsAgg } from '../domain/participants_agg'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 import { CreateParticipantCmd } from '../messages/create_participant_cmd'
@@ -54,10 +54,17 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
 
   await repo.init()
 
+  const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
+    client: {
+      kafka: {
+        kafkaHost: appConfig.kafka.host,
+        clientId: 'participantCmdHandler'
+      }
+    }
+  }
+
   const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
-    appConfig.kafka.host,
-    'participantCmdHandler',
-    'development',
+    kafkaGenericProducerOptions,
     logger
   )
 

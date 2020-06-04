@@ -40,10 +40,7 @@ export class KafkaGenericConsumer extends MessageConsumer {
 
   protected _logger: ILogger
 
-  constructor (
-    options: KafkaGenericConsumerOptions,
-    logger?: ILogger
-  ) {
+  constructor (options: KafkaGenericConsumerOptions, logger?: ILogger) {
     super()
 
     // make a copy of the options

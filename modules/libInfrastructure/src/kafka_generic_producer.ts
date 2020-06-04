@@ -40,6 +40,7 @@
 import * as kafka from 'kafka-node'
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 import { ILogger, IMessage } from '@mojaloop-poc/lib-domain'
+import { MessageProducer, Options } from './imessage_producer'
 // import { murmur2 } from 'murmurhash-js'
 
 // ref: https://github.com/vuza/murmur2-partitioner/blob/master/index.js
@@ -53,23 +54,34 @@ import { ILogger, IMessage } from '@mojaloop-poc/lib-domain'
 //   return _toPositive(murmur2(key, SEED)) % partitions.length
 // }
 
-export class KafkaGenericProducer {
+export interface KafkaOptions {
+  kafka?: kafka.KafkaClientOptions
+  producer?: kafka.ProducerOptions
+}
+export type KafkaGenericProducerOptions = Options<KafkaOptions>
+
+enum PartitionerType {
+  DEFAULT,
+  RANDOM,
+  CYCLIC,
+  KEYED,
+  CUSTOM
+}
+
+export class KafkaGenericProducer extends MessageProducer {
   protected _logger: ILogger
   private _client!: kafka.KafkaClient
-  private readonly _kafka_conn_str: string
-  private readonly _kafka_client_name: string
   private _producer!: kafka.HighLevelProducer
   private readonly _knownTopics = new Map<string, boolean>()
+  private readonly _options: KafkaGenericProducerOptions
 
-  constructor (kafkaConString: string, kafkaClientName: string, envName: string, logger?: ILogger) {
-    this._kafka_conn_str = kafkaConString
-    this._kafka_client_name = kafkaClientName
+  constructor (options: KafkaGenericProducerOptions, logger?: ILogger) {
+    super()
 
-    this._env_name = envName
+    // make a copy of the options
+    this._options = { ...options }
 
-    if (logger != null && typeof (logger as any).child === 'function') {
-      this._logger = (logger as any).child({ class: 'KafkaProducer' })
-    } else {
+    if (logger != null) {
       this._logger = new ConsoleLogger()
     }
 
@@ -86,14 +98,48 @@ export class KafkaGenericProducer {
     return await new Promise((resolve, reject) => {
       this._logger.info('initialising...')
 
-      const kafkaClientOptions: kafka.KafkaClientOptions = {
-        kafkaHost: this._kafka_conn_str,
-        clientId: this._kafka_client_name
+      const defaultClientOptions: kafka.KafkaClientOptions = {
+        connectTimeout: 10000, // in ms it takes to wait for a successful connection before moving to the next host default: 10000
+        requestTimeout: 30000, // in ms for a kafka request to timeout default: 30000
+        autoConnect: true, // automatically connect when KafkaClient is instantiated otherwise you need to manually call connect default: true
+        // connectRetryOptions: RetryOptions, // object hash that applies to the initial connection. see retry module for these options.
+        // sslOptions: any,
+        clientId: 'notset',
+        // idleConnection: number, // allows the broker to disconnect an idle connection from a client (otherwise the clients continues to O after being disconnected). The value is elapsed time in ms without any data written to the TCP socket. default: 5 minutes
+        reconnectOnIdle: true, // when the connection is closed due to client idling, client will attempt to auto-reconnect. default: true
+        maxAsyncRequests: 10 // maximum async operations at a time toward the kafka cluster. default: 10
+        // sasl: any //Object, SASL authentication configuration (only SASL/PLAIN is currently supported), ex. { mechanism: 'plain', username: 'foo', password: 'bar' } (Kafka 0.10+)
       }
 
-      this._client = new kafka.KafkaClient(kafkaClientOptions)
+      // copy default config
+      const clientOptions = { ...defaultClientOptions }
+      // override any values with the options given to the client
+      Object.assign(clientOptions, this._options.client.kafka)
+
+      this._logger.debug(`clientOptions: \n${JSON.stringify(clientOptions)}`)
+
+      const defaultProducerOptions: kafka.ProducerOptions = {
+        requireAcks: -1,
+        ackTimeoutMs: 100,
+        partitionerType: PartitionerType.KEYED
+      }
+
+      // copy default config
+      const producerOptions = { ...defaultProducerOptions }
+      // override any values with the options given to the client
+      Object.assign(producerOptions, this._options.client.producer)
+
+      this._logger.debug(`producerOptions: \n${JSON.stringify(producerOptions)}`)
+
+      // const kafkaClientOptions: kafka.KafkaClientOptions = {
+      //   kafkaHost: this._kafka_conn_str,
+      //   clientId: this._kafka_client_name
+      // }
+
+      this._client = new kafka.KafkaClient(clientOptions)
       // this._producer = new kafka.HighLevelProducer(this._client, { partitionerType: 4 }, partitioner)
-      this._producer = new kafka.HighLevelProducer(this._client, { partitionerType: 3 })
+      // this._producer = new kafka.HighLevelProducer(this._client, { partitionerType: 3 })
+      this._producer = new kafka.HighLevelProducer(this._client, producerOptions)
 
       this._producer.on('ready', async () => {
         this._logger.info('KafkaProducer ready!')
@@ -130,14 +176,14 @@ export class KafkaGenericProducer {
   }
 
   // async send(kafkaMsg: IMessage, callback: (err?: Error, offset_data?: any) => void): Promise<>;
-  async send(kafkaMsg: IMessage): Promise<void>;
+  // async send(kafkaMsg: IMessage): Promise<void>;
 
-  async send(kafkaMessages: IMessage[]): Promise<void>;
+  // async send(kafkaMessages: IMessage[]): Promise<void>;
 
   /*
   # Commented out as it causes the following lint error `error  Promise returned in function argument where a void return was expected  @typescript-eslint/no-misused-promises`. See below alternative implementation to fix linting issue.
   */
-  async send (kafkaMessages: any): Promise<void> {
+  async send (kafkaMessages: IMessage | IMessage[] | any): Promise<void> {
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     return await new Promise(async (resolve, reject) => {
       if (!Array.isArray(arguments[0])) { kafkaMessages = [arguments[0]] as IMessage[] }
@@ -293,20 +339,36 @@ export class KafkaGenericProducer {
   //   // })
   // }
 
-  private async _refreshMetadata (topicName: string): Promise<void> {
-    return await new Promise((resolve, reject) => {
-      this._client.refreshMetadata([topicName], async (err?: Error) => {
-        if (err != null) {
-          this._logger.error(err, ' - error refreshMetadata()')
-          return reject(err)
-        }
+  // private async _refreshMetadata (topicName: string): Promise<void> {
+  //   return await new Promise((resolve, reject) => {
+  //     this._client.refreshMetadata([topicName], async (err?: Error) => {
+  //       if (err != null) {
+  //         this._logger.error(err, ' - error refreshMetadata()')
+  //         return reject(err)
+  //       }
 
-        this._client.topicExists([topicName], (error?: kafka.TopicsNotExistError | any) => {
-          if (error != null) { return reject(error) }
+  //       this._client.topicExists([topicName], (error?: kafka.TopicsNotExistError | any) => {
+  //         if (error != null) { return reject(error) }
 
-          resolve()
-        })
-      })
-    })
+  //         resolve()
+  //       })
+  //     })
+  //   })
+  // }
+
+  connect (): void {
+    throw new Error('Method not implemented.')
+  }
+
+  pause (): void {
+    throw new Error('Method not implemented.')
+  }
+
+  resume (): void {
+    throw new Error('Method not implemented.')
+  }
+
+  disconnect (): void {
+    throw new Error('Method not implemented.')
   }
 }

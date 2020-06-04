@@ -37,37 +37,38 @@
 
 'use strict'
 
-// import * as kafka from 'kafka-node'
-import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
-import { ILogger, IMessage, IMessagePublisher } from '@mojaloop-poc/lib-domain'
-import { KafkaGenericProducer, KafkaGenericProducerOptions } from './kafka_generic_producer'
+import { IDomainMessage, ILogger, IMessage } from '@mojaloop-poc/lib-domain'
+import { EventEmitter } from 'events'
 
-export class KafkaMessagePublisher implements IMessagePublisher {
-  private readonly _producer: KafkaGenericProducer
-  protected _logger: ILogger
+export interface Options<tClientOptions> {
+  client: tClientOptions
+}
 
-  constructor (options: KafkaGenericProducerOptions, logger?: ILogger) {
-    this._logger = logger ?? new ConsoleLogger()
-    this._producer = new KafkaGenericProducer(options, this._logger)
-  }
+export interface iMessageProducer {
+  init: (handlerCallback: (message: IDomainMessage) => void) => void
+  destroy: (forceCommit: boolean) => Promise<void>
+  connect: () => void
+  pause: () => void
+  resume: () => void
+  disconnect: () => void
+  send: (kafkaMsg: IMessage | IMessage[] | any) => Promise<void>
+}
 
-  get envName (): string {
-    return this._producer.envName
-  }
+export abstract class MessageProducer extends EventEmitter implements iMessageProducer {
+  abstract init (handlerCallback: (message: IDomainMessage) => void): void
+  abstract destroy (forceCommit: boolean): Promise<void>
+  abstract connect (): void
+  abstract pause (): void
+  abstract resume (): void
+  abstract disconnect (): void
+  abstract send (kafkaMsg: IMessage | IMessage[] | any): Promise<void>
+  static Create<tOptions>(options: tOptions, logger: ILogger): iMessageProducer {
+    const producer = Reflect.construct(this, arguments)
 
-  async init (): Promise<void> {
-    return await this._producer.init()
-  }
+    producer.on('error', (err: Error): void => {
+      logger.error(`event::error - ${JSON.stringify(err)}`)
+    })
 
-  async destroy (): Promise<void> {
-    return await this._producer.destroy()
-  }
-
-  async publish (message: IMessage): Promise<void> {
-    return await this._producer.send(message)
-  }
-
-  async publishMany (messages: IMessage[]): Promise<void> {
-    return await this._producer.send(messages)
+    return producer
   }
 }
