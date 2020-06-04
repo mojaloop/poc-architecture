@@ -2,6 +2,7 @@
 import { publishMessage } from '../utilities/publisher'
 import { CurrencyTypes, TransferPrepareRequestedEvt, TransferPrepareRequestedEvtPayload } from '@mojaloop-poc/lib-public-messages'
 import { v4 as uuidv4 } from 'uuid'
+import { logger } from '..'
 
 const prepareTransferEvtPayload: TransferPrepareRequestedEvtPayload = {
   transferId: uuidv4(),
@@ -19,6 +20,6 @@ const start = async () => {
 }
 
 start().catch((err) => {
-  console.error(err)
+  logger.error(err)
 }).finally(() => {
 })

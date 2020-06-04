@@ -104,7 +104,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
   const transferCmdConsumerOptions: KafkaGenericConsumerOptions = {
     client: {
       kafkaHost: appConfig.kafka.host,
-      id: 'transferCmdConsumer',
+      // id: 'transferCmdConsumer',  // this has to be unique
       groupId: 'transferCmdGroup',
       fromOffset: EnumOffset.LATEST
     },

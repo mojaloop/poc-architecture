@@ -127,7 +127,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
   const participantCmdConsumerOptions: KafkaGenericConsumerOptions = {
     client: {
       kafkaHost: appConfig.kafka.host,
-      id: 'participantCmdConsumer',
+      // id: 'participantCmdConsumer', // this has to be unique
       groupId: 'participantCmdGroup',
       fromOffset: EnumOffset.LATEST
     },

@@ -4,6 +4,7 @@ import { publishMessage } from '../utilities/publisher'
 // # HACK-ALERT: Importing directly from the node_modules folder as Commands are not publically accessible until some additional re-factoring can be done. Note that this "tool" module is only for development purposes.
 import { CreateParticipantCmdPayload, CreateParticipantCmd } from '../../node_modules/@mojaloop-poc/participants/dist/messages/create_participant_cmd'
 import { ParticipantAccountTypes, AccountLimitTypes, CurrencyTypes } from '@mojaloop-poc/lib-public-messages'
+import { logger } from '..'
 
 const createParticipantCmdPayloadFSP1: CreateParticipantCmdPayload = {
   participant: {
@@ -14,11 +15,11 @@ const createParticipantCmdPayloadFSP1: CreateParticipantCmdPayload = {
         type: ParticipantAccountTypes.POSITION,
         currency: CurrencyTypes.USD,
         initialPosition: 0,
-        position: 0,
+        position: 0, // TODO remove one of these (this or the above)
         limits: [
           {
             type: AccountLimitTypes.NET_DEBIT_CAP,
-            value: 100
+            value: 100000
           }
         ]
       }
@@ -53,7 +54,7 @@ const createParticipantCmdPayloadFSP2: CreateParticipantCmdPayload = {
         limits: [
           {
             type: AccountLimitTypes.NET_DEBIT_CAP,
-            value: 100
+            value: 100000
           }
         ]
       }
@@ -86,6 +87,6 @@ const start = async () => {
 }
 
 start().catch((err) => {
-  console.error(err)
+  logger.error(err)
 }).finally(() => {
 })

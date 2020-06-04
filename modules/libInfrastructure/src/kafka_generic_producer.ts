@@ -195,7 +195,7 @@ export class KafkaGenericProducer {
           this._logger.error(err, 'KafkaGenericProducer error sending message')
           return reject(err)
         }
-        console.log('KafkaGenericProducer sent message - response:', data)
+        this._logger.debug('KafkaGenericProducer sent message - response:', data)
         resolve(data)
       })
     })

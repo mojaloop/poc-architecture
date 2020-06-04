@@ -41,7 +41,16 @@
     "audit:resolve": "npx lerna run audit:resolve",
     "audit:check": "npx lerna run audit:check",
     "dep:check": "npx lerna run --no-progress --stream dep:check",
-    "dep:update": "npx lerna run --no-progress --stream dep:update"
+    "dep:update": "npx lerna run --no-progress --stream dep:update",
+    "docker:kafka:start": "docker-compose up -d kafka",
+    "docker:kafka:stop": "docker-compose stop kafka",
+    "docker:kafka:logs": "docker-compose logs -f kafka",
+    "docker:redis:start": "docker-compose up -d redis",
+    "docker:redis:stop": "docker-compose stop redis",
+    "docker:redis:logs": "docker-compose logs -f redis",
+    "docker:store:start": "docker-compose up -d kafka redis",
+    "docker:store:stop": "docker-compose stop kafka redis",
+    "docker:store:logs": "docker-compose logs -f kafka redis"
   },
   "dependencies": {
     "knex": "^0.21.1",

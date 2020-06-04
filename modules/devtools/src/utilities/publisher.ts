@@ -28,3 +28,12 @@ export const publishMessage = async (message: IMessage): Promise<void> => {
   await kafkaMsgPublisher.publish(message)
   await kafkaMsgPublisher.destroy()
 }
+
+export const publishMessageMultiple = async (messages: IMessage[]): Promise<void> => {
+  await kafkaMsgPublisher.init()
+
+  const promises = messages.map(async msg => await kafkaMsgPublisher.publish(msg))
+  await Promise.all(promises)
+
+  await kafkaMsgPublisher.destroy()
+}
