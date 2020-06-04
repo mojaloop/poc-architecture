@@ -38,7 +38,7 @@
 'use strict'
 
 import { BaseAggregate, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
-import { ParticipantEntity, ParticipantState, InvalidAccountError, InvalidLimitError, NetDebitCapLimitExceededError } from './participant_entity'
+import { ParticipantEntity, ParticipantState, InvalidAccountError, InvalidLimitError, NetDebitCapLimitExceededError, ParticipantEndpointState, ParticipantAccountState, ParticipantLimitState } from './participant_entity'
 import { ParticipantsFactory } from './participants_factory'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 import { CreateParticipantCmd } from '../messages/create_participant_cmd'
@@ -92,17 +92,42 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
 
     this.create(commandMsg.payload?.participant?.id)
 
-    // TODO: re-do-mappping here
-    const initialState = Object.assign({}, new ParticipantState(), commandMsg.payload.participant)
+    // const initialState = Object.assign({}, new ParticipantState(), commandMsg.payload.participant)
 
-    this._rootEntity!.setupInitialState(initialState)
+    const participantEndpointStateList: ParticipantEndpointState[] = commandMsg.payload.participant.endpoints.map(endpoint => {
+      const participantEndpointState: ParticipantEndpointState = new ParticipantEndpointState()
+      participantEndpointState.type = endpoint.type
+      participantEndpointState.value = endpoint.value
+      return participantEndpointState
+    })
 
-    // TODO: Do mapping from rootEntity to participantCreatedEvtPayload
-    // const participantCreatedEvtPayload = { ...initialState }
+    const participantAccountStateList: ParticipantAccountState[] = commandMsg.payload.participant.accounts.map(account => {
+      const participantAccountState = new ParticipantAccountState()
+      participantAccountState.type = account.type
+      participantAccountState.currency = account.currency
+      participantAccountState.position = account.position
+      participantAccountState.initialPosition = account.initialPosition
+      participantAccountState.limits = account.limits.map(endpoint => {
+        const participantLimitState = new ParticipantLimitState()
+        participantLimitState.type = endpoint.type
+        participantLimitState.value = endpoint.value
+        return participantLimitState
+      })
+      return participantAccountState
+    })
+
+    const participantState: ParticipantState = new ParticipantState()
+    participantState.id = commandMsg.payload.participant.id
+    participantState.name = commandMsg.payload.participant.name
+    participantState.accounts = participantAccountStateList
+    participantState.endpoints = participantEndpointStateList
+
+    this._rootEntity!.setupInitialState(participantState)
+
     const participantCreatedEvtPayload = {
       participant: {
-        id: initialState.id,
-        name: initialState.name
+        id: participantState.id,
+        name: participantState.name
       }
     }
     this.recordDomainEvent(new ParticipantCreatedEvt(participantCreatedEvtPayload))

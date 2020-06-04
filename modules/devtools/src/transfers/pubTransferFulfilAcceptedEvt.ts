@@ -2,16 +2,17 @@
 import { publishMessage } from '../utilities/publisher'
 import { TransferFulfilAcceptedEvtPayload, TransferFulfilAcceptedEvt, CurrencyTypes } from '@mojaloop-poc/lib-public-messages'
 import { v4 as uuidv4 } from 'uuid'
-import { logger } from '..'
+import { ILogger } from '@mojaloop-poc/lib-domain'
+import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
+
+const logger: ILogger = new ConsoleLogger()
 
 const transferFulfilAcceptedEvtPayload: TransferFulfilAcceptedEvtPayload = {
   transferId: uuidv4(),
   amount: 1,
   currency: CurrencyTypes.USD,
-  // payerId: 'fsp-24',
-  // payeeId: 'fsp-14'
-  payerId: 'fsp-14',
-  payeeId: 'fsp-24'
+  payerId: 'fsp-1',
+  payeeId: 'fsp-2'
 }
 
 const transferFulfilAcceptedEvt = new TransferFulfilAcceptedEvt(transferFulfilAcceptedEvtPayload)

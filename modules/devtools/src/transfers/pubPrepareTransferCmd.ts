@@ -5,12 +5,15 @@ import { v4 as uuidv4 } from 'uuid'
 // import { PrepareTransferCmdPayload, PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
 // # HACK-ALERT: Importing directly from the node_modules folder as Commands are not publically accessible until some additional re-factoring can be done. Note that this "tool" module is only for development purposes.
 import { PrepareTransferCmdPayload, PrepareTransferCmd } from '../../node_modules/@mojaloop-poc/transfers/dist/messages/prepare_transfer_cmd'
-import { logger } from '..'
+import { ILogger } from '@mojaloop-poc/lib-domain'
+import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
+
+const logger: ILogger = new ConsoleLogger()
 
 const prepareTransferCmdPayload: PrepareTransferCmdPayload = {
   transferId: uuidv4(),
-  payerId: 'fsp-14',
-  payeeId: 'fsp-24',
+  payerId: 'fsp-1',
+  payeeId: 'fsp-2',
   currency: CurrencyTypes.USD,
   amount: 1
 }

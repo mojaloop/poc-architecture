@@ -4,12 +4,15 @@ import { publishMessage } from '../utilities/publisher'
 // # HACK-ALERT: Importing directly from the node_modules folder as Commands are not publically accessible until some additional re-factoring can be done. Note that this "tool" module is only for development purposes.
 import { CreateParticipantCmdPayload, CreateParticipantCmd } from '../../node_modules/@mojaloop-poc/participants/dist/messages/create_participant_cmd'
 import { ParticipantAccountTypes, AccountLimitTypes, CurrencyTypes } from '@mojaloop-poc/lib-public-messages'
-import { logger } from '..'
+import { ILogger } from '@mojaloop-poc/lib-domain'
+import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
+
+const logger: ILogger = new ConsoleLogger()
 
 const createParticipantCmdPayloadFSP1: CreateParticipantCmdPayload = {
   participant: {
-    id: 'fsp-14',
-    name: 'fsp-14',
+    id: 'fsp-1',
+    name: 'fsp-1',
     accounts: [
       {
         type: ParticipantAccountTypes.POSITION,
@@ -43,8 +46,8 @@ const createParticipantCmdPayloadFSP1: CreateParticipantCmdPayload = {
 
 const createParticipantCmdPayloadFSP2: CreateParticipantCmdPayload = {
   participant: {
-    id: 'fsp-24',
-    name: 'fsp-24',
+    id: 'fsp-2',
+    name: 'fsp-2',
     accounts: [
       {
         type: ParticipantAccountTypes.POSITION,
