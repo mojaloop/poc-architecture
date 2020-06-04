@@ -4,6 +4,7 @@ module.exports = {
     sourceType: 'module', // Allows for the use of imports
     project: './tsconfig.json'
   },
+  ignorePatterns: ['**/*.d.ts', '**/*.js', '**/*.js.map'],
   rules: {
     'no-console': 'error',
     'no-async-promise-executor': 'off',

@@ -4,7 +4,7 @@
 'use strict'
 
 import { BaseAggregate, IEntityStateRepository, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
-import { DuplicateTransferDetectedEvt, TransferPrepareAcceptedEvt, TransferNotFoundEvt, TransferPreparedEvt } from '@mojaloop-poc/lib-public-messages'
+import { DuplicateTransferDetectedEvt, TransferPrepareAcceptedEvt, TransferNotFoundEvt, TransferPreparedEvt, TransferPreparedEvtPayload } from '@mojaloop-poc/lib-public-messages'
 import { PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
 import { TransferEntity, TransferState, TransferInternalStates } from './transfer_entity'
 import { TransfersFactory } from './transfers_factory'
@@ -65,7 +65,14 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
 
     this._rootEntity.changeStateTo(TransferInternalStates.RESERVED)
 
-    this.recordDomainEvent(new TransferPreparedEvt(this._rootEntity))
+    const transferPrepareAcceptedEvtPayload: TransferPreparedEvtPayload = {
+      transferId: this._rootEntity.id,
+      amount: this._rootEntity.amount,
+      currency: this._rootEntity.currency,
+      payerId: this._rootEntity.payerId,
+      payeeId: this._rootEntity.payeeId
+    }
+    this.recordDomainEvent(new TransferPreparedEvt(transferPrepareAcceptedEvtPayload))
 
     return true
   }
