@@ -5,6 +5,7 @@ module.exports = {
     project: './tsconfig.json'
   },
   rules: {
+    'no-console': 'error',
     'no-async-promise-executor': 'off',
     '@typescript-eslint/no-non-null-assertion': 'off'
   },
