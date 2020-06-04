@@ -45,9 +45,9 @@ function logRPS (): void {
   const lastSecond = Math.floor(Date.now() / 1000) - 1
   const bucketData = buckets.get(lastSecond)
   if (bucketData === undefined) {
-    logger.info('\n *** 0 requests per second - 0 average ms per transfer *** \n')
+    console.log('\n *** 0 requests per second - 0 average ms per transfer *** \n')
   } else {
-    logger.info(`\n *** ${bucketData.counter} requests per second - ${Math.floor(bucketData.totalTimeMs / bucketData.counter)} average ms per transfer *** \n`)
+    console.log(`\n *** ${bucketData.counter} requests per second - ${Math.floor(bucketData.totalTimeMs / bucketData.counter)} average ms per transfer *** \n`)
   }
 
   if (buckets.has(lastSecond - 1)) { buckets.delete(lastSecond - 1) } // clean up old
@@ -59,7 +59,7 @@ function logRPS (): void {
 
 const evtMap: Map<string, number> = new Map<string, number>()
 
-const evtHandler = async (message: IDomainMessage): Promise<void> => {
+const evtHandler = (message: IDomainMessage): void => {
   if (message.msgName === 'TransferPrepareRequestedEvt') {
     evtMap.set(message.aggregateId, message.msgTimestamp)
 

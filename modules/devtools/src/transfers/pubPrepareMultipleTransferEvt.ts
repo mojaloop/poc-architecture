@@ -7,27 +7,25 @@ import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 
 const logger: ILogger = new ConsoleLogger()
 
+const timeout = async (ms: number): Promise<void> => {
+  return await new Promise(resolve => setTimeout(resolve, ms))
+}
+
 const send = async (): Promise<void> => {
-  /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-  return await new Promise(async (resolve, reject) => {
-    const evts: TransferPrepareRequestedEvt[] = []
+  const evts: TransferPrepareRequestedEvt[] = []
 
-    for (let i = 0; i < 80; i++) {
-      evts.push(new TransferPrepareRequestedEvt({
-        transferId: uuidv4(),
-        payerId: 'fsp-1',
-        payeeId: 'fsp-2',
-        currency: CurrencyTypes.USD,
-        amount: 1
-      }))
-    }
+  for (let i = 0; i < 80; i++) {
+    evts.push(new TransferPrepareRequestedEvt({
+      transferId: uuidv4(),
+      payerId: 'fsp-1',
+      payeeId: 'fsp-2',
+      currency: CurrencyTypes.USD,
+      amount: 1
+    }))
+  }
 
-    await publishMessageMultiple(evts)
-    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-    setTimeout(async () => {
-      resolve()
-    }, 1000)
-  })
+  await publishMessageMultiple(evts)
+  await timeout(1000)
 }
 
 /* eslint-disable-next-line @typescript-eslint/explicit-function-return-type */
