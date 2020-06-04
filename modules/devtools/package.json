@@ -30,7 +30,7 @@
     "pubCreateParticipantCmd": "tsc && node ./dist/participants/pubCreateParticipantCmd.js",
     "pubReservePayerFundCmd": "tsc && node ./dist/participants/pubReservePayerFundCmd.js",
     "pubPrepareTransferCmd": "tsc && node ./dist/transfers/pubPrepareTransferCmd.js",
-    "pubPrepareTransferEvt": "tsc && node ./dist/transfers/pubPrepareTransferEvt.js",
+    "pubTransferPrepareRequestedEvt": "tsc && node ./dist/transfers/pubTransferPrepareRequestedEvt.js",
     "pubPrepareMultipleTransferEvt": "tsc && node ./dist/transfers/pubPrepareMultipleTransferEvt.js",
     "pubTransferFulfilAcceptedEvt": "tsc && node ./dist/transfers/pubTransferFulfilAcceptedEvt.js",
     "pubTransferPrepareAcceptedEvt": "tsc && node ./dist/transfers/pubTransferPrepareAcceptedEvt.js",
