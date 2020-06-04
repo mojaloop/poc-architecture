@@ -39,8 +39,11 @@
 
 import { IEntityStateRepository } from '@mojaloop-poc/lib-domain'
 import { ParticipantState } from '../domain/participant_entity'
+import {IParticipantRepo} from '../domain/participant_repo'
+import {ParticipantAccountTypes} from "../../../libPublicMessages/dist/enums";
 
-export class InMemoryParticipantStateRepo implements IEntityStateRepository<ParticipantState> {
+// export class InMemoryParticipantStateRepo implements IEntityStateRepository<ParticipantState> {
+export class InMemoryParticipantStateRepo implements IParticipantRepo {
   private readonly _list: Map<string, ParticipantState> = new Map<string, ParticipantState>()
 
   async init (): Promise<void> {
@@ -77,5 +80,10 @@ export class InMemoryParticipantStateRepo implements IEntityStateRepository<Part
       this._list.set(entityState.id, entityState)
       resolve()
     })
+  }
+
+  async hasAccount (participantId: string, accType: ParticipantAccountTypes, currency: string): Promise<boolean> {
+    const participant = await this.load(participantId)
+    return participant?.accounts?.find(account => account.type === accType && account.currency === currency) != null
   }
 }

@@ -14,11 +14,11 @@ const createParticipantCmdPayloadFSP1: CreateParticipantCmdPayload = {
         type: ParticipantAccountTypes.POSITION,
         currency: CurrencyTypes.USD,
         initialPosition: 0,
-        position: 0,
+        position: 0, // TODO remove one of these (this or the above)
         limits: [
           {
             type: AccountLimitTypes.NET_DEBIT_CAP,
-            value: 100
+            value: 100000
           }
         ]
       }
@@ -53,7 +53,7 @@ const createParticipantCmdPayloadFSP2: CreateParticipantCmdPayload = {
         limits: [
           {
             type: AccountLimitTypes.NET_DEBIT_CAP,
-            value: 100
+            value: 100000
           }
         ]
       }

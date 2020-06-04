@@ -99,7 +99,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
   const transferEvtConsumerOptions: KafkaGenericConsumerOptions = {
     client: {
       kafkaHost: appConfig.kafka.host,
-      id: 'transferEvtConsumer',
+      // id: 'transferEvtConsumer',  // this has to be unique
       groupId: 'transferEvtGroup',
       fromOffset: EnumOffset.LATEST
     },

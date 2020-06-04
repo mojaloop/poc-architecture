@@ -25,11 +25,13 @@
     "lint"
   ],
   "scripts": {
+    "perfMeasure": "tsc && node ./dist/utilities/perfMeasure.js",
     "pubCommitPayeeFundCmd": "tsc && node ./dist/participants/pubCommitPayeeFundCmd.js",
     "pubCreateParticipantCmd": "tsc && node ./dist/participants/pubCreateParticipantCmd.js",
     "pubReservePayerFundCmd": "tsc && node ./dist/participants/pubReservePayerFundCmd.js",
     "pubPrepareTransferCmd": "tsc && node ./dist/transfers/pubPrepareTransferCmd.js",
     "pubPrepareTransferEvt": "tsc && node ./dist/transfers/pubPrepareTransferEvt.js",
+    "pubPrepareMultipleTransferEvt": "tsc && node ./dist/transfers/pubPrepareMultipleTransferEvt.js",
     "pubTransferFulfilAcceptedEvt": "tsc && node ./dist/transfers/pubTransferFulfilAcceptedEvt.js",
     "pubTransferPrepareAcceptedEvt": "tsc && node ./dist/transfers/pubTransferPrepareAcceptedEvt.js",
     "conParticipantCommands": "kafkacat -b localhost -t ParticipantCommands -C",
