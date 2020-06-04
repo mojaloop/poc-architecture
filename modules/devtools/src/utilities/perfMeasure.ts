@@ -77,11 +77,12 @@ const evtHandler = (message: IDomainMessage): void => {
 const start = async () => {
   logRPS()
   const kafkaEvtConsumer = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(kafkaConsumerOptions, logger)
+  /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
   await kafkaEvtConsumer.init(evtHandler)
 }
 
 start().catch((err) => {
-  console.error(err)
+  logger.error(err)
 }).finally(() => {
   // process.exit(0)
 })

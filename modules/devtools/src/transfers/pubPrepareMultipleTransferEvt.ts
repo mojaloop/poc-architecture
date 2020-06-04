@@ -2,6 +2,7 @@
 import { publishMessageMultiple } from '../utilities/publisher'
 import { CurrencyTypes, TransferPrepareRequestedEvt } from '@mojaloop-poc/lib-public-messages'
 import { v4 as uuidv4 } from 'uuid'
+import { logger } from '..'
 
 const timeout = async (ms: number): Promise<void> => {
   return await new Promise(resolve => setTimeout(resolve, ms))
@@ -33,6 +34,6 @@ const start = async () => {
 }
 
 start().catch((err) => {
-  console.error(err)
+  logger.error(err)
 }).finally(() => {
 })

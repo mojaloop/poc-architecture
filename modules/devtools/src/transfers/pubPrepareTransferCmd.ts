@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid'
 // import { PrepareTransferCmdPayload, PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
 // # HACK-ALERT: Importing directly from the node_modules folder as Commands are not publically accessible until some additional re-factoring can be done. Note that this "tool" module is only for development purposes.
 import { PrepareTransferCmdPayload, PrepareTransferCmd } from '../../node_modules/@mojaloop-poc/transfers/dist/messages/prepare_transfer_cmd'
+import { logger } from '..'
 
 const prepareTransferCmdPayload: PrepareTransferCmdPayload = {
   transferId: uuidv4(),
@@ -22,6 +23,6 @@ const start = async () => {
 }
 
 start().catch((err) => {
-  console.error(err)
+  logger.error(err)
 }).finally(() => {
 })

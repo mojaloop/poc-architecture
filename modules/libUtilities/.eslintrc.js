@@ -6,6 +6,7 @@ module.exports = {
   },
   ignorePatterns: ['**/*.d.ts', '**/*.js', '**/*.js.map'],
   rules: {
+    'no-console': 'error',
     'no-async-promise-executor': 'off',
     '@typescript-eslint/no-non-null-assertion': 'off'
   },
