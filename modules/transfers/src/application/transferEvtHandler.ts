@@ -38,11 +38,13 @@
 'use strict'
 // import {InMemoryTransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
-import { TransfersTopics, ParticipantsTopics, PayerFundsReservedEvt, TransferPrepareRequestedEvt, TransferPrepareAcceptedEvt } from '@mojaloop-poc/lib-public-messages'
+import { TransfersTopics, ParticipantsTopics, PayerFundsReservedEvt, TransferPrepareRequestedEvt, TransferPrepareAcceptedEvt, TransferFulfilRequestedEvt, PayeeFundsCommittedEvt } from '@mojaloop-poc/lib-public-messages'
 import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
-import { AckPayerFundsReservedCmdPayload, AckPayerFundsReservedCmd } from '../messages/acknowledge_transfer_funds_cmd'
+import { AckPayerFundsReservedCmdPayload, AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
+import { AckPayeeFundsReservedCmdPayload, AckPayeeFundsReservedCmd } from '../messages/ack_payee_funds_reserved_cmd'
 import { InvalidTransferEvtError } from './errors'
 import { PrepareTransferCmdPayload, PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
+import { FulfilTransferCmd, FulfilTransferCmdPayload } from '../messages/fulfil_transfer_cmd'
 
 export const start = async (appConfig: any, logger: ILogger): Promise<MessageConsumer> => {
   const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
@@ -75,11 +77,25 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
           transferCmd = new AckPayerFundsReservedCmd(ackPayerFundsReservedCmdPayload)
           break
         }
+        case PayeeFundsCommittedEvt.name: {
+          transferEvt = PayeeFundsCommittedEvt.fromIDomainMessage(message)
+          if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${PayeeFundsCommittedEvt.name} is Invalid - ${message?.msgName}:${message?.msgId}`)
+          const ackPayeeFundsReservedCmdPayload: AckPayeeFundsReservedCmdPayload = transferEvt.payload
+          transferCmd = new AckPayeeFundsReservedCmd(ackPayeeFundsReservedCmdPayload)
+          break
+        }
         case TransferPrepareRequestedEvt.name: {
           transferEvt = TransferPrepareRequestedEvt.fromIDomainMessage(message)
           if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${TransferPrepareRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgId}`)
-          const commitPayeeFundsCmdPayload: PrepareTransferCmdPayload = transferEvt.payload
-          transferCmd = new PrepareTransferCmd(commitPayeeFundsCmdPayload)
+          const prepareTransferCmdPayload: PrepareTransferCmdPayload = transferEvt.payload
+          transferCmd = new PrepareTransferCmd(prepareTransferCmdPayload)
+          break
+        }
+        case TransferFulfilRequestedEvt.name: {
+          transferEvt = TransferFulfilRequestedEvt.fromIDomainMessage(message)
+          if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${TransferFulfilRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgId}`)
+          const fulfilTransferCmdPayload: FulfilTransferCmdPayload = transferEvt.payload
+          transferCmd = new FulfilTransferCmd(fulfilTransferCmdPayload)
           break
         }
         case TransferPrepareAcceptedEvt.name: {
