@@ -94,9 +94,9 @@ describe('libDomain entities', () => {
 
   test('can create command fromIDomainMessage', () => {
     const idm:CreateTestCommand =  CreateTestCommand.fromIDomainMessage({
-      aggregate_name:"aggregate_name",
+      aggregateName:"aggregate_name",
       aggregateId: "aggregateId",
-      msg_name:"msg_name",
+      msgName:"msg_name",
       msgId:"msgId",
       msgKey:"msgKey",
       msgTimestamp: 123,

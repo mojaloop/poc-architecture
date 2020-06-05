@@ -5,7 +5,6 @@
 "use strict";
 
 import {CommandMsg, DomainEventMsg} from "../../../src/messages";
-import {ParticipantsAggTopics} from "../../../../participants/src/domain/participants_agg";
 
 export type TestCommandPayload = {
   id: string
@@ -13,7 +12,7 @@ export type TestCommandPayload = {
 }
 
 export class UnrecognisedTestCommand extends CommandMsg {
-  aggregate_name: string = 'Test'
+  aggregateName: string = 'Test'
   msgTopic: string = 'TestTopic'
 
   aggregateId!: string;
@@ -38,7 +37,7 @@ export class UnrecognisedTestCommand extends CommandMsg {
 }
 
 export class CreateTestCommand extends CommandMsg {
-  aggregate_name: string = 'Test'
+  aggregateName: string = 'Test'
   msgTopic: string = 'TestTopic'
 
   aggregateId!: string;
@@ -70,9 +69,10 @@ export class CreateTestCommand extends CommandMsg {
 
 export class TestCreatedEvent extends DomainEventMsg{
   aggregateId: string
-  aggregate_name: string = 'Tests'
+  aggregateName: string = 'Tests'
   msgKey: string
-  msgTopic: string = ParticipantsAggTopics.DomainEvents
+  msgTopic: string = 'test'
+  payload: { [k: string]: any }
 
   constructor (testId: string) {
     super()
@@ -91,9 +91,10 @@ export class TestCreatedEvent extends DomainEventMsg{
 
 export class DuplicateTestDetectedEvent extends DomainEventMsg{
   aggregateId: string
-  aggregate_name: string = 'Tests'
+  aggregateName: string = 'Tests'
   msgKey: string
-  msgTopic: string = ParticipantsAggTopics.DomainEvents
+  msgTopic: string = 'test'
+  payload: { [k: string]: any }
 
   constructor (testId: string) {
     super()
