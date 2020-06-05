@@ -38,5 +38,4 @@ npm run start:transfers
 
 ## Known Issues
 
-1. `npm run dep:check` hangs when run at root level.
-2. `@typescript-eslint/no-misused-promises` lint issue disabled on [kafka_generic_producer.ts](./modules/libInfrastructure/src/kafka_generic_producer.ts)
+1. `@typescript-eslint/no-misused-promises` lint issue disabled on severak places, e.g. [kafka_generic_producer.ts](./modules/libInfrastructure/src/kafka_generic_producer.ts)

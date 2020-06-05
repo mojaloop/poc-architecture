@@ -25,7 +25,7 @@
     "test:unit"
   ],
   "scripts": {
-    "start:transfers": "tsc && node dist/application/index.js",
+    "start": "tsc && node dist/application/index.js handler --config ../../.env",
     "build": "tsc",
     "watch": "tsc -w",
     "clean": "rm -Rf dist",
@@ -44,17 +44,22 @@
   "dependencies": {
     "@mojaloop-poc/lib-domain": "^0.1.0",
     "@mojaloop-poc/lib-infrastructure": "^0.1.0",
-    "@mojaloop-poc/lib-utilities": "^0.1.0"
+    "@mojaloop-poc/lib-utilities": "^0.1.0",
+    "@mojaloop-poc/lib-public-messages": "^0.1.0",
+    "@types/dotenv": "^8.2.0",
+    "commander": "^5.1.0",
+    "dotenv": "^8.2.0",
+    "path": "^0.12.7"
   },
   "devDependencies": {
     "@types/kafka-node": "^3.0.0",
-    "@types/node": "^14.0.5",
-    "@types/redis": "^2.8.21",
+    "@types/node": "^14.0.10",
+    "@types/redis": "^2.8.22",
     "@types/uuid": "^8.0.0",
-    "@typescript-eslint/eslint-plugin": "^2.34.0",
+    "@typescript-eslint/eslint-plugin": "^3.1.0",
     "eslint": "^7.1.0",
     "eslint-config-prettier": "^6.11.0",
-    "eslint-config-standard-with-typescript": "^17.0.0",
+    "eslint-config-standard-with-typescript": "^18.0.2",
     "eslint-plugin-import": "^2.20.2",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^4.2.1",
@@ -64,9 +69,9 @@
     "jest-junit": "^10.0.0",
     "npm-audit-resolver": "^2.2.0",
     "npm-check-updates": "^6.0.1",
-    "nyc": "^15.0.1",
+    "nyc": "^15.1.0",
     "pre-commit": "^1.2.2",
-    "ts-jest": "^26.0.0",
+    "ts-jest": "^26.1.0",
     "typedoc": "^0.17.7",
     "typescript": "^3.9.3"
   }

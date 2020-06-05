@@ -20,9 +20,11 @@
     "test:unit"
   ],
   "scripts": {
-    "start:participants": "npm run build && npx lerna run start:participants",
-    "start:transfers": "npm run build && npx lerna run start:transfers",
-    "build": "npx lerna run build",
+    "start": "npx lerna run --no-progress --stream  start",
+    "start:participants": "npm run build && npx lerna run --no-progress --stream --scope='@mojaloop-poc/participants' start",
+    "start:transfers": "npm run build && npx lerna run --no-progress --stream --scope='@mojaloop-poc/transfers' start",
+    "build": "npx lerna run --stream build",
+    "watch": "npx lerna run --no-progress --stream --parallel watch",
     "clean": "npm run clean:dist && npm run clean:npm",
     "clean:npm": "npx lerna clean",
     "clean:dist": "npx lerna run clean",
@@ -30,17 +32,30 @@
     "pretest": "echo 'FIX ME'",
     "standard": "npm run lint'",
     "lint": "npx lerna run lint",
+    "lint:participants": "npx lerna run lint --scope='@mojaloop-poc/participants'",
+    "lint:transfers": "npx lerna run lint --scope='@mojaloop-poc/transfers'",
     "lint:fix": "npx lerna run lint:fix",
     "test:unit": "npx lerna run test:unit",
     "test:coverage": "npx lerna run test:coverage",
     "test:coverage-check": "npx lerna run test:coverage-check",
     "audit:resolve": "npx lerna run audit:resolve",
     "audit:check": "npx lerna run audit:check",
-    "dep:check": "npx lerna run dep:check",
-    "dep:update": "npx lerna run dep:update"
+    "dep:check": "npx lerna run --no-progress --stream dep:check",
+    "dep:update": "npx lerna run --no-progress --stream dep:update",
+    "docker:kafka:start": "docker-compose up -d kafka",
+    "docker:kafka:stop": "docker-compose stop kafka",
+    "docker:kafka:logs": "docker-compose logs -f kafka",
+    "docker:redis:start": "docker-compose up -d redis",
+    "docker:redis:stop": "docker-compose stop redis",
+    "docker:redis:logs": "docker-compose logs -f redis",
+    "docker:store:start": "docker-compose up -d kafka redis",
+    "docker:store:stop": "docker-compose stop kafka redis",
+    "docker:store:logs": "docker-compose logs -f kafka redis"
   },
   "dependencies": {
-    "lerna": "^3.22.0"
+    "knex": "^0.21.1",
+    "lerna": "^3.22.0",
+    "redis": "^3.0.2"
   },
   "devDependencies": {
     "pre-commit": "^1.2.2"

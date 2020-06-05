@@ -36,52 +36,89 @@
 ******/
 
 'use strict'
-import { v4 as uuidv4 } from 'uuid'
 
-// import {InMemoryParticipantStateRepo} from "../infrastructure/inmemory_participant_repo";
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
-import { IEntityStateRepository, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
-import { KafkaMessagePublisher } from '@mojaloop-poc/lib-infrastructure'
-import { ParticipantState } from '../domain/participant_entity'
-import { ParticpantsAgg } from '../domain/participants_agg'
-import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
+import { ILogger } from '@mojaloop-poc/lib-domain'
+import { MessageConsumer } from '@mojaloop-poc/lib-infrastructure'
+import * as ParticipantCmdHandler from './participantCmdHandler'
+import * as ParticipantEvtHandler from './participantEvtHandler'
+import * as dotenv from 'dotenv'
+import { Command } from 'commander'
+import { resolve as Resolve } from 'path'
 
-import { CreateParticipantCmd } from '../messages/create_participant_cmd'
-import { RedisParticipantStateRepo } from '../infrastructure/redis_participant_repo'
+export const logger: ILogger = new ConsoleLogger()
 
-const logger: ILogger = new ConsoleLogger()
+const Program = new Command()
+Program
+  .version('0.1')
+  .description('CLI to manage Participant Handlers')
+Program.command('handler')
+  .alias('h')
+  .description('Start Participant Handlers') // command description
+  .option('-c, --config [configFilePath]', '.env config file')
+  .option('--participantsEvt', 'Start the Participant Evt Handler')
+  .option('--participantsCmd', 'Start the Participant Cmd Handler')
 
-async function start (): Promise<void> {
-  // const repo: IEntityStateRepository<ParticipantState> = new InMemoryParticipantStateRepo();
-  const repo: IEntityStateRepository<ParticipantState> = new RedisParticipantStateRepo('redis://localhost:6379', logger)
+  // function to execute when command is uses
+  .action(async (args: any): Promise<void> => {
+    // #env file
+    const configFilePath = args.config
+    const dotenvConfig: any = {
+      debug: true
+    }
+    if (configFilePath != null) {
+      dotenvConfig.path = Resolve(process.cwd(), configFilePath)
+    }
+    dotenv.config(dotenvConfig)
 
-  await repo.init()
+    // # setup application config
+    const appConfig = {
+      kafka: {
+        host: process.env.KAFKA_HOST
+      },
+      redis: {
+        host: process.env.REDIS_HOST
+      }
+    }
 
-  const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
-    'localhost:9092',
-    'client_a',
-    'development',
-    logger
-  )
+    logger.debug(`appConfig=${JSON.stringify(appConfig)}`)
 
-  await kafkaMsgPublisher.init()
+    // list of all handlers
+    const consumerHandlerList: MessageConsumer[] = []
 
-  const agg: ParticpantsAgg = new ParticpantsAgg(repo, kafkaMsgPublisher, logger)
+    // start all handlers here
+    if (args.participantsEvtHandler == null && args.participantsCmdHandler == null) {
+      consumerHandlerList.push(await ParticipantEvtHandler.start(appConfig, logger))
+      consumerHandlerList.push(await ParticipantCmdHandler.start(appConfig, logger))
+    }
+    if (args.participantsEvtHandler != null) {
+      consumerHandlerList.push(await ParticipantEvtHandler.start(appConfig, logger))
+    }
+    if (args.participantsCmdHandler != null) {
+      consumerHandlerList.push(await ParticipantCmdHandler.start(appConfig, logger))
+    }
 
-  // const payerId: string = '47fca31d-6784-4ac2-afd2-03af341df7e1' // Use this to validate duplicate insert logic for participants
-  const payerId: string = uuidv4() // Use this to create a new participant record
+    // lets clean up all consumers here
+    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+    const killProcess = async (): Promise<void> => {
+      logger.info('Exiting process...')
+      logger.info('Disconnecting handlers...')
+      /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+      consumerHandlerList.forEach(async (consumer) => {
+        logger.info(`\tDestroying handler...${consumer.constructor.name}`)
+        await consumer.destroy(true)
+      })
+      logger.info('Exit complete!')
+      process.exit(2)
+    }
+    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+    process.on('SIGINT', killProcess)
+  })
 
-  const transferId: string = uuidv4()
-
-  const createParticipantCmd: CreateParticipantCmd = new CreateParticipantCmd(payerId, 'participant 1', 1000, 100)
-  await agg.processCommand(createParticipantCmd)
-
-  const reserveCmd: ReservePayerFundsCmd = new ReservePayerFundsCmd(payerId, transferId, 50)
-  await agg.processCommand(reserveCmd)
+if (Array.isArray(process.argv) && process.argv.length > 2) {
+  // parse command line vars
+  Program.parse(process.argv)
+} else {
+  // display default help
+  Program.help()
 }
-
-start().catch((err) => {
-  logger.error(err)
-}).finally(() => {
-  process.exit(0)
-})

@@ -1,3 +1,4 @@
+
 /*****
  License
  --------------
@@ -37,36 +38,41 @@
 
 'use strict'
 
-import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
-import { ParticipantEntity } from '../domain/participant_entity'
-import { ParticipantsAggTopics } from '../domain/participants_agg'
+import { IDomainMessage, ILogger } from '@mojaloop-poc/lib-domain'
+import { EventEmitter } from 'events'
 
-export class ParticipantCreatedEvt extends DomainEventMsg {
-  aggregateId: string
-  aggregate_name: string = 'Participants'
-  msgKey: string
-  msgTopic: string = ParticipantsAggTopics.DomainEvents
+export interface Options<tClientOptions> {
+  client: tClientOptions
+  topics: string | string[]
+}
 
-  payload: {
-    id: string
-    name: string
-    limit: number
-    position: number
+export interface iMessageConsumer {
+  init: (handlerCallback: (message: IDomainMessage) => void) => void
+  destroy: (forceCommit: boolean) => Promise<void>
+  connect: () => void
+  pause: () => void
+  resume: () => void
+  disconnect: () => void
+}
+
+export abstract class MessageConsumer extends EventEmitter implements iMessageConsumer {
+  abstract init (handlerCallback: (message: IDomainMessage) => void): void
+  abstract destroy (forceCommit: boolean): Promise<void>
+  abstract connect (): void
+  abstract pause (): void
+  abstract resume (): void
+  abstract disconnect (): void
+  static Create<tOptions>(options: tOptions, logger: ILogger): MessageConsumer {
+    const consumer = Reflect.construct(this, arguments)
+
+    consumer.on('error', (err: Error): void => {
+      logger.error(`event::error - ${JSON.stringify(err)}`)
+    })
+
+    // consumer.on('commit', (msgMetaData:any) => {
+    //   logger.info(`event::commit - ${JSON.stringify(msgMetaData)}`)
+    // })
+
+    return consumer
   }
-
-  constructor (participant: ParticipantEntity) {
-    super()
-
-    this.aggregateId = this.msgKey = participant.id
-
-    this.payload = {
-      id: participant.id,
-      name: participant.name,
-      limit: participant.limit,
-      position: participant.position
-
-    }
-  }
-
-  validatePayload():void{ }
 }

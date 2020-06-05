@@ -37,28 +37,10 @@
 
 'use strict'
 
-import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
-import { ParticipantsAggTopics } from '../domain/participants_agg'
+import { IEntityStateRepository } from '@mojaloop-poc/lib-domain'
+import { ParticipantAccountTypes } from '@mojaloop-poc/lib-public-messages'
+import { ParticipantState } from './participant_entity'
 
-export class InvalidParticipantEvt extends DomainEventMsg {
-  aggregateId: string
-  aggregate_name: string = 'Participants'
-  msgKey: string
-  msgTopic: string = ParticipantsAggTopics.DomainEvents
-
-  payload: {
-    participantId: string
-  }
-
-  constructor (participantId: string) {
-    super()
-
-    this.aggregateId = this.msgKey = participantId
-
-    this.payload = {
-      participantId
-    }
-  }
-
-  validatePayload():void{ }
+export interface IParticipantRepo extends IEntityStateRepository<ParticipantState> {
+  hasAccount: (participantId: string, accType: ParticipantAccountTypes, currency: string) => Promise<boolean>
 }

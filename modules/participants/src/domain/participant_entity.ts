@@ -38,24 +38,52 @@
 'use strict'
 
 import { BaseEntityState, BaseEntity } from '@mojaloop-poc/lib-domain'
+import { CurrencyTypes, AccountLimitTypes, ParticipantAccountTypes } from '@mojaloop-poc/lib-public-messages'
+
+export class InvalidAccountError extends Error {}
+export class InvalidLimitError extends Error {}
+export class NetDebitCapLimitExceededError extends Error {}
+
+export class ParticipantLimitState extends BaseEntityState {
+  type: AccountLimitTypes
+  value: number // TODO: these need to be replaced to support 64bit floating point precission
+}
+
+export class ParticipantAccountState extends BaseEntityState {
+  type: ParticipantAccountTypes
+  currency: CurrencyTypes
+  position: number // TODO: these need to be replaced to support 64bit floating point precission
+  initialPosition: number // TODO: these need to be replaced to support 64bit floating point precission
+  limits: ParticipantLimitState[]
+}
+
+export class ParticipantEndpointState extends BaseEntityState {
+  type: string
+  value: string
+}
 
 export class ParticipantState extends BaseEntityState {
-  limit: number = 0
-  position: number = 0
-  name: string = ''
+  id: string
+  name: string
+  accounts: ParticipantAccountState[]
+  endpoints: ParticipantEndpointState[]
 }
 
 export class ParticipantEntity extends BaseEntity<ParticipantState> {
-  get limit (): number {
-    return this._state.limit
-  }
-
-  get position (): number {
-    return this._state.position
+  get id (): string {
+    return this._state.id
   }
 
   get name (): string {
     return this._state.name
+  }
+
+  get accounts (): ParticipantAccountState[] {
+    return this._state.accounts
+  }
+
+  get endpoints (): ParticipantEndpointState[] {
+    return this._state.endpoints
   }
 
   static CreateInstance (initialState?: ParticipantState): ParticipantEntity {
@@ -66,23 +94,76 @@ export class ParticipantEntity extends BaseEntity<ParticipantState> {
     return entity
   }
 
-  setupInitialState (name: string, limit: number, initialPosition: number): void{
-    this._state.name = name
-    this._state.limit = limit
-    this._state.position = initialPosition
+  setupInitialState (initialState: ParticipantState): void {
+    this._state = { ...initialState }
   }
 
-  canReserveFunds (amount: number): boolean {
+  private getAccount (accType: ParticipantAccountTypes, currency: CurrencyTypes): ParticipantAccountState | null {
+    if (accType == null || currency == null) return null
+    const accountState = this._state?.accounts?.find(account => account.type === accType && account.currency === currency)
+    if (accountState == null) return null
+    return accountState
+  }
+
+  private getLimit (accType: ParticipantAccountTypes, currency: CurrencyTypes, limitType: AccountLimitTypes): ParticipantLimitState | null {
+    if (accType != null && currency != null && limitType != null) {
+      const accountState = this.getAccount(accType, currency)
+      if (accountState != null) { return this.getLimitFromAccount(accountState, limitType) }
+    }
+    return null
+  }
+
+  private getLimitFromAccount (account: ParticipantAccountState, limitType: AccountLimitTypes): ParticipantLimitState | null {
+    if (account != null && limitType != null) {
+      const limitState = account?.limits?.find(limit => limit.type === limitType)
+      if (limitState == null) return null
+      return limitState
+    }
+    return null
+  }
+
+  hasAccount (accType: ParticipantAccountTypes, currency: CurrencyTypes): boolean {
+    return this.getAccount(accType, currency) != null
+  }
+
+  hasPositionAccount (currency: CurrencyTypes): boolean {
+    return this.getAccount(ParticipantAccountTypes.POSITION, currency) != null
+  }
+
+  private getEndpoint (type: string): ParticipantEndpointState | null {
+    if (type == null) return null
+    const endpointState = this._state?.endpoints?.find(endpoint => endpoint.type === type)
+    if (endpointState == null) return null
+    return endpointState
+  }
+
+  private canReserveFunds (currency: CurrencyTypes, amount: number): boolean {
     if (amount <= 0) { return false }
-
-    return (this._state.position + amount) < this._state.limit
+    const accountState = this.getAccount(ParticipantAccountTypes.POSITION, currency)
+    if (accountState == null) throw new InvalidAccountError(`Unable to 'canReserveFunds' - Unknown account '${currency}' for Account '${this.id}'`)
+    const limitValue = this.getLimitFromAccount(accountState, AccountLimitTypes.NET_DEBIT_CAP)?.value
+    if (limitValue == null) throw new InvalidLimitError(`Unable to 'canReserveFunds' - Unknown limitType '${AccountLimitTypes.NET_DEBIT_CAP}' for Account '${this.id}'`)
+    return (accountState.position + amount) < limitValue
   }
 
-  reserveFunds (amount: number): void{
-    this._state.position -= amount
+  commitFunds (currency: CurrencyTypes, amount: number): void {
+    const account = this.getAccount(ParticipantAccountTypes.POSITION, currency)
+    if (account == null) throw new InvalidAccountError(`Unable to 'canReserveFunds' - Unknown account '${currency}' for Account '${this.id}'`)
+    account.position -= amount
   }
 
-  reverseFundReservation (amount: number): void{
-    this._state.position += amount
+  reserveFunds (currency: CurrencyTypes, amount: number): void {
+    if (this.canReserveFunds(currency, amount)) {
+      const accountState = this.getAccount(ParticipantAccountTypes.POSITION, currency)
+      accountState!.position += amount
+    } else {
+      throw new NetDebitCapLimitExceededError(`Unable to 'reserveFunds' - amount '${amount}' exceeded limit '${AccountLimitTypes.NET_DEBIT_CAP}' for Account '${this.id}'`)
+    }
+  }
+
+  getCurrentPosition (currency: CurrencyTypes): number {
+    const accountState = this.getAccount(ParticipantAccountTypes.POSITION, currency)
+    if (accountState == null) throw new InvalidAccountError(`Unable to 'canReserveFunds' - Unknown account '${currency}' for Account '${this.id}'`)
+    return accountState.position
   }
 }

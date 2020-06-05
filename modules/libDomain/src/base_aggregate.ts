@@ -39,7 +39,7 @@
 
 import { BaseEntity } from './base_entity'
 import { BaseEntityState } from './base_entity_state'
-import {CommandMsg, DomainEventMsg, DomainMsg, IDomainMessage} from './messages'
+import { CommandMsg, DomainEventMsg, DomainMsg } from './messages'
 import { IMessagePublisher } from './imessage_publisher'
 import { IEntityStateRepository } from './ientity_state_repository'
 import { IEntityFactory } from './entity_factory'
@@ -76,9 +76,9 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
   */
   // async processCommand (commandMsg: CommandMsg): Promise<boolean> {
   //   return new Promise(async (resolve, reject) => {
-  //     const handler = this._commandHandlers.get(commandMsg.msg_name)
+  //     const handler = this._commandHandlers.get(commandMsg.msgName)
   //     if (handler == null) {
-  //       return reject(new Error(`Aggregate doesn't have a handler for a command with name ${commandMsg.msg_name}`))
+  //       return reject(new Error(`Aggregate doesn't have a handler for a command with name ${commandMsg.msgName}`))
   //     }
 
   //     this._resetState()
@@ -90,20 +90,20 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
 
   //       // until we have full event sourcing we have to persist
   //       if (!result) {
-  //         this._logger.info(`Command '${commandMsg.msg_name}' execution failed`)
-  //         return reject(new Error(`Command '${commandMsg.msg_name}' execution failed`))
+  //         this._logger.info(`Command '${commandMsg.msgName}' execution failed`)
+  //         return reject(new Error(`Command '${commandMsg.msgName}' execution failed`))
   //       }
 
   //       if (this._rootEntity != null) {
   //         await this._entity_state_repo.store(this._rootEntity.exportState())
   //       } else {
-  //         return reject(new Error(`Aggregate doesn't have a valid state to process command with name ${commandMsg.msg_name}`))
+  //         return reject(new Error(`Aggregate doesn't have a valid state to process command with name ${commandMsg.msgName}`))
   //       }
-  //       this._logger.info(`Aggregate state persisted to repository at the end of command: ${commandMsg.msg_name}`)
+  //       this._logger.info(`Aggregate state persisted to repository at the end of command: ${commandMsg.msgName}`)
   //       return resolve(true)
   //     }).catch(async (err: any) => {
   //       await this.commit() // we still send out the unpublished events
-  //       this._logger.error(err, `Aggregate state persited to repoistory at the end of command: ${commandMsg.msg_name}`)
+  //       this._logger.error(err, `Aggregate state persited to repoistory at the end of command: ${commandMsg.msgName}`)
 
   //       reject(err)
   //     })
@@ -111,9 +111,9 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
   // }
 
   async processCommand (commandMsg: CommandMsg): Promise<boolean> {
-    const handler = this._commandHandlers.get(commandMsg.msg_name)
+    const handler = this._commandHandlers.get(commandMsg.msgName)
     if (handler == null) {
-      throw new Error(`Aggregate doesn't have a handler for a command with name ${commandMsg.msg_name}`)
+      throw new Error(`Aggregate doesn't have a handler for a command with name ${commandMsg.msgName}`)
     }
 
     this._resetState()
@@ -125,20 +125,20 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
 
       // until we have full event sourcing we have to persist
       if (!result) {
-        this._logger.info(`Command '${commandMsg.msg_name}' execution failed`)
+        this._logger.info(`Command '${commandMsg.msgName}' execution failed`)
         return false
       }
 
       if (this._rootEntity != null) {
         await this._entity_state_repo.store(this._rootEntity.exportState())
       } else {
-        throw new Error(`Aggregate doesn't have a valid state to process command with name ${commandMsg.msg_name}`)
+        throw new Error(`Aggregate doesn't have a valid state to process command with name ${commandMsg.msgName}`)
       }
-      this._logger.info(`Aggregate state persisted to repository at the end of command: ${commandMsg.msg_name}`)
+      this._logger.info(`Aggregate state persisted to repository at the end of command: ${commandMsg.msgName}`)
       return true
     }).catch(async (err: any) => {
       await this.commit() // we still send out the unpublished events
-      this._logger.error(err, `Aggregate state persited to repoistory at the end of command: ${commandMsg.msg_name}`)
+      this._logger.error(err, `Aggregate state persited to repoistory at the end of command: ${commandMsg.msgName}`)
       throw err
     })
   }
@@ -153,9 +153,9 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
 
   /* private apply_event(event_msg: DomainEventMsg, replayed?: boolean): Promise<void>{
      return new Promise(async(resolve, reject)=>{
-       const handler: ((event: DomainEventMsg, replayed?:boolean) => Promise<void>) | undefined = this._event_handlers.get(event_msg.header.msg_name);
+       const handler: ((event: DomainEventMsg, replayed?:boolean) => Promise<void>) | undefined = this._event_handlers.get(event_msg.header.msgName);
        if (!handler)
-         return reject("Aggregate doesn't have a handler for event with name" +  event_msg.header.msg_name);
+         return reject("Aggregate doesn't have a handler for event with name" +  event_msg.header.msgName);
        // TODO check for consistency, ie, versions
        await handler(event_msg, replayed).then(()=>{
          resolve()
@@ -241,7 +241,7 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
   //       return resolve()
   //     }
 
-  //     const eventNames = this._uncommittedEvents.map(evt => evt.msg_name)
+  //     const eventNames = this._uncommittedEvents.map(evt => evt.msgName)
 
   //     await this._msgPublisher.publishMany(this._uncommittedEvents)
 
@@ -258,7 +258,7 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
       return
     }
 
-    const eventNames = this._uncommittedEvents.map(evt => evt.msg_name)
+    const eventNames = this._uncommittedEvents.map(evt => evt.msgName)
 
     await this._msgPublisher.publishMany(this._uncommittedEvents)
 

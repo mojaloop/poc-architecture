@@ -37,41 +37,55 @@
 
 'use strict'
 
-import { CommandMsg } from '@mojaloop-poc/lib-domain'
-import { ParticipantsAggTopics } from '../domain/participants_agg'
-import {MessageTypes} from '@mojaloop-poc/lib-domain';
+import { CommandMsg, MessageTypes } from '@mojaloop-poc/lib-domain'
+import { ParticipantsTopics, ParticipantAccountTypes, AccountLimitTypes, CurrencyTypes } from '@mojaloop-poc/lib-public-messages'
 
+export interface ParticipantLimit {
+  type: AccountLimitTypes
+  value: number // TODO: these need to be replaced to support 64bit floating point precission
+}
 
+export interface ParticipantAccount {
+  type: ParticipantAccountTypes
+  currency: CurrencyTypes
+  position: number // TODO: these need to be replaced to support 64bit floating point precission
+  initialPosition: number // TODO: these need to be replaced to support 64bit floating point precission
+  limits: ParticipantLimit[]
+}
 
-export class CreateParticipantCmd extends CommandMsg {
+export interface ParticipantEndpoint {
+  type: string
+  value: string
+}
 
-  aggregateId: string
-  aggregate_name: string = 'Participants'
-  msgKey: string
-  msgTopic: string = ParticipantsAggTopics.Commands
-
-  payload: {
+export interface CreateParticipantCmdPayload {
+  participant: {
     id: string
     name: string
-    limit: number
-    initialPosition: number
+    accounts: ParticipantAccount[]
+    endpoints: ParticipantEndpoint[]
   }
+}
 
-  constructor (id: string, name: string, limit: number, initialPosition: number) {
+export class CreateParticipantCmd extends CommandMsg {
+  msgType: MessageTypes
+  msgKey: string // usually the id of the aggregate (used for partitioning)
+  msgTopic: string = ParticipantsTopics.Commands
+
+  aggregateId: string
+  aggregateName: string = 'Participants'
+
+  payload: CreateParticipantCmdPayload
+
+  constructor (payload: CreateParticipantCmdPayload) {
     super()
 
-    this.aggregateId = this.msgKey = id
+    this.aggregateId = this.msgKey = payload?.participant?.id
 
-    this.payload = {
-      id,
-      name,
-      limit,
-      initialPosition
-    }
+    this.payload = payload
   }
 
-  validatePayload():void{ }
-
+  validatePayload (): void{ }
 }
 
 

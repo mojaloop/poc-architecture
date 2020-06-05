@@ -37,30 +37,8 @@
 
 'use strict'
 
-import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
-import { ParticipantsAggTopics } from '../domain/participants_agg'
+import { IEntityStateRepository } from '@mojaloop-poc/lib-domain'
+import { TransferState } from './transfer_entity'
 
-export class NetCapLimitExceededEvt extends DomainEventMsg {
-  aggregateId: string
-  aggregate_name: string = 'Participants'
-  msgKey: string
-  msgTopic: string = ParticipantsAggTopics.DomainEvents
-
-  payload: {
-    participantId: string
-    transferId: string
-  }
-
-  constructor (participantId: string, transferId: string) {
-    super()
-
-    this.aggregateId = this.msgKey = participantId
-
-    this.payload = {
-      participantId,
-      transferId
-    }
-  }
-
-  validatePayload():void{ }
+export interface ITransfersRepo extends IEntityStateRepository<TransferState> {
 }

@@ -40,6 +40,18 @@
 import * as kafka from 'kafka-node'
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 import { ILogger, IMessage } from '@mojaloop-poc/lib-domain'
+// import { murmur2 } from 'murmurhash-js'
+
+// ref: https://github.com/vuza/murmur2-partitioner/blob/master/index.js
+// const SEED = 0x9747b28c
+// function _toPositive (n: number): number {
+//   return n & 0x7fffffff
+// }
+//
+// function partitioner (partitions: number[], key: string | Buffer): number {
+//   key = Buffer.isBuffer(key) ? key.toString() : key
+//   return _toPositive(murmur2(key, SEED)) % partitions.length
+// }
 
 export class KafkaGenericProducer {
   protected _logger: ILogger
@@ -80,6 +92,7 @@ export class KafkaGenericProducer {
       }
 
       this._client = new kafka.KafkaClient(kafkaClientOptions)
+      // this._producer = new kafka.HighLevelProducer(this._client, { partitionerType: 4 }, partitioner)
       this._producer = new kafka.HighLevelProducer(this._client, { partitionerType: 3 })
 
       this._producer.on('ready', async () => {
@@ -195,7 +208,7 @@ export class KafkaGenericProducer {
           this._logger.error(err, 'KafkaGenericProducer error sending message')
           return reject(err)
         }
-        console.log('KafkaGenericProducer sent message - response:', data)
+        this._logger.debug('KafkaGenericProducer sent message - response:', data)
         resolve(data)
       })
     })

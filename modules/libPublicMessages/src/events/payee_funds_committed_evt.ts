@@ -38,31 +38,30 @@
 'use strict'
 
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
-import { ParticipantsAggTopics } from '../domain/participants_agg'
+import { ParticipantsTopics, CurrencyTypes } from '../enums'
 
-export class PayerFundsReservedEvt extends DomainEventMsg {
+export interface PayeeFundsCommittedEvtPayload {
+  transferId: string
+  payeeId: string
+  currency: CurrencyTypes
+  currentPosition: number
+}
+
+export class PayeeFundsCommittedEvt extends DomainEventMsg {
   aggregateId: string
-  aggregate_name: string = 'Participants'
+  aggregateName: string = 'Participants'
   msgKey: string
-  msgTopic: string = ParticipantsAggTopics.DomainEvents
+  msgTopic: string = ParticipantsTopics.DomainEvents
 
-  payload: {
-    transferId: string
-    payerId: string
-    currentPosition: number
-  }
+  payload: PayeeFundsCommittedEvtPayload
 
-  constructor (transferId: string, payerId: string, currentPosition: number) {
+  constructor (payload: PayeeFundsCommittedEvtPayload) {
     super()
 
-    this.aggregateId = this.msgKey = payerId
+    this.aggregateId = this.msgKey = payload.payeeId
 
-    this.payload = {
-      transferId,
-      payerId,
-      currentPosition
-    }
+    this.payload = payload
   }
 
-  validatePayload():void{ }
+  validatePayload (): void{ }
 }
