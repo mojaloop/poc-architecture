@@ -1,5 +1,5 @@
 import { IMessagePublisher, IMessage, ILogger } from '@mojaloop-poc/lib-domain'
-import { KafkaMessagePublisher } from '@mojaloop-poc/lib-infrastructure'
+import { KafkaMessagePublisher, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 
 import * as dotenv from 'dotenv'
@@ -16,10 +16,17 @@ const appConfig = {
   }
 }
 
+const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
+  client: {
+    kafka: {
+      kafkaHost: appConfig.kafka.host,
+      clientId: 'tools-publisher'
+    }
+  }
+}
+
 const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
-  appConfig.kafka.host!,
-  'tools-publisher',
-  'development',
+  kafkaGenericProducerOptions,
   logger
 )
 

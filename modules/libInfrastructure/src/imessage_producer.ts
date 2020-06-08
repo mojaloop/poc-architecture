@@ -1,4 +1,3 @@
-
 /*****
  License
  --------------
@@ -38,28 +37,29 @@
 
 'use strict'
 
-import { IDomainMessage } from '@mojaloop-poc/lib-domain'
+import { IDomainMessage, IMessage } from '@mojaloop-poc/lib-domain'
 import { EventEmitter } from 'events'
 
 export interface Options<tClientOptions> {
   client: tClientOptions
-  topics: string | string[]
 }
 
-export interface iMessageConsumer {
+export interface iMessageProducer {
   init: (handlerCallback: (message: IDomainMessage) => void) => void
   destroy: (forceCommit: boolean) => Promise<void>
   connect: () => void
   pause: () => void
   resume: () => void
   disconnect: () => void
+  send: (kafkaMsg: IMessage | IMessage[] | any) => Promise<void>
 }
 
-export abstract class MessageConsumer extends EventEmitter implements iMessageConsumer {
+export abstract class MessageProducer extends EventEmitter implements iMessageProducer {
   abstract init (handlerCallback: (message: IDomainMessage) => void): void
   abstract destroy (forceCommit: boolean): Promise<void>
   abstract connect (): void
   abstract pause (): void
   abstract resume (): void
   abstract disconnect (): void
+  abstract send (kafkaMsg: IMessage | IMessage[] | any): Promise<void>
 }

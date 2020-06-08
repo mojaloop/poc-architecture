@@ -39,7 +39,7 @@
 // import {InMemoryTransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransfersTopics, ParticipantsTopics, PayerFundsReservedEvt, TransferPrepareRequestedEvt, TransferPrepareAcceptedEvt, TransferFulfilRequestedEvt, PayeeFundsCommittedEvt } from '@mojaloop-poc/lib-public-messages'
-import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { AckPayerFundsReservedCmdPayload, AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { AckPayeeFundsCommitedCmdPayload, AckPayeeFundsCommitedCmd } from '../messages/ack_payee_funds_reserved_cmd'
 import { InvalidTransferEvtError } from './errors'
@@ -47,10 +47,17 @@ import { PrepareTransferCmdPayload, PrepareTransferCmd } from '../messages/prepa
 import { FulfilTransferCmd, FulfilTransferCmdPayload } from '../messages/fulfil_transfer_cmd'
 
 export const start = async (appConfig: any, logger: ILogger): Promise<MessageConsumer> => {
+  const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
+    client: {
+      kafka: {
+        kafkaHost: appConfig.kafka.host,
+        clientId: 'transferEvtHandler'
+      }
+    }
+  }
+
   const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
-    appConfig.kafka.host,
-    'transferEvtHandler',
-    'development',
+    kafkaGenericProducerOptions,
     logger
   )
 

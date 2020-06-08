@@ -40,10 +40,7 @@ export class KafkaGenericConsumer extends MessageConsumer {
 
   protected _logger: ILogger
 
-  constructor (
-    options: KafkaGenericConsumerOptions,
-    logger?: ILogger
-  ) {
+  constructor (options: KafkaGenericConsumerOptions, logger?: ILogger) {
     super()
 
     // make a copy of the options
@@ -66,6 +63,20 @@ export class KafkaGenericConsumer extends MessageConsumer {
     }
 
     this._logger.info('instance created')
+  }
+
+  static Create<tOptions>(options: tOptions, logger: ILogger): MessageConsumer {
+    const consumer = Reflect.construct(this, arguments)
+
+    consumer.on('error', (err: Error): void => {
+      logger.error(`event::error - ${JSON.stringify(err)}`)
+    })
+
+    // consumer.on('commit', (msgMetaData:any) => {
+    //   logger.info(`event::commit - ${JSON.stringify(msgMetaData)}`)
+    // })
+
+    return consumer
   }
 
   async destroy (forceCommit: boolean = false): Promise<void> {
