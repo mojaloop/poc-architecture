@@ -41,12 +41,12 @@
 import { IDomainMessage } from '@mojaloop-poc/lib-domain'
 import { EventEmitter } from 'events'
 
-export interface Options<tClientOptions> {
+export type Options<tClientOptions> = {
   client: tClientOptions
   topics: string | string[]
 }
 
-export interface iMessageConsumer {
+export type iMessageConsumer = {
   init: (handlerCallback: (message: IDomainMessage) => void) => void
   destroy: (forceCommit: boolean) => Promise<void>
   connect: () => void

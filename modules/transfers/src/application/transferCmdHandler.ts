@@ -49,7 +49,8 @@ import { AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_c
 import { RedisTransferStateRepo } from '../infrastructure/redis_participant_repo'
 import { ITransfersRepo } from '../domain/transfers_repo'
 import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
-import { AckPayeeFundsCommitedCmd } from '../messages/ack_payee_funds_reserved_cmd'
+import { AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
+import { Crypto } from '@mojaloop-poc/lib-utilities'
 
 export const start = async (appConfig: any, logger: ILogger): Promise<MessageConsumer> => {
   // const repo: IEntityStateRepository<TransferState> = new InMemoryTransferStateRepo()
@@ -61,7 +62,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
     client: {
       kafka: {
         kafkaHost: appConfig.kafka.host,
-        clientId: 'transferCmdHandler'
+        clientId: `transferCmdHandler-${Crypto.randomBytes(8)}`
       }
     }
   }
@@ -90,8 +91,8 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
           transferCmd = AckPayerFundsReservedCmd.fromIDomainMessage(message)
           break
         }
-        case AckPayeeFundsCommitedCmd.name: {
-          transferCmd = AckPayeeFundsCommitedCmd.fromIDomainMessage(message)
+        case AckPayeeFundsCommittedCmd.name: {
+          transferCmd = AckPayeeFundsCommittedCmd.fromIDomainMessage(message)
           break
         }
         case FulfilTransferCmd.name: {
@@ -119,7 +120,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
   const transferCmdConsumerOptions: KafkaGenericConsumerOptions = {
     client: {
       kafkaHost: appConfig.kafka.host,
-      // id: 'transferCmdConsumer', // this has to be unique
+      id: `transferCmdConsumer-${Crypto.randomBytes(8)}`,
       groupId: 'transferCmdGroup',
       fromOffset: EnumOffset.LATEST
     },

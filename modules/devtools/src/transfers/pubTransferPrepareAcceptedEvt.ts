@@ -9,7 +9,7 @@ const logger: ILogger = new ConsoleLogger()
 
 const transferPrepareAcceptedEvtPayload: TransferPrepareAcceptedEvtPayload = {
   transferId: uuidv4(),
-  amount: 1,
+  amount: '1',
   currency: CurrencyTypes.USD,
   payerId: 'fsp-1',
   payeeId: 'fsp-2'

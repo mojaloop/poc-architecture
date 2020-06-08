@@ -40,7 +40,7 @@
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics } from '../enums'
 
-export interface InvalidParticipantEvtPayload {
+export type InvalidParticipantEvtPayload = {
   participantId: string
   transferId: string
   reason?: string

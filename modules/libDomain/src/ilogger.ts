@@ -37,7 +37,7 @@
 
 'use strict'
 
-export interface ILogger {
+export type ILogger = {
   // trace(...anything);
   debug: (message?: any, ...optionalParams: any[]) => void
   info: (message?: any, ...optionalParams: any[]) => void

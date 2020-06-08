@@ -38,7 +38,6 @@
 'use strict'
 // TODO: Move to config management in future
 
-
 export enum MLTopics {
   'DomainEvents' = 'MLIngressDomainEvents',
 }

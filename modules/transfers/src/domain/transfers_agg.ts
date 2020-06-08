@@ -11,7 +11,7 @@ import { TransfersFactory } from './transfers_factory'
 import { AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
 import { logger } from '../application'
-import { AckPayeeFundsCommitedCmd } from '../messages/ack_payee_funds_reserved_cmd'
+import { AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
 
 export enum TransfersAggTopics {
   'Commands' = 'TransferCommands',
@@ -23,7 +23,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
     super(TransfersFactory.GetInstance(), entityStateRepo, msgPublisher, logger)
     this._registerCommandHandler('PrepareTransferCmd', this.processPrepareTransferCommand)
     this._registerCommandHandler('AckPayerFundsReservedCmd', this.processAckPayerFundsReservedCommand)
-    this._registerCommandHandler('AckPayeeFundsCommitedCmd', this.processAckPayeeFundsReservedCommand)
+    this._registerCommandHandler('AckPayeeFundsCommittedCmd', this.processAckPayeeFundsReservedCommand)
     this._registerCommandHandler('FulfilTransferCmd', this.processFulfilTransferCommand)
   }
 
@@ -40,13 +40,21 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
     /* TODO: validation of incoming payload */
 
     this.create()
+
     const transferPrepareRequestData: PrepareTransferData = {
       id: commandMsg.payload.transferId,
       amount: commandMsg.payload.amount,
       currency: commandMsg.payload.currency,
       payerId: commandMsg.payload.payerId,
-      payeeId: commandMsg.payload.payeeId
+      payeeId: commandMsg.payload.payeeId,
+      expiration: commandMsg.payload.expiration,
+      condition: commandMsg.payload.condition,
+      prepare: {
+        headers: commandMsg.payload.prepare?.headers,
+        payload: commandMsg.payload.prepare?.payload
+      }
     }
+
     this._rootEntity!.prepareTransfer(transferPrepareRequestData)
 
     const transferPrepareAcceptedEvtPayload = {
@@ -87,7 +95,9 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       amount: this._rootEntity.amount,
       currency: this._rootEntity.currency,
       payerId: this._rootEntity.payerId,
-      payeeId: this._rootEntity.payeeId
+      payeeId: this._rootEntity.payeeId,
+      payerEndPoints: commandMsg.payload.payerEndPoints,
+      payeeEndPoints: commandMsg.payload.payeeEndPoints
     }
     this.recordDomainEvent(new TransferPreparedEvt(transferPreparedEvtPayload))
 
@@ -122,14 +132,16 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       amount: this._rootEntity.amount,
       currency: this._rootEntity.currency,
       payerId: this._rootEntity.payerId,
-      payeeId: this._rootEntity.payeeId
+      payeeId: this._rootEntity.payeeId,
+      payerEndPoints: commandMsg.payload.payerEndPoints,
+      payeeEndPoints: commandMsg.payload.payeeEndPoints
     }
     this.recordDomainEvent(new TransferFulfilAcceptedEvt(transferFulfilAcceptedEvtPayload))
 
     return true
   }
 
-  async processAckPayeeFundsReservedCommand (commandMsg: AckPayeeFundsCommitedCmd): Promise<boolean> {
+  async processAckPayeeFundsReservedCommand (commandMsg: AckPayeeFundsCommittedCmd): Promise<boolean> {
     await this.load(commandMsg.payload.transferId, false)
 
     if (this._rootEntity === null) {
@@ -155,7 +167,9 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       amount: this._rootEntity.amount,
       currency: this._rootEntity.currency,
       payerId: this._rootEntity.payerId,
-      payeeId: this._rootEntity.payeeId
+      payeeId: this._rootEntity.payeeId,
+      payerEndPoints: commandMsg.payload.payerEndPoints,
+      payeeEndPoints: commandMsg.payload.payeeEndPoints
     }
     this.recordDomainEvent(new TransferFulfilledEvt(transferFulfiledEvtPayload))
 

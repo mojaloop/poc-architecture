@@ -37,12 +37,10 @@
 
 'use strict'
 
-import { IMessage } from './messages'
+import * as crypto from 'crypto'
 
-export type IMessagePublisher = {
-  init: () => Promise<void>
-  destroy: () => Promise<void>
-
-  publish: (message: IMessage) => Promise<void>
-  publishMany: (messages: IMessage[]) => Promise<void>
+export const Crypto = {
+  randomBytes (byteSize: number, encoding: BufferEncoding = 'hex'): string {
+    return crypto.randomBytes(byteSize).toString(encoding)
+  }
 }

@@ -5,20 +5,23 @@
 
 import { CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransfersAggTopics } from '../domain/transfers_agg'
+import { ParticipantEndpoint } from '@mojaloop-poc/lib-public-messages'
 
-export interface AckPayeeFundsCommitedCmdPayload {
+export type AckPayeeFundsCommittedCmdPayload = {
   transferId: string
+  payerEndPoints: ParticipantEndpoint[]
+  payeeEndPoints: ParticipantEndpoint[]
 }
 
-export class AckPayeeFundsCommitedCmd extends CommandMsg {
+export class AckPayeeFundsCommittedCmd extends CommandMsg {
   aggregateId: string
   aggregateName: string = 'Transfers'
   msgKey: string
   msgTopic: string = TransfersAggTopics.Commands
 
-  payload: AckPayeeFundsCommitedCmdPayload
+  payload: AckPayeeFundsCommittedCmdPayload
 
-  constructor (payload: AckPayeeFundsCommitedCmdPayload) {
+  constructor (payload: AckPayeeFundsCommittedCmdPayload) {
     super()
 
     this.aggregateId = this.msgKey = payload?.transferId

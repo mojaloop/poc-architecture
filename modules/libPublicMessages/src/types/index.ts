@@ -37,12 +37,22 @@
 
 'use strict'
 
-import { IMessage } from './messages'
+import { ParticipantAccountTypes, AccountLimitTypes, CurrencyTypes } from '../enums'
 
-export type IMessagePublisher = {
-  init: () => Promise<void>
-  destroy: () => Promise<void>
+export type ParticipantLimit = {
+  type: AccountLimitTypes
+  value: string // TODO: these need to be replaced to support 64bit floating point precission
+}
 
-  publish: (message: IMessage) => Promise<void>
-  publishMany: (messages: IMessage[]) => Promise<void>
+export type ParticipantAccount = {
+  type: ParticipantAccountTypes
+  currency: CurrencyTypes
+  position: string // TODO: these need to be replaced to support 64bit floating point precission
+  initialPosition: string // TODO: these need to be replaced to support 64bit floating point precission
+  limits: ParticipantLimit[]
+}
+
+export type ParticipantEndpoint = {
+  type: string
+  value: string
 }

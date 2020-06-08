@@ -6,16 +6,16 @@
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
 import { MLTopics } from '../enums'
 
-export interface TransferPrepareRequestedEvtPayload {
+export type TransferPrepareRequestedEvtPayload = {
   transferId: string
-  amount: number
+  amount: string
   currency: string
   payerId: string
-  payeeId: string,
-  expiration: string,
-  condition: string,
+  payeeId: string
+  expiration: string
+  condition: string
   prepare: {
-    headers: {[key: string]: string},
+    headers: {[key: string]: string}
     payload: string
   }
 }
@@ -24,7 +24,7 @@ export class TransferPrepareRequestedEvt extends DomainEventMsg {
   aggregateId: string
   aggregateName: string = 'Transfers'
   msgKey: string
-  msgTopic: string =  MLTopics.DomainEvents
+  msgTopic: string = MLTopics.DomainEvents
 
   payload: TransferPrepareRequestedEvtPayload
 

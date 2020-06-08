@@ -5,13 +5,16 @@
 
 import { CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransfersAggTopics } from '../domain/transfers_agg'
+import { ParticipantEndpoint } from '@mojaloop-poc/lib-public-messages'
 
-export interface FulfilTransferCmdPayload {
+export type FulfilTransferCmdPayload = {
   transferId: string
-  amount: number
+  amount: string
   currency: string
   payerId: string
   payeeId: string
+  payerEndPoints: ParticipantEndpoint[]
+  payeeEndPoints: ParticipantEndpoint[]
 }
 
 export class FulfilTransferCmd extends CommandMsg {

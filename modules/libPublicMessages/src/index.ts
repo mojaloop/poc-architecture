@@ -39,6 +39,7 @@
 
 // Exports for Public Messages
 export * from './enums'
+export * from './types/index'
 export * from './events/duplicate_participant_evt'
 export * from './events/duplicate_transfer_evt'
 export * from './events/invalid_participant_evt'

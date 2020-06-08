@@ -39,6 +39,7 @@
 
 import { BaseEntityState, BaseEntity } from '@mojaloop-poc/lib-domain'
 import { CurrencyTypes, AccountLimitTypes, ParticipantAccountTypes } from '@mojaloop-poc/lib-public-messages'
+import { BigNumber } from 'bignumber.js'
 
 export class InvalidAccountError extends Error {}
 export class InvalidLimitError extends Error {}
@@ -46,14 +47,14 @@ export class NetDebitCapLimitExceededError extends Error {}
 
 export class ParticipantLimitState extends BaseEntityState {
   type: AccountLimitTypes
-  value: number // TODO: these need to be replaced to support 64bit floating point precission
+  value: string // TODO: these need to be replaced to support 64bit floating point precission
 }
 
 export class ParticipantAccountState extends BaseEntityState {
   type: ParticipantAccountTypes
   currency: CurrencyTypes
-  position: number // TODO: these need to be replaced to support 64bit floating point precission
-  initialPosition: number // TODO: these need to be replaced to support 64bit floating point precission
+  position: string // TODO: these need to be replaced to support 64bit floating point precission
+  initialPosition: string // TODO: these need to be replaced to support 64bit floating point precission
   limits: ParticipantLimitState[]
 }
 
@@ -94,7 +95,8 @@ export class ParticipantEntity extends BaseEntity<ParticipantState> {
     return entity
   }
 
-  constructor(initialState: ParticipantState) {
+  /* eslint-disable-next-line @typescript-eslint/no-useless-constructor */
+  constructor (initialState: ParticipantState) {
     super(initialState)
   }
 
@@ -137,31 +139,47 @@ export class ParticipantEntity extends BaseEntity<ParticipantState> {
     return endpointState
   }
 
-  private canReserveFunds (currency: CurrencyTypes, amount: number): boolean {
-    if (amount <= 0) { return false }
+  private canReserveFunds (currency: CurrencyTypes, amount: string): boolean {
+    const incomingAmount = new BigNumber(amount)
+
+    if (incomingAmount.isNaN() || incomingAmount.isLessThanOrEqualTo(0)) { return false }
     const accountState = this.getAccount(ParticipantAccountTypes.POSITION, currency)
     if (accountState == null) throw new InvalidAccountError(`Unable to 'canReserveFunds' - Unknown account '${currency}' for Account '${this.id}'`)
     const limitValue = this.getLimitFromAccount(accountState, AccountLimitTypes.NET_DEBIT_CAP)?.value
     if (limitValue == null) throw new InvalidLimitError(`Unable to 'canReserveFunds' - Unknown limitType '${AccountLimitTypes.NET_DEBIT_CAP}' for Account '${this.id}'`)
-    return (accountState.position + amount) < limitValue
+    const currentPosition = new BigNumber(accountState.position)
+    const currentLimit = new BigNumber(limitValue)
+    if (currentPosition.isNaN()) { return false }
+    const result = currentPosition.plus(incomingAmount)
+    return result.isLessThan(currentLimit)
   }
 
-  commitFunds (currency: CurrencyTypes, amount: number): void {
-    const account = this.getAccount(ParticipantAccountTypes.POSITION, currency)
-    if (account == null) throw new InvalidAccountError(`Unable to 'canReserveFunds' - Unknown account '${currency}' for Account '${this.id}'`)
-    account.position -= amount
+  commitFunds (currency: CurrencyTypes, amount: string): void {
+    const incomingAmount = new BigNumber(amount)
+    const accountState = this.getAccount(ParticipantAccountTypes.POSITION, currency)
+    if (accountState == null) throw new InvalidAccountError(`Unable to 'canReserveFunds' - Unknown account '${currency}' for Account '${this.id}'`)
+    const currentPosition = new BigNumber(accountState.position)
+    const result = currentPosition.minus(incomingAmount)
+    if (!result.isNaN()) {
+      accountState.position = result.toString()
+    }
   }
 
-  reserveFunds (currency: CurrencyTypes, amount: number): void {
+  reserveFunds (currency: CurrencyTypes, amount: string): void {
+    const incomingAmount = new BigNumber(amount)
     if (this.canReserveFunds(currency, amount)) {
       const accountState = this.getAccount(ParticipantAccountTypes.POSITION, currency)
-      accountState!.position += amount
+      const currentPosition = new BigNumber(accountState!.position)
+      const result = currentPosition.plus(incomingAmount)
+      if (!result.isNaN()) {
+        accountState!.position = result.toString()
+      }
     } else {
       throw new NetDebitCapLimitExceededError(`Unable to 'reserveFunds' - amount '${amount}' exceeded limit '${AccountLimitTypes.NET_DEBIT_CAP}' for Account '${this.id}'`)
     }
   }
 
-  getCurrentPosition (currency: CurrencyTypes): number {
+  getCurrentPosition (currency: CurrencyTypes): string {
     const accountState = this.getAccount(ParticipantAccountTypes.POSITION, currency)
     if (accountState == null) throw new InvalidAccountError(`Unable to 'canReserveFunds' - Unknown account '${currency}' for Account '${this.id}'`)
     return accountState.position

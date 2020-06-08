@@ -72,8 +72,8 @@ const prepare = async (headers, dataUri, payload, span) => {
     messageProtocol = await span.injectContextToMessage(messageProtocol)
     const TransferPrepareRequestedEvtPayload = {
       transferId: payload.transferId,
-      payerFsp: payload.payerfsp,
-      payeeFsp: payload.payeeFsp,
+      payerId: payload.payerFsp,
+      payeeId: payload.payeeFsp,
       amount: payload.amount.amount,
       currency: payload.amount.currency,
       expiration: payload.expiration,

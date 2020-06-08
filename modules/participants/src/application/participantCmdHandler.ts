@@ -47,6 +47,7 @@ import { CreateParticipantCmd } from '../messages/create_participant_cmd'
 import { CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'
 import { RedisParticipantStateRepo } from '../infrastructure/redis_participant_repo'
 import { IParticipantRepo } from '../domain/participant_repo'
+import { Crypto } from '@mojaloop-poc/lib-utilities'
 
 export const start = async (appConfig: any, logger: ILogger): Promise<MessageConsumer> => {
   // const repo: IEntityStateRepository<ParticipantState> = new InMemoryParticipantStateRepo();
@@ -58,7 +59,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
     client: {
       kafka: {
         kafkaHost: appConfig.kafka.host,
-        clientId: 'participantCmdHandler'
+        clientId: `participantCmdHandler-${Crypto.randomBytes(8)}`
       }
     }
   }
@@ -134,7 +135,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
   const participantCmdConsumerOptions: KafkaGenericConsumerOptions = {
     client: {
       kafkaHost: appConfig.kafka.host,
-      // id: 'participantCmdConsumer', // this has to be unique
+      id: `participantCmdConsumer-${Crypto.randomBytes(8)}`,
       groupId: 'participantCmdGroup',
       fromOffset: EnumOffset.LATEST
     },

@@ -22,23 +22,35 @@ export enum TransferInternalStates {
 }
 
 export class TransferState extends BaseEntityState {
-  amount: number = 0
-  currency: string = ''
-  transferInternalState: TransferInternalStates = TransferInternalStates.INVALID
-  payerId: string = ''
-  payeeId: string = ''
+  amount: string
+  currency: string
+  transferInternalState: TransferInternalStates
+  payerId: string
+  payeeId: string
+  expiration: string
+  condition: string
+  prepare: {
+    headers: {[key: string]: string}
+    payload: string
+  }
 }
 
-export interface PrepareTransferData {
+export type PrepareTransferData = {
   id: string
-  amount: number
+  amount: string
   currency: string
   payerId: string
   payeeId: string
+  expiration: string
+  condition: string
+  prepare: {
+    headers: {[key: string]: string}
+    payload: string
+  }
 }
 
 export class TransferEntity extends BaseEntity<TransferState> {
-  get amount (): number {
+  get amount (): string {
     return this._state.amount
   }
 
@@ -66,13 +78,19 @@ export class TransferEntity extends BaseEntity<TransferState> {
     return entity
   }
 
-  prepareTransfer (incominmgTransfer: PrepareTransferData): void {
-    this._state.id = incominmgTransfer.id
-    this._state.amount = incominmgTransfer.amount
-    this._state.currency = incominmgTransfer.currency
-    this._state.payerId = incominmgTransfer.payerId
-    this._state.payeeId = incominmgTransfer.payeeId
+  prepareTransfer (incommingTransfer: PrepareTransferData): void {
+    this._state.id = incommingTransfer.id
+    this._state.amount = incommingTransfer.amount
+    this._state.currency = incommingTransfer.currency
+    this._state.payerId = incommingTransfer.payerId
+    this._state.payeeId = incommingTransfer.payeeId
     this._state.transferInternalState = TransferInternalStates.RECEIVED_PREPARE
+    this._state.expiration = incommingTransfer.expiration
+    this._state.condition = incommingTransfer.condition
+    this._state.prepare = {
+      headers: incommingTransfer.prepare?.headers,
+      payload: incommingTransfer.prepare?.payload
+    }
   }
 
   acknowledgeTransferReserved (): void {

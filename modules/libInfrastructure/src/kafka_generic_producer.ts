@@ -54,7 +54,7 @@ import { MessageProducer, Options, iMessageProducer } from './imessage_producer'
 //   return _toPositive(murmur2(key, SEED)) % partitions.length
 // }
 
-export interface KafkaOptions {
+export type KafkaOptions = {
   kafka?: kafka.KafkaClientOptions
   producer?: kafka.ProducerOptions
 }

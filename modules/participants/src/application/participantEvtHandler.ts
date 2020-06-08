@@ -44,13 +44,14 @@ import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffse
 import { ReservePayerFundsCmd, ReservePayerFundsCmdPayload } from '../messages/reserve_payer_funds_cmd'
 import { CommitPayeeFundsCmd, CommitPayeeFundsCmdPayload } from '../messages/commit_payee_funds_cmd'
 import { InvalidParticipantEvtError } from './errors'
+import { Crypto } from '@mojaloop-poc/lib-utilities'
 
 export const start = async (appConfig: any, logger: ILogger): Promise<MessageConsumer> => {
   const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
     client: {
       kafka: {
         kafkaHost: appConfig.kafka.host,
-        clientId: 'participantEvtHandler'
+        clientId: `participantEvtHandler-${Crypto.randomBytes(8)}`
       }
     }
   }
@@ -107,7 +108,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
   const participantEvtConsumerOptions: KafkaGenericConsumerOptions = {
     client: {
       kafkaHost: appConfig.kafka.host,
-      // id: 'participantEvtConsumer',  // this has to be unique
+      id: `participantEvtConsumer-${Crypto.randomBytes(8)}`,
       groupId: 'participantEvtGroup',
       fromOffset: EnumOffset.LATEST
     },

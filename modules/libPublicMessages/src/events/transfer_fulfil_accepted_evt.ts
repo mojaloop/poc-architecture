@@ -6,9 +6,9 @@
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
 import { TransfersTopics } from '../enums'
 
-export interface TransferFulfilAcceptedEvtPayload {
+export type TransferFulfilAcceptedEvtPayload = {
   transferId: string
-  amount: number
+  amount: string
   currency: string
   payerId: string
   payeeId: string

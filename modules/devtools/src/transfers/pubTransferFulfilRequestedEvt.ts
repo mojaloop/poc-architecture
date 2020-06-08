@@ -12,7 +12,7 @@ const transferFulfilRequestedEvtPayload: TransferFulfilRequestedEvtPayload = {
   payerId: 'fsp-1',
   payeeId: 'fsp-2',
   currency: CurrencyTypes.USD,
-  amount: 1
+  amount: '1'
 }
 const transferFulfilRequestedEvt = new TransferFulfilRequestedEvt(transferFulfilRequestedEvtPayload)
 
