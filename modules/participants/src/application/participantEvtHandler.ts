@@ -40,16 +40,23 @@
 // import {InMemoryParticipantStateRepo} from "../infrastructure/inmemory_participant_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransferPrepareAcceptedEvt, TransferFulfilAcceptedEvt, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
-import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { ReservePayerFundsCmd, ReservePayerFundsCmdPayload } from '../messages/reserve_payer_funds_cmd'
 import { CommitPayeeFundsCmd, CommitPayeeFundsCmdPayload } from '../messages/commit_payee_funds_cmd'
 import { InvalidParticipantEvtError } from './errors'
 
 export const start = async (appConfig: any, logger: ILogger): Promise<MessageConsumer> => {
+  const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
+    client: {
+      kafka: {
+        kafkaHost: appConfig.kafka.host,
+        clientId: 'participantEvtHandler'
+      }
+    }
+  }
+
   const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
-    appConfig.kafka.host,
-    'participantEvtHandler',
-    'development',
+    kafkaGenericProducerOptions,
     logger
   )
 
