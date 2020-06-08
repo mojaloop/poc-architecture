@@ -6,12 +6,12 @@
 import { BaseAggregate, IEntityStateRepository, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
 import { DuplicateTransferDetectedEvt, TransferPrepareAcceptedEvt, TransferFulfilledEvt, TransferFulfilledEvtPayload, TransferNotFoundEvt, TransferPreparedEvt, TransferPreparedEvtPayload, InvalidTransferEvt, InvalidTransferEvtPayload, TransferFulfilAcceptedEvt } from '@mojaloop-poc/lib-public-messages'
 import { PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
-import { TransferEntity, TransferState, TransferInternalStates } from './transfer_entity'
+import { TransferEntity, TransferState, TransferInternalStates, PrepareTransferData } from './transfer_entity'
 import { TransfersFactory } from './transfers_factory'
 import { AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
 import { logger } from '../application'
-import { AckPayeeFundsReservedCmd } from '../messages/ack_payee_funds_reserved_cmd'
+import { AckPayeeFundsCommitedCmd } from '../messages/ack_payee_funds_reserved_cmd'
 
 export enum TransfersAggTopics {
   'Commands' = 'TransferCommands',
@@ -23,7 +23,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
     super(TransfersFactory.GetInstance(), entityStateRepo, msgPublisher, logger)
     this._registerCommandHandler('PrepareTransferCmd', this.processPrepareTransferCommand)
     this._registerCommandHandler('AckPayerFundsReservedCmd', this.processAckPayerFundsReservedCommand)
-    this._registerCommandHandler('AckPayeeFundsReservedCmd', this.processAckPayeeFundsReservedCommand)
+    this._registerCommandHandler('AckPayeeFundsCommitedCmd', this.processAckPayeeFundsReservedCommand)
     this._registerCommandHandler('FulfilTransferCmd', this.processFulfilTransferCommand)
   }
 
@@ -40,22 +40,21 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
     /* TODO: validation of incoming payload */
 
     this.create()
-    const initialState: TransferState = new TransferState()
-    initialState.id = commandMsg.payload.transferId
-    initialState.amount = commandMsg.payload.amount
-    initialState.currency = commandMsg.payload.currency
-    initialState.payerId = commandMsg.payload.payerId
-    initialState.payeeId = commandMsg.payload.payeeId
-    this._rootEntity!.setupInitialState(initialState)
-
-    this._rootEntity!.changeStateTo(TransferInternalStates.RECEIVED_PREPARE)
+    const transferPrepareRequestData: PrepareTransferData = {
+      id: commandMsg.payload.transferId,
+      amount: commandMsg.payload.amount,
+      currency: commandMsg.payload.currency,
+      payerId: commandMsg.payload.payerId,
+      payeeId: commandMsg.payload.payeeId
+    }
+    this._rootEntity!.prepareTransfer(transferPrepareRequestData)
 
     const transferPrepareAcceptedEvtPayload = {
-      transferId: initialState.id,
-      amount: initialState.amount,
-      currency: initialState.currency,
-      payerId: initialState.payerId,
-      payeeId: initialState.payeeId
+      transferId: transferPrepareRequestData.id,
+      amount: transferPrepareRequestData.amount,
+      currency: transferPrepareRequestData.currency,
+      payerId: transferPrepareRequestData.payerId,
+      payeeId: transferPrepareRequestData.payeeId
     }
     this.recordDomainEvent(new TransferPrepareAcceptedEvt(transferPrepareAcceptedEvtPayload))
 
@@ -81,16 +80,16 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       return false
     }
 
-    this._rootEntity.changeStateTo(TransferInternalStates.RESERVED)
+    this._rootEntity.acknowledgeTransferReserved()
 
-    const transferPrepareAcceptedEvtPayload: TransferPreparedEvtPayload = {
+    const transferPreparedEvtPayload: TransferPreparedEvtPayload = {
       transferId: this._rootEntity.id,
       amount: this._rootEntity.amount,
       currency: this._rootEntity.currency,
       payerId: this._rootEntity.payerId,
       payeeId: this._rootEntity.payeeId
     }
-    this.recordDomainEvent(new TransferPreparedEvt(transferPrepareAcceptedEvtPayload))
+    this.recordDomainEvent(new TransferPreparedEvt(transferPreparedEvtPayload))
 
     return true
   }
@@ -116,7 +115,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
 
     /* TODO: validation of incoming payload */
 
-    this._rootEntity.changeStateTo(TransferInternalStates.RECEIVED_FULFIL)
+    this._rootEntity.fulfilTransfer()
 
     const transferFulfilAcceptedEvtPayload = {
       transferId: this._rootEntity.id,
@@ -130,7 +129,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
     return true
   }
 
-  async processAckPayeeFundsReservedCommand (commandMsg: AckPayeeFundsReservedCmd): Promise<boolean> {
+  async processAckPayeeFundsReservedCommand (commandMsg: AckPayeeFundsCommitedCmd): Promise<boolean> {
     await this.load(commandMsg.payload.transferId, false)
 
     if (this._rootEntity === null) {
@@ -149,7 +148,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       return false
     }
 
-    this._rootEntity.changeStateTo(TransferInternalStates.RESERVED)
+    this._rootEntity.commitTransfer()
 
     const transferFulfiledEvtPayload: TransferFulfilledEvtPayload = {
       transferId: this._rootEntity.id,

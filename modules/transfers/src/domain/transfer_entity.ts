@@ -29,6 +29,14 @@ export class TransferState extends BaseEntityState {
   payeeId: string = ''
 }
 
+export interface PrepareTransferData {
+  id: string
+  amount: number
+  currency: string
+  payerId: string
+  payeeId: string
+}
+
 export class TransferEntity extends BaseEntity<TransferState> {
   get amount (): number {
     return this._state.amount
@@ -58,11 +66,24 @@ export class TransferEntity extends BaseEntity<TransferState> {
     return entity
   }
 
-  setupInitialState (initialState: TransferState): void {
-    this._state = { ...initialState }
+  prepareTransfer (incominmgTransfer: PrepareTransferData): void {
+    this._state.id = incominmgTransfer.id
+    this._state.amount = incominmgTransfer.amount
+    this._state.currency = incominmgTransfer.currency
+    this._state.payerId = incominmgTransfer.payerId
+    this._state.payeeId = incominmgTransfer.payeeId
+    this._state.transferInternalState = TransferInternalStates.RECEIVED_PREPARE
   }
 
-  changeStateTo (newState: TransferInternalStates): void {
-    this._state.transferInternalState = newState
+  acknowledgeTransferReserved (): void {
+    this._state.transferInternalState = TransferInternalStates.RESERVED
+  }
+
+  fulfilTransfer (): void {
+    this._state.transferInternalState = TransferInternalStates.RECEIVED_FULFIL
+  }
+
+  commitTransfer (): void {
+    this._state.transferInternalState = TransferInternalStates.COMMITTED
   }
 }
