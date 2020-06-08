@@ -49,7 +49,7 @@ import { AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_c
 import { RedisTransferStateRepo } from '../infrastructure/redis_participant_repo'
 import { ITransfersRepo } from '../domain/transfers_repo'
 import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
-import { AckPayeeFundsReservedCmd } from '../messages/ack_payee_funds_reserved_cmd'
+import { AckPayeeFundsCommitedCmd } from '../messages/ack_payee_funds_reserved_cmd'
 
 export const start = async (appConfig: any, logger: ILogger): Promise<MessageConsumer> => {
   // const repo: IEntityStateRepository<TransferState> = new InMemoryTransferStateRepo()
@@ -83,8 +83,8 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
           transferCmd = AckPayerFundsReservedCmd.fromIDomainMessage(message)
           break
         }
-        case AckPayeeFundsReservedCmd.name: {
-          transferCmd = AckPayeeFundsReservedCmd.fromIDomainMessage(message)
+        case AckPayeeFundsCommitedCmd.name: {
+          transferCmd = AckPayeeFundsCommitedCmd.fromIDomainMessage(message)
           break
         }
         case FulfilTransferCmd.name: {
