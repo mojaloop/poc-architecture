@@ -36,6 +36,7 @@
     "test": "npm run test:unit | faucet",
     "pretest": "standard",
     "standard": "standard",
+    "lint": "npm run standard",
     "test:unit": "tape 'test/unit/**/*.test.js'",
     "test:int1": "ENDPOINT_HOST=http://localhost:4545 node test/integration/server/index.js",
     "test:int2": "MLAPI_ENDPOINT_SOURCE_URL=http://localhost:4545/participants/{{fsp}}/endpoints node src/api/index.js",
