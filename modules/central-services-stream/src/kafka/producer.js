@@ -291,7 +291,6 @@ class Producer extends EventEmitter {
         Logger.isDebugEnabled && logger.debug('still connecting')
       }
 
-      ddd
       // ## Commented out the following line to support the PoC events
       // const parsedMessage = Protocol.parseMessage(messageProtocol)
       // ## Added for PoC-Architecture Stream - START1
