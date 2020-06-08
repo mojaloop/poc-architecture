@@ -38,7 +38,7 @@
 
 'use strict'
 
-import { IDomainMessage, ILogger } from '@mojaloop-poc/lib-domain'
+import { IDomainMessage } from '@mojaloop-poc/lib-domain'
 import { EventEmitter } from 'events'
 
 export interface Options<tClientOptions> {
@@ -62,17 +62,4 @@ export abstract class MessageConsumer extends EventEmitter implements iMessageCo
   abstract pause (): void
   abstract resume (): void
   abstract disconnect (): void
-  static Create<tOptions>(options: tOptions, logger: ILogger): MessageConsumer {
-    const consumer = Reflect.construct(this, arguments)
-
-    consumer.on('error', (err: Error): void => {
-      logger.error(`event::error - ${JSON.stringify(err)}`)
-    })
-
-    // consumer.on('commit', (msgMetaData:any) => {
-    //   logger.info(`event::commit - ${JSON.stringify(msgMetaData)}`)
-    // })
-
-    return consumer
-  }
 }

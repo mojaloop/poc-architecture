@@ -37,7 +37,7 @@
 
 'use strict'
 
-import { IDomainMessage, ILogger, IMessage } from '@mojaloop-poc/lib-domain'
+import { IDomainMessage, IMessage } from '@mojaloop-poc/lib-domain'
 import { EventEmitter } from 'events'
 
 export interface Options<tClientOptions> {
@@ -62,13 +62,4 @@ export abstract class MessageProducer extends EventEmitter implements iMessagePr
   abstract resume (): void
   abstract disconnect (): void
   abstract send (kafkaMsg: IMessage | IMessage[] | any): Promise<void>
-  static Create<tOptions>(options: tOptions, logger: ILogger): iMessageProducer {
-    const producer = Reflect.construct(this, arguments)
-
-    producer.on('error', (err: Error): void => {
-      logger.error(`event::error - ${JSON.stringify(err)}`)
-    })
-
-    return producer
-  }
 }

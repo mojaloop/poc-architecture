@@ -40,7 +40,7 @@
 import * as kafka from 'kafka-node'
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 import { ILogger, IMessage } from '@mojaloop-poc/lib-domain'
-import { MessageProducer, Options } from './imessage_producer'
+import { MessageProducer, Options, iMessageProducer } from './imessage_producer'
 // import { murmur2 } from 'murmurhash-js'
 
 // ref: https://github.com/vuza/murmur2-partitioner/blob/master/index.js
@@ -86,6 +86,16 @@ export class KafkaGenericProducer extends MessageProducer {
     }
 
     this._logger.info('KafkaGenericProducer instance created')
+  }
+
+  static Create<tOptions>(options: tOptions, logger: ILogger): iMessageProducer {
+    const producer = Reflect.construct(this, arguments)
+
+    producer.on('error', (err: Error): void => {
+      logger.error(`event::error - ${JSON.stringify(err)}`)
+    })
+
+    return producer
   }
 
   private readonly _env_name: string
