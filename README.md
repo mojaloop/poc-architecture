@@ -15,6 +15,13 @@ Ensure you have the following Pre-requisite tools installed:
 - Nvm
 - Npm
 
+If you are running on MacOS, you may need to [export the following environmental variables to build node-rdkafka](https://github.com/Blizzard/node-rdkafka#mac-os-high-sierra--mojave) (required by ml-api-adapter & central-services-stream):
+
+```bash
+export CPPFLAGS=-I/usr/local/opt/openssl/include
+export LDFLAGS=-L/usr/local/opt/openssl/lib
+```
+
 This project uses [Lerna](https://lerna.js.org/) to manage packages and their respective dependencies. All individual modules (i.e. packages in Lerna speak) are their own respective micro-service/library which uses standard NPM for management, lerna will inject the dependencies when running NPM install at the root-level of the project.
 
 ```sh
