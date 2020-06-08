@@ -40,7 +40,7 @@
 
 
 export enum MLTopics {
-  'DomainEvents' = 'MlIngressDomainEvents',
+  'DomainEvents' = 'MLIngressDomainEvents',
 }
 
 export enum ParticipantsTopics {
