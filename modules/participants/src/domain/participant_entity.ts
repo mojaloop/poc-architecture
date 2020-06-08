@@ -94,8 +94,8 @@ export class ParticipantEntity extends BaseEntity<ParticipantState> {
     return entity
   }
 
-  setupInitialState (initialState: ParticipantState): void {
-    this._state = { ...initialState }
+  constructor(initialState: ParticipantState) {
+    super(initialState)
   }
 
   private getAccount (accType: ParticipantAccountTypes, currency: CurrencyTypes): ParticipantAccountState | null {

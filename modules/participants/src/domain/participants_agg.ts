@@ -122,7 +122,7 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
     participantState.accounts = participantAccountStateList
     participantState.endpoints = participantEndpointStateList
 
-    this._rootEntity!.setupInitialState(participantState)
+    this._rootEntity = new ParticipantEntity(participantState)
 
     const participantCreatedEvtPayload = {
       participant: {
