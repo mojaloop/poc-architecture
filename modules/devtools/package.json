@@ -38,6 +38,7 @@
     "conParticipantDomainEvents": "kafkacat -b localhost -t ParticipantDomainEvents -C",
     "conTransferCommands": "kafkacat -b localhost -t TransferCommands -C",
     "conTransferDomainEvents": "kafkacat -b localhost -t TransferDomainEvents -C",
+    "conMlIngressDomainEvents": "kafkacat -b localhost -t MlIngressDomainEvents -C",
     "redis:flushall": "docker exec -t redis redis-cli -c flushall",
     "redis:monitor": "docker exec -t redis redis-cli -c monitor",
     "build": "tsc",

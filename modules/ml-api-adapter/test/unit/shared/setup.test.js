@@ -7,7 +7,7 @@ const Config = require(`${src}/lib/config`)
 const Proxyquire = require('proxyquire')
 const Endpoints = require('@mojaloop/central-services-shared').Util.Endpoints
 const Boom = require('@hapi/boom')
-const Kafka = require('@mojaloop/central-services-stream').Util
+const Kafka = require('@mojaloop-poc/central-services-stream').Util
 
 Test('setup', setupTest => {
   let sandbox
