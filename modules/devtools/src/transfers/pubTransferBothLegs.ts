@@ -42,7 +42,7 @@ const msgFulfilParams = {
   transferId: msgPrepareParams.transferId,
   payerId: msgPrepareParams.payerId,
   payeeId: msgPrepareParams.payeeId,
-  fulfilment: 'XoSz1cL0tljJSCp_VtIYmPNw-zFUgGfbUqf69AagUzP',
+  fulfilment: 'XoSz1cL0tljJSCp_VtIYmPNw-zFUgGfbUqf69AagUzY',
   completedTimestamp: '2020-06-09T08:48:57.543Z',
   transferState: 'COMMITTED',
   fulfil: {
