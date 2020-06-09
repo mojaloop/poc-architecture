@@ -13,7 +13,7 @@ const logger: ILogger = new ConsoleLogger()
 const fulfilPayload = {
   completedTimestamp: '2020-06-09T16:59:33.903Z',
   transferState: 'COMMITTED',
-  fulfilment: 'H5UvS7KkgKS1V1IK50JpyjsIV2-B9uNe1jhE-d1i4xg'
+  fulfilment: 'XoSz1cL0tljJSCp_VtIYmPNw-zFUgGfbUqf69AagUzP'
 }
 
 const payerFsp = 'fsp-1'
@@ -42,7 +42,7 @@ const transferFulfilRequestedEvtPayload: TransferFulfilRequestedEvtPayload = {
       'user-agent': 'PostmanRuntime/7.25.0',
       'cache-control': 'no-cache',
       'postman-token': 'e9db5115-86d7-48dd-ab0f-07b4059d5063',
-      hos: 'ml-api-adapter.local:3000',
+      host: 'ml-api-adapter.local:3000',
       'accept-encoding': 'gzip, deflate, br',
       connection: 'keep-alive',
       'content-length': '1062'

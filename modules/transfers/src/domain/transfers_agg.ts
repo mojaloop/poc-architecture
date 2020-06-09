@@ -126,20 +126,32 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
 
     /* TODO: validation of incoming payload */
 
-    const transferPrepareRequestData: FulfilTransferData = {
-      id: commandMsg.payload.transferId,
-      payerId: commandMsg.payload.payerId,
-      payeeId: commandMsg.payload.payeeId,
-      fulfilment: commandMsg.payload.fulfilment,
-      completedTimestamp: commandMsg.payload.completedTimestamp,
-      transferState: commandMsg.payload.transferState,
-      fulfil: {
-        headers: commandMsg.payload.fulfil?.headers,
-        payload: commandMsg.payload.fulfil?.payload
+    // # Lets try fulfilling transfer
+    try {
+      const transferFulfilRequestData: FulfilTransferData = {
+        id: commandMsg.payload.transferId,
+        payerId: commandMsg.payload.payerId,
+        payeeId: commandMsg.payload.payeeId,
+        fulfilment: commandMsg.payload.fulfilment,
+        completedTimestamp: commandMsg.payload.completedTimestamp,
+        transferState: commandMsg.payload.transferState,
+        fulfil: {
+          headers: commandMsg.payload.fulfil?.headers,
+          payload: commandMsg.payload.fulfil?.payload
+        }
       }
-    }
 
-    this._rootEntity.fulfilTransfer(transferPrepareRequestData)
+      this._rootEntity.fulfilTransfer(transferFulfilRequestData)
+    } catch (err) {
+      const invalidTransferEvtPayload: InvalidTransferEvtPayload = {
+        transferId: commandMsg.payload.transferId,
+        reason: 'transfer fulfill failed (probably fulfil condition check failed)'
+      }
+
+      this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
+      logger.info(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      return false
+    }
 
     const transferFulfilAcceptedEvtPayload = {
       transferId: this._rootEntity.id,

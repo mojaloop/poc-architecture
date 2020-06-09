@@ -32,7 +32,7 @@ const prepareTransferCmdPayload: PrepareTransferCmdPayload = {
       'user-agent': 'PostmanRuntime/7.25.0',
       'cache-control': 'no-cache',
       'postman-token': 'e9db5115-86d7-48dd-ab0f-07b4059d5063',
-      hos: 'ml-api-adapter.local:3000',
+      host: 'ml-api-adapter.local:3000',
       'accept-encoding': 'gzip, deflate, br',
       connection: 'keep-alive',
       'content-length': '1062'

@@ -7,6 +7,7 @@ import { ILogger } from '@mojaloop-poc/lib-domain'
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 
 const logger: ILogger = new ConsoleLogger()
+const INJECTED_PER_SECOND = 500
 
 const timeout = async (ms: number): Promise<void> => {
   return await new Promise(resolve => setTimeout(resolve, ms))
@@ -15,7 +16,7 @@ const timeout = async (ms: number): Promise<void> => {
 const send = async (): Promise<void> => {
   const evts: TransferPrepareRequestedEvt[] = []
 
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < INJECTED_PER_SECOND; i++) {
     const random = Math.floor(Math.random() * Math.floor(2))
     evts.push(new TransferPrepareRequestedEvt({
       transferId: uuidv4(),
@@ -38,7 +39,7 @@ const send = async (): Promise<void> => {
           'user-agent': 'PostmanRuntime/7.25.0',
           'cache-control': 'no-cache',
           'postman-token': 'e9db5115-86d7-48dd-ab0f-07b4059d5063',
-          hos: 'ml-api-adapter.local:3000',
+          host: 'ml-api-adapter.local:3000',
           'accept-encoding': 'gzip, deflate, br',
           connection: 'keep-alive',
           'content-length': '1062'

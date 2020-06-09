@@ -5,6 +5,8 @@
 
 import { BaseEntityState, BaseEntity } from '@mojaloop-poc/lib-domain'
 import { TransferRawPayload } from '@mojaloop-poc/lib-public-messages'
+import * as crypto from 'crypto'
+import base64url from 'base64url'
 
 export enum TransferInternalStates {
   ABORTED_ERROR = 'ABORTED_ERROR',
@@ -21,6 +23,8 @@ export enum TransferInternalStates {
   RESERVED = 'RESERVED',
   RESERVED_TIMEOUT = 'RESERVED_TIMEOUT'
 }
+
+export class ValidateFulfilConditionFailed extends Error {}
 
 export class TransferState extends BaseEntityState {
   amount: string
@@ -56,6 +60,19 @@ export type FulfilTransferData = {
   completedTimestamp: string
   transferState: string
   fulfil: TransferRawPayload
+}
+
+const fulfilmentToCondition = (fulfilment: string): string => {
+  const hashSha256 = crypto.createHash('sha256')
+  const preimage = base64url.toBuffer(fulfilment)
+
+  if (preimage.length !== 32) {
+    throw new Error('fulfilmentToCondition:: Interledger preimages must be exactly 32 bytes')
+  }
+
+  const calculatedConditionDigest = hashSha256.update(preimage).digest('base64')
+  const calculatedConditionUrlEncoded = base64url.fromBase64(calculatedConditionDigest)
+  return calculatedConditionUrlEncoded
 }
 
 export class TransferEntity extends BaseEntity<TransferState> {
@@ -118,13 +135,19 @@ export class TransferEntity extends BaseEntity<TransferState> {
     this._state.transferInternalState = TransferInternalStates.RESERVED
   }
 
+  validateFulfilCondition (fulfilment: string): boolean {
+    const calculatedCondition = fulfilmentToCondition(fulfilment)
+    return calculatedCondition === this._state.condition
+  }
+
   fulfilTransfer (incommingTransfer: FulfilTransferData): void {
-    // TODO: Add fulfil transfer logic here
-    this._state.fulfilment = incommingTransfer.fulfilment // TODO: need to validate fulfilment against condition
+    if (!this.validateFulfilCondition(incommingTransfer.fulfilment)) {
+      this._state.transferInternalState = TransferInternalStates.RECEIVED_ERROR
+      throw new ValidateFulfilConditionFailed('Unable to \'validateFulfilCondition\'')
+    }
+    this._state.fulfilment = incommingTransfer.fulfilment
     this._state.completedTimestamp = incommingTransfer.completedTimestamp
     this._state.fulfil = incommingTransfer.fulfil
-
-    // TODO: need to validate incommingTransfer.transferState
     this._state.transferInternalState = TransferInternalStates.RECEIVED_FULFIL
   }
 
