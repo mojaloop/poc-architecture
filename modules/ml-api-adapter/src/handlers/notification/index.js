@@ -46,8 +46,6 @@ const TransfersTopics = require('@mojaloop-poc/lib-public-messages').TransfersTo
 const TransferPreparedEvt = require('@mojaloop-poc/lib-public-messages').TransferPreparedEvt
 const TransferFulfilledEvt = require('@mojaloop-poc/lib-public-messages').TransferFulfilledEvt
 
-
-
 let notificationConsumer = {}
 let autoCommitEnabled = true
 
@@ -94,7 +92,7 @@ const startConsumer = async () => {
   Logger.isInfoEnabled && Logger.info('Notification::startConsumer')
   let topicName
   try {
-    const topicConfig = KafkaUtil.createGeneralTopicConf(Config.KAFKA_CONFIG.TOPIC_TEMPLATES.GENERAL_TOPIC_TEMPLATE.TEMPLATE, ENUM.Events.Event.Type.NOTIFICATION, ENUM.Events.Event.Action.EVENT)
+    // const topicConfig = KafkaUtil.createGeneralTopicConf(Config.KAFKA_CONFIG.TOPIC_TEMPLATES.GENERAL_TOPIC_TEMPLATE.TEMPLATE, ENUM.Events.Event.Type.NOTIFICATION, ENUM.Events.Event.Action.EVENT)
     // topicName = topicConfig.topicName
     topicName = TransfersTopics.DomainEvents
     Logger.isInfoEnabled && Logger.info(`Notification::startConsumer - starting Consumer for topicNames: [${topicName}]`)
@@ -182,7 +180,7 @@ const consumeMessage = async (error, message) => {
       } finally {
         // ## Commented out for PoC Arch until we have included the trace metadata information in the message payloads
         // if (!span.isFinished) {
-          // await span.finish()
+        // await span.finish()
         // }
       }
     }
@@ -237,7 +235,7 @@ const processPoCMessage = async (msg, span) => {
     ['success', 'action']
   ).startTimer()
   Logger.isInfoEnabled && Logger.info('Notification::processMessage')
-  
+
   // Helper function to get endpoints
   const getEndpoint = (eventList, type) => {
     if (type == null) return null
@@ -252,11 +250,11 @@ const processPoCMessage = async (msg, span) => {
     if (isDataUri(rawPayload)) {
       payloadForCallback = decodePayload(rawPayload, { asParsed: false }).body.toString()
     } else {
-      const parsedPayload = JSON.parse(decodedPayload.body)
+      const parsedPayload = JSON.parse(rawPayload.body)
       if (parsedPayload.errorInformation) {
         payloadForCallback = JSON.stringify(ErrorHandler.CreateFSPIOPErrorFromErrorInformation(parsedPayload.errorInformation).toApiErrorObject(Config.ERROR_HANDLING))
       } else {
-        payloadForCallback = decodedPayload.body.toString()
+        payloadForCallback = rawPayload.body.toString()
       }
     }
     return payloadForCallback
@@ -265,10 +263,10 @@ const processPoCMessage = async (msg, span) => {
   // Helper function to send requests
   const sendRequest = async (id, to, from, headers, payload, callbackURL, method, endpointTemplate, fromSwitch = false, span = null) => {
     if (callbackURL == null) {
-      throw new Error(`TransferEvtHandler is unable to process event - ${message.msgName}:${message.msgId} - Unable to find callback URL`)
+      throw new Error('Unable to find callback URL')
     }
 
-    let callbackHeaders = createCallbackHeaders({ headers, httpMethod: method, endpointTemplate }, fromSwitch)
+    const callbackHeaders = createCallbackHeaders({ headers, httpMethod: method, endpointTemplate }, fromSwitch)
 
     Logger.isDebugEnabled && Logger.debug(`Notification::processMessage - Callback.sendRequest(${callbackURL}, ${method}, ${JSON.stringify(callbackHeaders)}, ${payload}, ${id}, ${from}, ${to})`)
     let response = { status: 'unknown' }
@@ -280,7 +278,7 @@ const processPoCMessage = async (msg, span) => {
     try {
       let jwsSigner
       if (fromSwitch) {
-          jwsSigner = getJWSSigner(ENUM.Http.Headers.FSPIOP.SWITCH.value)
+        jwsSigner = getJWSSigner(ENUM.Http.Headers.FSPIOP.SWITCH.value)
       }
       response = await Callback.sendRequest(callbackURL, callbackHeaders, from, to, method, payload, ENUM.Http.ResponseTypes.JSON, span, jwsSigner)
     } catch (err) {
@@ -313,13 +311,13 @@ const processPoCMessage = async (msg, span) => {
         const payloadForCallback = processPayload(message.payload.prepare.payload)
 
         const result = await sendRequest(
-          message.payload.transferId, 
-          message.payload.payeeId, 
-          message.payload.payerId, 
-          message.payload.prepare.headers, 
-          payloadForCallback, 
-          payeeEndPointPostTransfers.value, 
-          ENUM.Http.RestMethods.POST, 
+          message.payload.transferId,
+          message.payload.payeeId,
+          message.payload.payerId,
+          message.payload.prepare.headers,
+          payloadForCallback,
+          payeeEndPointPostTransfers.value,
+          ENUM.Http.RestMethods.POST,
           ENUM.EndPoints.FspEndpointTemplates.TRANSFERS_POST,
           false
         )
@@ -332,7 +330,7 @@ const processPoCMessage = async (msg, span) => {
         if (transferEvt == null) throw new Error(`TransferEvtHandler is unable to process event - ${TransferFulfilledEvt.name} is Invalid - ${message.msgName}:${message.msgId}`)
 
         Logger.isInfoEnabled && Logger.info(`TransferEvtHandler sending request I - ${TransferFulfilledEvt.name} - ${message.msgName}:${message.msgId}`)
-        
+
         if (message.payload.fulfil == null || message.payload.fulfil.payload == null || message.payload.fulfil.headers == null) {
           throw new Error(`TransferEvtHandler is unable to process event - ${TransferFulfilledEvt.name} - ${message.msgName}:${message.msgId} - Fulfil Headers or Payload is missing from event!`)
         }
@@ -348,10 +346,10 @@ const processPoCMessage = async (msg, span) => {
           message.payload.transferId,
           message.payload.payerId,
           message.payload.payeeId,
-          message.payload.fulfil.headers, 
-          payloadForCallback, 
-          payerEndPointPostTransfers.value, 
-          ENUM.Http.RestMethods.PUT, 
+          message.payload.fulfil.headers,
+          payloadForCallback,
+          payerEndPointPostTransfers.value,
+          ENUM.Http.RestMethods.PUT,
           ENUM.EndPoints.FspEndpointTemplates.TRANSFERS_PUT,
           false
         )
@@ -367,10 +365,10 @@ const processPoCMessage = async (msg, span) => {
             message.payload.transferId,
             message.payload.payeeId,
             ENUM.Http.Headers.FSPIOP.SWITCH.value,
-            message.payload.fulfil.headers, 
-            payloadForCallback, 
-            payeeEndPointPostTransfers.value, 
-            ENUM.Http.RestMethods.PUT, 
+            message.payload.fulfil.headers,
+            payloadForCallback,
+            payeeEndPointPostTransfers.value,
+            ENUM.Http.RestMethods.PUT,
             ENUM.EndPoints.FspEndpointTemplates.TRANSFERS_PUT,
             true
           )

@@ -149,7 +149,7 @@ const fulfil = async (headers, dataUri, payload, params, span) => {
         payload: messageProtocol.content.payload
       }
     }
-    
+
     const transferFulfilRequestedEvt = new TransferFulfilRequestedEvt(transferFulfilRequestedEvtPayload)
 
     const topicConfig = {

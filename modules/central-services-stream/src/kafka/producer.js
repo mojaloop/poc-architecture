@@ -39,7 +39,7 @@
 const EventEmitter = require('events')
 const Logger = require('@mojaloop/central-services-logger')
 const Kafka = require('node-rdkafka')
-const Protocol = require('./protocol')
+// const Protocol = require('./protocol')
 
 /**
  * Producer ENUMs

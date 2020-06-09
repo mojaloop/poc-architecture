@@ -1,6 +1,7 @@
-// import { logger } from '../application'
+/* eslint-disable no-useless-escape */
+
 import { publishMessage } from '../utilities/publisher'
-import { CurrencyTypes, TransferFulfilRequestedEvt, TransferFulfilRequestedEvtPayload } from '@mojaloop-poc/lib-public-messages'
+import { TransferFulfilRequestedEvt, TransferFulfilRequestedEvtPayload } from '@mojaloop-poc/lib-public-messages'
 import { v4 as uuidv4 } from 'uuid'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
