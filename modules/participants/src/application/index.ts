@@ -46,8 +46,6 @@ import * as dotenv from 'dotenv'
 import { Command } from 'commander'
 import { resolve as Resolve } from 'path'
 
-export const logger: ILogger = new ConsoleLogger()
-
 const Program = new Command()
 Program
   .version('0.1')
@@ -80,6 +78,8 @@ Program.command('handler')
         host: process.env.REDIS_HOST
       }
     }
+
+    const logger: ILogger = new ConsoleLogger()
 
     logger.debug(`appConfig=${JSON.stringify(appConfig)}`)
 

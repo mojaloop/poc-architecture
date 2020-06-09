@@ -10,7 +10,6 @@ import { TransferEntity, TransferState, TransferInternalStates, PrepareTransferD
 import { TransfersFactory } from './transfers_factory'
 import { AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
-import { logger } from '../application'
 import { AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
 
 export enum TransfersAggTopics {
@@ -84,7 +83,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       }
 
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
-      logger.info(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      this._logger.info(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
       return false
     }
 
@@ -120,7 +119,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       }
 
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
-      logger.info(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      this._logger.info(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
       return false
     }
 
@@ -149,7 +148,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       }
 
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
-      logger.info(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      this._logger.info(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
       return false
     }
 
@@ -180,7 +179,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       }
 
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
-      logger.info(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      this._logger.info(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
       return false
     }
 

@@ -50,7 +50,7 @@ const transferPrepareRequestedEvtPayload: TransferPrepareRequestedEvtPayload = {
       'postman-token': 'e9db5115-86d7-48dd-ab0f-07b4059d5063',
       host: 'ml-api-adapter.local:3000',
       'accept-encoding': 'gzip, deflate, br',
-      connection: 'keep-alive',
+      'connection': 'keep-alive',
       'content-length': '1062'
     },
     payload: encodedPreparePayload
