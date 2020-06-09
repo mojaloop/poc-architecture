@@ -12,7 +12,7 @@ const transferFulfilRequestedEvtPayload: TransferFulfilRequestedEvtPayload = {
   transferId: uuidv4(),
   payerId: 'fsp-1',
   payeeId: 'fsp-2',
-  fulfilment: 'UNlJ98hZTY_dsw0cAqw4i_UN3v4utt7CZFB4yfLbVFA',
+  fulfilment: 'XoSz1cL0tljJSCp_VtIYmPNw-zFUgGfbUqf69AagUzP',
   completedTimestamp: '2020-06-09T08:48:57.543Z',
   transferState: 'COMMITTED',
   fulfil: {
@@ -28,7 +28,7 @@ const transferFulfilRequestedEvtPayload: TransferFulfilRequestedEvtPayload = {
       'user-agent': 'PostmanRuntime/7.25.0',
       'cache-control': 'no-cache',
       'postman-token': 'e9db5115-86d7-48dd-ab0f-07b4059d5063',
-      hos: 'ml-api-adapter.local:3000',
+      host: 'ml-api-adapter.local:3000',
       'accept-encoding': 'gzip, deflate, br',
       connection: 'keep-alive',
       'content-length': '1062'
