@@ -71,6 +71,7 @@
     "dep:update": "npx ncu -u"
   },
   "dependencies": {
+    "@mojaloop-poc/central-services-stream": "10.2.0",
     "@mojaloop-poc/lib-public-messages": "^0.1.0",
     "@hapi/basic": "6.0.0",
     "@hapi/boom": "9.1.0",
@@ -85,7 +86,6 @@
     "@mojaloop/central-services-logger": "9.5.1",
     "@mojaloop/central-services-metrics": "9.5.0",
     "@mojaloop/central-services-shared": "10.2.1",
-    "@mojaloop-poc/central-services-stream": "10.2.0",
     "@mojaloop/event-sdk": "9.5.2",
     "@mojaloop/forensic-logging-client": "8.3.0",
     "@mojaloop/sdk-standard-components": "10.3.2",
@@ -98,7 +98,7 @@
     "hapi-auth-bearer-token": "6.2.1",
     "hapi-swagger": "13.0.2",
     "joi-currency-code": "3.0.1",
-    "mustache": "4.0.1",
+    "mustache": "^4.0.1",
     "parse-strings-in-object": "2.0.0",
     "rc": "1.2.8"
   },

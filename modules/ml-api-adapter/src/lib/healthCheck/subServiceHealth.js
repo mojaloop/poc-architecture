@@ -29,7 +29,7 @@ const Logger = require('@mojaloop/central-services-logger')
 
 const Config = require('../../lib/config')
 const Notification = require('../../handlers/notification')
-const Producer = require('@mojaloop/central-services-stream').Util.Producer
+const Producer = require('@mojaloop-poc/central-services-stream').Util.Producer
 const axios = require('axios')
 
 /**

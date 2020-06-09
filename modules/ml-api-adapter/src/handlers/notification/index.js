@@ -26,7 +26,7 @@
  ******/
 'use strict'
 
-const Consumer = require('@mojaloop/central-services-stream').Kafka.Consumer
+const Consumer = require('@mojaloop-poc/central-services-stream').Kafka.Consumer
 const Logger = require('@mojaloop/central-services-logger')
 const EventSdk = require('@mojaloop/event-sdk')
 const Participant = require('../../domain/participant')
@@ -45,6 +45,8 @@ const Config = require('../../lib/config')
 const TransfersTopics = require('@mojaloop-poc/lib-public-messages').TransfersTopics
 const TransferPreparedEvt = require('@mojaloop-poc/lib-public-messages').TransferPreparedEvt
 const TransferFulfilledEvt = require('@mojaloop-poc/lib-public-messages').TransferFulfilledEvt
+
+const Mustache = require('mustache')
 
 let notificationConsumer = {}
 let autoCommitEnabled = true
@@ -237,11 +239,14 @@ const processPoCMessage = async (msg, span) => {
   Logger.isInfoEnabled && Logger.info('Notification::processMessage')
 
   // Helper function to get endpoints
-  const getEndpoint = (eventList, type) => {
+  const getEndpoint = (eventList, type, transferId) => {
     if (type == null) return null
     const endpointState = eventList.find(endpoint => endpoint.type === type)
     if (endpointState == null) return null
-    return endpointState
+    const url = Mustache.render(endpointState.value, { transferId })
+    const returnEndPoint = Object.assign({}, endpointState)
+    returnEndPoint.value = url
+    return returnEndPoint
   }
 
   // Helper function to process raw payload
@@ -303,7 +308,7 @@ const processPoCMessage = async (msg, span) => {
           throw new Error(`TransferEvtHandler is unable to process event - ${TransferPreparedEvt.name} - ${message.msgName}:${message.msgId} - Prepare Headers or Payload is missing from event!`)
         }
 
-        const payeeEndPointPostTransfers = getEndpoint(message.payload.payeeEndPoints, ENUM.EndPoints.FspEndpointTypes.FSPIOP_CALLBACK_URL_TRANSFER_POST)
+        const payeeEndPointPostTransfers = getEndpoint(message.payload.payeeEndPoints, ENUM.EndPoints.FspEndpointTypes.FSPIOP_CALLBACK_URL_TRANSFER_POST, message.payload.transferId)
         if (payeeEndPointPostTransfers == null || payeeEndPointPostTransfers.value == null) {
           throw new Error(`TransferEvtHandler is unable to process event - ${TransferPreparedEvt.name} - ${message.msgName}:${message.msgId} - Unable to find callback URL`)
         }
@@ -335,7 +340,7 @@ const processPoCMessage = async (msg, span) => {
           throw new Error(`TransferEvtHandler is unable to process event - ${TransferFulfilledEvt.name} - ${message.msgName}:${message.msgId} - Fulfil Headers or Payload is missing from event!`)
         }
 
-        const payerEndPointPostTransfers = getEndpoint(message.payload.payerEndPoints, ENUM.EndPoints.FspEndpointTypes.FSPIOP_CALLBACK_URL_TRANSFER_PUT)
+        const payerEndPointPostTransfers = getEndpoint(message.payload.payerEndPoints, ENUM.EndPoints.FspEndpointTypes.FSPIOP_CALLBACK_URL_TRANSFER_PUT, message.payload.transferId)
         if (payerEndPointPostTransfers == null || payerEndPointPostTransfers.value == null) {
           throw new Error(`TransferEvtHandler is unable to process event - ${TransferFulfilledEvt.name} - ${message.msgName}:${message.msgId} - Unable to find callback URL`)
         }
@@ -357,7 +362,7 @@ const processPoCMessage = async (msg, span) => {
 
         if (Config.SEND_TRANSFER_CONFIRMATION_TO_PAYEE) {
           Logger.isInfoEnabled && Logger.info(`TransferEvtHandler sending request II - ${TransferFulfilledEvt.name} - ${message.msgName}:${message.msgId}`)
-          const payeeEndPointPostTransfers = getEndpoint(message.payload.payeeEndPoints, ENUM.EndPoints.FspEndpointTypes.FSPIOP_CALLBACK_URL_TRANSFER_PUT)
+          const payeeEndPointPostTransfers = getEndpoint(message.payload.payeeEndPoints, ENUM.EndPoints.FspEndpointTypes.FSPIOP_CALLBACK_URL_TRANSFER_PUT, message.payload.transferId)
           if (payeeEndPointPostTransfers == null || payeeEndPointPostTransfers.value == null) {
             throw new Error(`TransferEvtHandler is unable to process event - ${TransferFulfilledEvt.name} - ${message.msgName}:${message.msgId} - Unable to find callback URL`)
           }
