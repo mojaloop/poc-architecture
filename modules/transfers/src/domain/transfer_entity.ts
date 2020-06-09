@@ -120,6 +120,11 @@ export class TransferEntity extends BaseEntity<TransferState> {
 
   fulfilTransfer (incommingTransfer: FulfilTransferData): void {
     // TODO: Add fulfil transfer logic here
+    this._state.fulfilment = incommingTransfer.fulfilment // TODO: need to validate fulfilment against condition
+    this._state.completedTimestamp = incommingTransfer.completedTimestamp
+    this._state.fulfil = incommingTransfer.fulfil
+
+    // TODO: need to validate incommingTransfer.transferState
     this._state.transferInternalState = TransferInternalStates.RECEIVED_FULFIL
   }
 

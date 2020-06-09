@@ -127,7 +127,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
       groupId: 'transferEvtGroup',
       fromOffset: EnumOffset.LATEST
     },
-    topics: [MLTopics.DomainEvents, ParticipantsTopics.DomainEvents]
+    topics: [MLTopics.Events, ParticipantsTopics.DomainEvents]
   }
 
   logger.info('Creating transferEvtConsumer...')

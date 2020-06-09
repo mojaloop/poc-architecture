@@ -323,6 +323,7 @@ const processPoCMessage = async (msg, span) => {
           ENUM.EndPoints.FspEndpointTemplates.TRANSFERS_POST,
           false
         )
+        Logger.isInfoEnabled && Logger.info(`TransferEvtHandler send request - ${TransferPreparedEvt.name} - ${message.msgName}:${message.msgId} - result.status=${result.status}`)
         break
       }
       case TransferFulfilledEvt.name: {
@@ -330,6 +331,8 @@ const processPoCMessage = async (msg, span) => {
         action = TransferFulfilledEvt.name
         if (transferEvt == null) throw new Error(`TransferEvtHandler is unable to process event - ${TransferFulfilledEvt.name} is Invalid - ${message.msgName}:${message.msgId}`)
 
+        Logger.isInfoEnabled && Logger.info(`TransferEvtHandler sending request I - ${TransferFulfilledEvt.name} - ${message.msgName}:${message.msgId}`)
+        
         if (message.payload.fulfil == null || message.payload.fulfil.payload == null || message.payload.fulfil.headers == null) {
           throw new Error(`TransferEvtHandler is unable to process event - ${TransferFulfilledEvt.name} - ${message.msgName}:${message.msgId} - Fulfil Headers or Payload is missing from event!`)
         }
@@ -352,8 +355,10 @@ const processPoCMessage = async (msg, span) => {
           ENUM.EndPoints.FspEndpointTemplates.TRANSFERS_PUT,
           false
         )
+        Logger.isInfoEnabled && Logger.info(`TransferEvtHandler send request I - ${TransferFulfilledEvt.name} - ${message.msgName}:${message.msgId} - result.status=${result.status}`)
 
         if (Config.SEND_TRANSFER_CONFIRMATION_TO_PAYEE) {
+          Logger.isInfoEnabled && Logger.info(`TransferEvtHandler sending request II - ${TransferFulfilledEvt.name} - ${message.msgName}:${message.msgId}`)
           const payeeEndPointPostTransfers = getEndpoint(message.payload.payeeEndPoints, ENUM.EndPoints.FspEndpointTypes.FSPIOP_CALLBACK_URL_TRANSFER_PUT)
           if (payeeEndPointPostTransfers == null || payeeEndPointPostTransfers.value == null) {
             throw new Error(`TransferEvtHandler is unable to process event - ${TransferFulfilledEvt.name} - ${message.msgName}:${message.msgId} - Unable to find callback URL`)
@@ -361,7 +366,7 @@ const processPoCMessage = async (msg, span) => {
           const result = await sendRequest(
             message.payload.transferId,
             message.payload.payeeId,
-            message.payload.payerId,
+            ENUM.Http.Headers.FSPIOP.SWITCH.value,
             message.payload.fulfil.headers, 
             payloadForCallback, 
             payeeEndPointPostTransfers.value, 
@@ -369,6 +374,7 @@ const processPoCMessage = async (msg, span) => {
             ENUM.EndPoints.FspEndpointTemplates.TRANSFERS_PUT,
             true
           )
+          Logger.isInfoEnabled && Logger.info(`TransferEvtHandler send request II - ${TransferFulfilledEvt.name} - ${message.msgName}:${message.msgId} - result.status=${result.status}`)
         }
         break
       }

@@ -22,7 +22,7 @@ export class TransferPrepareRequestedEvt extends DomainEventMsg {
   aggregateId: string
   aggregateName: string = 'Transfers'
   msgKey: string
-  msgTopic: string = MLTopics.DomainEvents
+  msgTopic: string = MLTopics.Events
 
   payload: TransferPrepareRequestedEvtPayload
 
