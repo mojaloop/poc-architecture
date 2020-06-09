@@ -97,7 +97,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
   // ## Setup participantCmdConsumer
   const participantCmdHandler = async (message: IDomainMessage): Promise<void> => {
     try {
-      logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgId} - Start`)
+      logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
       let participantCmd: CommandMsg | undefined
       // # Transform messages into correct Command
       switch (message.msgName) {
@@ -114,7 +114,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
           break
         }
         default: {
-          logger.warn(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgId} - Skipping unknown event`)
+          logger.warn(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
           break
         }
       }
@@ -122,12 +122,12 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
       if (participantCmd != null) {
         processCommandResult = await agg.processCommand(participantCmd)
       } else {
-        logger.warn(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgId} - Unable to process event`)
+        logger.warn(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
       }
-      logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
+      logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
     } catch (err) {
       const errMsg: string = err?.message?.toString()
-      logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgId} - Error: ${errMsg}`)
+      logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
       logger.error(err)
     }
   }

@@ -79,7 +79,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
   // ## Setup transferCmdConsumer
   const transferCmdHandler = async (message: IDomainMessage): Promise<void> => {
     try {
-      logger.info(`transferCmdHandler processing event - ${message?.msgName}:${message?.msgId} - Start`)
+      logger.info(`transferCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
       let transferCmd: CommandMsg | undefined
       // Transform messages into correct Command
       switch (message.msgName) {
@@ -100,7 +100,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
           break
         }
         default: {
-          const err = new Error(`COMMAND:Type - Unknown - ${message?.msgName}:${message?.msgId}`)
+          const err = new Error(`COMMAND:Type - Unknown - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
           logger.error(err)
           throw err
         }
@@ -111,7 +111,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
       } else {
         logger.warn('transferCmdHandler is Unable to process command')
       }
-      logger.info(`transferCmdHandler processing event - ${message?.msgName}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
+      logger.info(`transferCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
     } catch (err) {
       logger.error(err)
     }

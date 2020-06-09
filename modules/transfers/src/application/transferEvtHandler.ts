@@ -66,35 +66,35 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
 
   const transferEvtHandler = async (message: IDomainMessage): Promise<void> => {
     try {
-      logger.info(`transferEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Start`)
+      logger.info(`transferEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
       let transferEvt: DomainEventMsg | undefined
       let transferCmd: CommandMsg | null = null
       // # Transform messages into correct Command
       switch (message.msgName) {
         case PayerFundsReservedEvt.name: {
           transferEvt = PayerFundsReservedEvt.fromIDomainMessage(message)
-          if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${PayerFundsReservedEvt.name} is Invalid - ${message?.msgName}:${message?.msgId}`)
+          if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${PayerFundsReservedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
           const ackPayerFundsReservedCmdPayload: AckPayerFundsReservedCmdPayload = transferEvt.payload
           transferCmd = new AckPayerFundsReservedCmd(ackPayerFundsReservedCmdPayload)
           break
         }
         case PayeeFundsCommittedEvt.name: {
           transferEvt = PayeeFundsCommittedEvt.fromIDomainMessage(message)
-          if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${PayeeFundsCommittedEvt.name} is Invalid - ${message?.msgName}:${message?.msgId}`)
+          if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${PayeeFundsCommittedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
           const ackPayeeFundsCommittedCmdPayload: AckPayeeFundsCommittedCmdPayload = transferEvt.payload
           transferCmd = new AckPayeeFundsCommittedCmd(ackPayeeFundsCommittedCmdPayload)
           break
         }
         case TransferPrepareRequestedEvt.name: {
           transferEvt = TransferPrepareRequestedEvt.fromIDomainMessage(message)
-          if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${TransferPrepareRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgId}`)
+          if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${TransferPrepareRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
           const prepareTransferCmdPayload: PrepareTransferCmdPayload = transferEvt.payload
           transferCmd = new PrepareTransferCmd(prepareTransferCmdPayload)
           break
         }
         case TransferFulfilRequestedEvt.name: {
           transferEvt = TransferFulfilRequestedEvt.fromIDomainMessage(message)
-          if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${TransferFulfilRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgId}`)
+          if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${TransferFulfilRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
           const fulfilTransferCmdPayload: FulfilTransferCmdPayload = transferEvt.payload
           transferCmd = new FulfilTransferCmd(fulfilTransferCmdPayload)
           break
@@ -104,18 +104,18 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
           break
         }
         default: {
-          logger.warn(`TransferEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Skipping unknown event`)
+          logger.warn(`TransferEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
         }
       }
 
       if (transferCmd != null) {
-        logger.info(`transferEvtHandler publishing cmd - ${message?.msgName}:${message?.msgId} - Cmd: ${transferCmd?.msgName}:${transferCmd?.msgId}`)
+        logger.info(`transferEvtHandler publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${transferCmd?.msgName}:${transferCmd?.msgId}`)
         await kafkaMsgPublisher.publish(transferCmd)
-        logger.info(`transferEvtHandler publishing cmd Finished - ${message?.msgName}:${message?.msgId}`)
+        logger.info(`transferEvtHandler publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
       }
     } catch (err) {
       const errMsg: string = err?.message?.toString()
-      logger.info(`transferEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Error: ${errMsg}`)
+      logger.info(`transferEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
       logger.error(err)
     }
   }

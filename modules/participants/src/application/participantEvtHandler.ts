@@ -65,42 +65,42 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
 
   const participantEvtHandler = async (message: IDomainMessage): Promise<void> => {
     try {
-      logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Start`)
+      logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
       let participantEvt: DomainEventMsg | undefined
       let participantCmd: CommandMsg | undefined
       // # Transform messages into correct Command
       switch (message.msgName) {
         case TransferPrepareAcceptedEvt.name: {
           participantEvt = TransferPrepareAcceptedEvt.fromIDomainMessage(message)
-          if (participantEvt == null) throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - ${TransferPrepareAcceptedEvt.name} is Invalid - ${message?.msgName}:${message?.msgId}`)
+          if (participantEvt == null) throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - ${TransferPrepareAcceptedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
           const reservePayerFundsCmdPayload: ReservePayerFundsCmdPayload = participantEvt.payload
           participantCmd = new ReservePayerFundsCmd(reservePayerFundsCmdPayload)
           break
         }
         case TransferFulfilAcceptedEvt.name: {
           participantEvt = TransferPrepareAcceptedEvt.fromIDomainMessage(message)
-          if (participantEvt == null) throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - ${TransferFulfilAcceptedEvt.name} is Invalid - ${message?.msgName}:${message?.msgId}`)
+          if (participantEvt == null) throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - ${TransferFulfilAcceptedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
           const commitPayeeFundsCmdPayload: CommitPayeeFundsCmdPayload = participantEvt.payload
           participantCmd = new CommitPayeeFundsCmd(commitPayeeFundsCmdPayload)
           break
         }
         default: {
-          logger.warn(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Skipping unknown event`)
+          logger.warn(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
           break
         }
       }
 
       if (participantCmd != null) {
-        logger.info(`participantEvtHandler publishing cmd - ${message?.msgName}:${message?.msgId} - Cmd: ${participantCmd?.msgName}:${participantCmd?.msgId}`)
+        logger.info(`participantEvtHandler publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${participantCmd?.msgName}:${message?.msgKey}:${participantCmd?.msgId}`)
         await kafkaMsgPublisher.publish(participantCmd)
       } else {
-        logger.warn(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Unable to process event`)
+        logger.warn(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
       }
 
-      logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Result: true`)
+      logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: true`)
     } catch (err) {
       const errMsg: string = err?.message?.toString()
-      logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgId} - Error: ${errMsg}`)
+      logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
       logger.error(err)
     }
   }
