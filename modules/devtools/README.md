@@ -25,5 +25,10 @@ sudo apt install ngrep
 
 ### Command to monitor incomming Simulator requests
 ```bash
-sudo ngrep -d any "simulator" port 8444
+sudo ngrep -d lo0 port 8444
+```
+
+### Command to monitor incomming Mojaloop API requests
+```bash
+sudo ngrep -d lo0 port 3000
 ```
