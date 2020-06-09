@@ -29,12 +29,16 @@ const createParticipantCmdPayloadFSP1: CreateParticipantCmdPayload = {
     ],
     endpoints: [
       {
-        type: 'FSPIOP_CALLBACK_URL_TRANSFER',
-        value: 'http://test'
+        type: 'FSPIOP_CALLBACK_URL_TRANSFER_POST',
+        value: 'http://simulator:8444/payerfsp/transfers'
       },
       {
-        type: 'FSPIOP_CALLBACK_URL_TRANSFER',
-        value: 'http://test'
+        type: 'FSPIOP_CALLBACK_URL_TRANSFER_PUT',
+        value: 'http://simulator:8444/payerfsp/transfers/{{transferId}}'
+      },
+      {
+        type: 'FSPIOP_CALLBACK_URL_TRANSFER_ERROR',
+        value: 'http://simulator:8444/payerfsp/transfers/{{transferId}}/error'
       },
       {
         type: 'SETTLEMENT_TRANSFER_POSITION_CHANGE_EMAIL',
@@ -64,12 +68,16 @@ const createParticipantCmdPayloadFSP2: CreateParticipantCmdPayload = {
     ],
     endpoints: [
       {
-        type: 'FSPIOP_CALLBACK_URL_TRANSFER',
-        value: 'http://test'
+        type: 'FSPIOP_CALLBACK_URL_TRANSFER_POST',
+        value: 'http://simulator:8444/payerfsp/transfers'
       },
       {
-        type: 'FSPIOP_CALLBACK_URL_TRANSFER',
-        value: 'http://test'
+        type: 'FSPIOP_CALLBACK_URL_TRANSFER_PUT',
+        value: 'http://simulator:8444/payerfsp/transfers/{{transferId}}'
+      },
+      {
+        type: 'FSPIOP_CALLBACK_URL_TRANSFER_ERROR',
+        value: 'http://simulator:8444/payerfsp/transfers/{{transferId}}/error'
       },
       {
         type: 'SETTLEMENT_TRANSFER_POSITION_CHANGE_EMAIL',

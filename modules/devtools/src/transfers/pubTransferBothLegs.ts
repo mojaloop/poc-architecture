@@ -42,8 +42,9 @@ const msgFulfilParams = {
   transferId: msgPrepareParams.transferId,
   payerId: msgPrepareParams.payerId,
   payeeId: msgPrepareParams.payeeId,
-  currency: msgPrepareParams.currency,
-  amount: msgPrepareParams.amount,
+  fulfilment: 'UNlJ98hZTY_dsw0cAqw4i_UN3v4utt7CZFB4yfLbVFA',
+  completedTimestamp: '2020-06-09T08:48:57.543Z',
+  transferState: 'COMMITTED',
   fulfil: {
     headers: {
       accept: 'application/vnd.interoperability.transfers+json;version=1',

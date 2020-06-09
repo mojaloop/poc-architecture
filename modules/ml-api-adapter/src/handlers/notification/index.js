@@ -42,6 +42,12 @@ const decodePayload = require('@mojaloop/central-services-shared').Util.Streamin
 const isDataUri = require('@mojaloop/central-services-shared').Util.StreamingProtocol.isDataUri
 const Config = require('../../lib/config')
 
+const TransfersTopics = require('@mojaloop-poc/lib-public-messages').TransfersTopics
+const TransferPreparedEvt = require('@mojaloop-poc/lib-public-messages').TransferPreparedEvt
+const TransferFulfilledEvt = require('@mojaloop-poc/lib-public-messages').TransferFulfilledEvt
+
+
+
 let notificationConsumer = {}
 let autoCommitEnabled = true
 
@@ -89,7 +95,8 @@ const startConsumer = async () => {
   let topicName
   try {
     const topicConfig = KafkaUtil.createGeneralTopicConf(Config.KAFKA_CONFIG.TOPIC_TEMPLATES.GENERAL_TOPIC_TEMPLATE.TEMPLATE, ENUM.Events.Event.Type.NOTIFICATION, ENUM.Events.Event.Action.EVENT)
-    topicName = topicConfig.topicName
+    // topicName = topicConfig.topicName
+    topicName = TransfersTopics.DomainEvents
     Logger.isInfoEnabled && Logger.info(`Notification::startConsumer - starting Consumer for topicNames: [${topicName}]`)
     const config = KafkaUtil.getKafkaConfig(Config.KAFKA_CONFIG, ENUM.Kafka.Config.CONSUMER, ENUM.Events.Event.Type.NOTIFICATION.toUpperCase(), ENUM.Events.Event.Action.EVENT.toUpperCase())
     config.rdkafkaConf['client.id'] = topicName
@@ -142,14 +149,18 @@ const consumeMessage = async (error, message) => {
     let combinedResult = true
     for (const msg of message) {
       Logger.isInfoEnabled && Logger.info('Notification::consumeMessage::processMessage')
-      const contextFromMessage = EventSdk.Tracer.extractContextFromMessage(msg.value)
-      const span = EventSdk.Tracer.createChildSpanFromContext('ml_notification_event', contextFromMessage)
-      const traceTags = span.getTracestateTags()
-      if (traceTags.timeApiPrepare && parseInt(traceTags.timeApiPrepare)) timeApiPrepare = parseInt(traceTags.timeApiPrepare)
-      if (traceTags.timeApiFulfil && parseInt(traceTags.timeApiFulfil)) timeApiFulfil = parseInt(traceTags.timeApiFulfil)
+      // ## Commented out for PoC Arch until we have included the trace metadata information in the message payloads
+      // const contextFromMessage = EventSdk.Tracer.extractContextFromMessage(msg.value)
+      // const span = EventSdk.Tracer.createChildSpanFromContext('ml_notification_event', contextFromMessage)
+      // const traceTags = span.getTracestateTags()
+      // if (traceTags.timeApiPrepare && parseInt(traceTags.timeApiPrepare)) timeApiPrepare = parseInt(traceTags.timeApiPrepare)
+      // if (traceTags.timeApiFulfil && parseInt(traceTags.timeApiFulfil)) timeApiFulfil = parseInt(traceTags.timeApiFulfil)
+      const span = null
       try {
-        await span.audit(msg, EventSdk.AuditEventAction.start)
-        const res = await processMessage(msg, span).catch(err => {
+        // ## Commented out for PoC Arch until we have included the trace metadata information in the message payloads
+        // await span.audit(msg, EventSdk.AuditEventAction.start)
+        // const res = await processMessage(msg, span).catch(err => {
+        const res = await processPoCMessage(msg, span).catch(err => {
           const fspiopError = ErrorHandler.Factory.createInternalServerFSPIOPError('Error processing notification message', err)
           Logger.error(fspiopError)
           if (!autoCommitEnabled) {
@@ -169,14 +180,15 @@ const consumeMessage = async (error, message) => {
         await span.finish(fspiopError.message, state)
         throw fspiopError
       } finally {
-        if (!span.isFinished) {
-          await span.finish()
-        }
+        // ## Commented out for PoC Arch until we have included the trace metadata information in the message payloads
+        // if (!span.isFinished) {
+          // await span.finish()
+        // }
       }
     }
     // TODO: calculate end times - report end-to-time
-    //
-    recordTxMetrics(timeApiPrepare, timeApiFulfil, true)
+    // ## Commented out for PoC Arch until we have included the trace metadata information in the message payloads
+    // recordTxMetrics(timeApiPrepare, timeApiFulfil, true)
     histTimerEnd({ success: true })
     return combinedResult
   } catch (err) {
@@ -217,6 +229,226 @@ const consumeMessage = async (error, message) => {
  *
  * @returns {boolean} Returns true on sucess and throws error on failure
  */
+
+const processPoCMessage = async (msg, span) => {
+  const histTimerEnd = Metrics.getHistogram(
+    'notification_event_process_msg',
+    'Consume a notification message from the kafka topic and process it accordingly',
+    ['success', 'action']
+  ).startTimer()
+  Logger.isInfoEnabled && Logger.info('Notification::processMessage')
+  // if (!msg.value || !msg.value.content || !msg.value.content.headers || !msg.value.content.payload) {
+  //   histTimerEnd({ success: false, action: 'unknown' })
+  //   throw ErrorHandler.Factory.createInternalServerFSPIOPError('Invalid message received from kafka')
+  // }
+
+  // Logger.isInfoEnabled && Logger.info('Notification::processMessage action: ' + action)
+  // Logger.isInfoEnabled && Logger.info('Notification::processMessage status: ' + status)
+  try {
+
+    const getEndpoint = (eventList, type) => {
+      if (type == null) return null
+      const endpointState = eventList.find(endpoint => endpoint.type === type)
+      if (endpointState == null) return null
+      return endpointState
+    } 
+
+    let transferEvt
+    let payload
+    let headers
+    let callbackURLTo
+    let callbackURLFrom
+    let id
+    let from
+    let to
+    const message = msg.value
+    switch (message.msgName) {
+      case TransferPreparedEvt.name: {
+        transferEvt = TransferPreparedEvt.fromIDomainMessage(message)
+        if (transferEvt == null) throw new Error(`TransferEvtHandler is unable to process event - ${PayerFundsReservedEvt.name} is Invalid - ${message.msgName}:${message.msgId}`)
+        // const ackPayerFundsReservedCmdPayload: AckPayerFundsReservedCmdPayload = transferEvt.payload
+        // transferCmd = new AckPayerFundsReservedCmd(ackPayerFundsReservedCmdPayload)
+
+        // const decodedPayload = decodePayload(message.payload.prepare.payload, { asParsed: false })
+
+        if (message.payload.prepare == null || message.payload.prepare.payload == null || message.payload.prepare.headers == null) {
+          throw new Error(`TransferEvtHandler is unable to process event - ${PayerFundsReservedEvt.name} - ${message.msgName}:${message.msgId} - Prepare Headers or Payload is missing from event!`)
+        }
+
+        id = message.payload.transferId
+        from = message.payload.payerId
+        to = message.payload.payeeId
+        payload = message.payload.prepare.payload
+        headers = message.payload.prepare.headers
+
+        const payeeEndPointPostTransfers = getEndpoint(message.payload.payeeEndPoints, ENUM.EndPoints.FspEndpointTypes.FSPIOP_CALLBACK_URL_TRANSFER_POST)
+        if (payeeEndPointPostTransfers == null || payeeEndPointPostTransfers.value == null) {
+          throw new Error(`TransferEvtHandler is unable to process event - ${PayerFundsReservedEvt.name} - ${message.msgName}:${message.msgId} - Unable to find callback URL`)
+        }
+        callbackURLTo = payeeEndPointPostTransfers.value
+        break
+      }
+      case TransferFulfilledEvt.name: {
+        transferEvt = TransferFulfilledEvt.fromIDomainMessage(message)
+        if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${PayeeFundsCommittedEvt.name} is Invalid - ${message.msgName}:${message.msgId}`)
+        // const ackPayeeFundsCommittedCmdPayload: AckPayeeFundsCommittedCmdPayload = transferEvt.payload
+        // transferCmd = new AckPayeeFundsCommittedCmd(ackPayeeFundsCommittedCmdPayload)
+        break
+      }
+      // case TransferPrepareAcceptedEvt.name: {
+      //   // logger.info(`EVENT:Type TransferPrepareAcceptedEvt ignored for now... TODO: refactor the topic names`)
+      //   break
+      // }
+      default: {
+        Logger.isWarnEnabled && Logger.warn(`TransferEvtHandler processing event - ${message.msgName}:${message.msgId} - Skipping unknown event`)
+      }
+    }
+    
+    if (transferEvt != null) {
+      Logger.info(`transferEvtHandler publishing cmd - ${message.msgName}:${message.msgId} - We have a known event`)
+
+      let payloadForCallback
+      if (isDataUri(payload)) {
+        payloadForCallback = decodePayload(payload, { asParsed: false }).body.toString()
+      } else {
+        const parsedPayload = JSON.parse(decodedPayload.body)
+        if (parsedPayload.errorInformation) {
+          payloadForCallback = JSON.stringify(ErrorHandler.CreateFSPIOPErrorFromErrorInformation(parsedPayload.errorInformation).toApiErrorObject(Config.ERROR_HANDLING))
+        } else {
+          payloadForCallback = decodedPayload.body.toString()
+        }
+      }
+
+      if (callbackURLTo == null) {
+        throw new Error(`TransferEvtHandler is unable to process event - ${PayerFundsReservedEvt.name} - ${message.msgName}:${message.msgId} - Unable to find callback URL`)
+      }
+
+      let callbackHeaders = createCallbackHeaders({ headers, httpMethod: ENUM.Http.RestMethods.POST, endpointTemplate: ENUM.EndPoints.FspEndpointTemplates.TRANSFERS_POST })
+
+      Logger.isDebugEnabled && Logger.debug(`Notification::processMessage - Callback.sendRequest(${callbackURLTo}, ${ENUM.Http.RestMethods.PUT}, ${JSON.stringify(callbackHeaders)}, ${payloadForCallback}, ${id}, ${from}, ${to})`)
+      let response = { status: 'unknown' }
+      const histTimerEndSendRequest = Metrics.getHistogram(
+        'notification_event_delivery',
+        'notification_event_delivery - metric for sending notification requests to FSPs',
+        ['success', 'from', 'dest', 'action', 'status']
+      ).startTimer()
+      try {
+        let span = null
+        response = await Callback.sendRequest(callbackURLTo, callbackHeaders, from, to, ENUM.Http.RestMethods.PUT, payloadForCallback, ENUM.Http.ResponseTypes.JSON, span)
+      } catch (err) {
+        histTimerEndSendRequest({ success: false, from, dest: to, action, status: response.status })
+        histTimerEnd({ success: false, action })
+        throw err
+      }
+      histTimerEndSendRequest({ success: true, from, dest: to, action, status: response.status })
+      histTimerEnd({ success: false, action })
+    }
+
+    return true
+  } catch (err) {
+    Logger.err(err)
+    return false
+  }
+
+  // const decodedPayload = decodePayload(content.payload, { asParsed: false })
+  // const id = JSON.parse(decodedPayload.body.toString()).transferId || (content.uriParams && content.uriParams.id)
+  // let payloadForCallback
+  // let callbackHeaders
+
+  // if (isDataUri(content.payload)) {
+  //   payloadForCallback = decodedPayload.body.toString()
+  // } else {
+  //   const parsedPayload = JSON.parse(decodedPayload.body)
+  //   if (parsedPayload.errorInformation) {
+  //     payloadForCallback = JSON.stringify(ErrorHandler.CreateFSPIOPErrorFromErrorInformation(parsedPayload.errorInformation).toApiErrorObject(Config.ERROR_HANDLING))
+  //   } else {
+  //     payloadForCallback = decodedPayload.body.toString()
+  //   }
+  // }
+
+  // let jwsSigner = getJWSSigner(from)
+
+  // if (actionLower === ENUM.Events.Event.Action.PREPARE && statusLower === ENUM.Events.EventStatus.SUCCESS.status) {
+  //   // # TODO - Fix This
+  //   const callbackURLTo = await Participant.getEndpoint(to, ENUM.EndPoints.FspEndpointTypes.FSPIOP_CALLBACK_URL_TRANSFER_POST, id, span)
+  //   callbackHeaders = createCallbackHeaders({ headers: content.headers, httpMethod: ENUM.Http.RestMethods.POST, endpointTemplate: ENUM.EndPoints.FspEndpointTemplates.TRANSFERS_POST })
+  //   Logger.isDebugEnabled && Logger.debug(`Notification::processMessage - Callback.sendRequest(${callbackURLTo}, ${ENUM.Http.RestMethods.POST}, ${JSON.stringify(content.headers)}, ${payloadForCallback}, ${id}, ${from}, ${to})`)
+  //   let response = { status: 'unknown' }
+  //   const histTimerEndSendRequest = Metrics.getHistogram(
+  //     'notification_event_delivery',
+  //     'notification_event_delivery - metric for sending notification requests to FSPs',
+  //     ['success', 'from', 'to', 'dest', 'action', 'status']
+  //   ).startTimer()
+  //   //
+  //   try {
+  //     response = await Callback.sendRequest(callbackURLTo, callbackHeaders, from, to, ENUM.Http.RestMethods.POST, payloadForCallback, ENUM.Http.ResponseTypes.JSON, span)
+  //   } catch (err) {
+  //     Logger.error(err)
+  //     histTimerEndSendRequest({ success: false, from, dest: to, action, status: response.status })
+  //     histTimerEnd({ success: false, action })
+  //     throw err
+  //   }
+  //   histTimerEndSendRequest({ success: true, from, dest: to, action, status: response.status })
+  //   histTimerEnd({ success: false, action })
+  //   return true
+  // }
+
+
+  // if (actionLower === ENUM.Events.Event.Action.COMMIT && statusLower === ENUM.Events.EventStatus.SUCCESS.status) {
+  //   // # TODO - Fix THis
+  //   const callbackURLTo = await Participant.getEndpoint(to, ENUM.EndPoints.FspEndpointTypes.FSPIOP_CALLBACK_URL_TRANSFER_PUT, id, span)
+  //   callbackHeaders = createCallbackHeaders({ dfspId: to, transferId: id, headers: content.headers, httpMethod: ENUM.Http.RestMethods.PUT, endpointTemplate: ENUM.EndPoints.FspEndpointTemplates.TRANSFERS_PUT })
+  //   // forward the fulfil to the destination
+    // Logger.isDebugEnabled && Logger.debug(`Notification::processMessage - Callback.sendRequest(${callbackURLTo}, ${ENUM.Http.RestMethods.PUT}, ${JSON.stringify(callbackHeaders)}, ${payloadForCallback}, ${id}, ${from}, ${to})`)
+    // let response = { status: 'unknown' }
+    // const histTimerEndSendRequest = Metrics.getHistogram(
+    //   'notification_event_delivery',
+    //   'notification_event_delivery - metric for sending notification requests to FSPs',
+    //   ['success', 'from', 'dest', 'action', 'status']
+    // ).startTimer()
+    // try {
+    //   response = await Callback.sendRequest(callbackURLTo, callbackHeaders, from, to, ENUM.Http.RestMethods.PUT, payloadForCallback, ENUM.Http.ResponseTypes.JSON, span)
+    // } catch (err) {
+    //   histTimerEndSendRequest({ success: false, from, dest: to, action, status: response.status })
+    //   histTimerEnd({ success: false, action })
+    //   throw err
+    // }
+    // histTimerEndSendRequest({ success: true, from, dest: to, action, status: response.status })
+
+  //   // send an extra notification back to the original sender (if enabled in config)
+  //   if (Config.SEND_TRANSFER_CONFIRMATION_TO_PAYEE) {
+  //     const callbackURLFrom = await Participant.getEndpoint(from, ENUM.EndPoints.FspEndpointTypes.FSPIOP_CALLBACK_URL_TRANSFER_PUT, id, span)
+  //     Logger.isDebugEnabled && Logger.debug(`Notification::processMessage - Callback.sendRequest(${callbackURLFrom}, ${ENUM.Http.RestMethods.PUT}, ${JSON.stringify(callbackHeaders)}, ${payloadForCallback}, ${id}, ${ENUM.Http.Headers.FSPIOP.SWITCH.value}, ${from})`)
+  //     callbackHeaders = createCallbackHeaders({ dfspId: from, transferId: id, headers: content.headers, httpMethod: ENUM.Http.RestMethods.PUT, endpointTemplate: ENUM.EndPoints.FspEndpointTemplates.TRANSFERS_PUT }, fromSwitch)
+  //     const histTimerEndSendRequest2 = Metrics.getHistogram(
+  //       'notification_event_delivery',
+  //       'notification_event_delivery - metric for sending notification requests to FSPs',
+  //       ['success', 'from', 'to', 'dest', 'action', 'status']
+  //     ).startTimer()
+  //     let rv
+  //     try {
+  //       jwsSigner = getJWSSigner(ENUM.Http.Headers.FSPIOP.SWITCH.value)
+  //       rv = await Callback.sendRequest(callbackURLFrom, callbackHeaders, ENUM.Http.Headers.FSPIOP.SWITCH.value, from, ENUM.Http.RestMethods.PUT, payloadForCallback, ENUM.Http.ResponseTypes.JSON, span, jwsSigner)
+  //     } catch (err) {
+  //       histTimerEndSendRequest2({ success: false, to, dest: from, action, status: response.status })
+  //       histTimerEnd({ success: false, action })
+  //       throw err
+  //     }
+  //     histTimerEndSendRequest2({ success: true, to, dest: from, action, status: response.status })
+
+  //     histTimerEnd({ success: true, action })
+  //     return rv
+  //   } else {
+  //     Logger.isDebugEnabled && Logger.debug(`Notification::processMessage - Action: ${actionLower} - Skipping notification callback to original sender (${from}) because feature is disabled in config.`)
+  //     histTimerEnd({ success: true, action })
+  //     return true
+  //   }
+  // }
+
+  Logger.warn(`Unknown action received from kafka: ${action}`)
+  histTimerEnd({ success: false, action: 'unknown' })
+  return false
+}
 
 const processMessage = async (msg, span) => {
   const histTimerEnd = Metrics.getHistogram(
