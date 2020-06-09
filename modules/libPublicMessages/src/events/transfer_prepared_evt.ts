@@ -5,7 +5,7 @@
 
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
 import { TransfersTopics } from '../enums'
-import { ParticipantEndpoint } from '../types'
+import { ParticipantEndpoint, TransferRawPayload } from '../types'
 
 export type TransferPreparedEvtPayload = {
   transferId: string
@@ -15,6 +15,7 @@ export type TransferPreparedEvtPayload = {
   payeeId: string
   payerEndPoints: ParticipantEndpoint[]
   payeeEndPoints: ParticipantEndpoint[]
+  prepare: TransferRawPayload
 }
 
 export class TransferPreparedEvt extends DomainEventMsg {

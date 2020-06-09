@@ -6,7 +6,7 @@
 import { BaseAggregate, IEntityStateRepository, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
 import { DuplicateTransferDetectedEvt, TransferPrepareAcceptedEvt, TransferFulfilledEvt, TransferFulfilledEvtPayload, TransferNotFoundEvt, TransferPreparedEvt, TransferPreparedEvtPayload, InvalidTransferEvt, InvalidTransferEvtPayload, TransferFulfilAcceptedEvt } from '@mojaloop-poc/lib-public-messages'
 import { PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
-import { TransferEntity, TransferState, TransferInternalStates, PrepareTransferData } from './transfer_entity'
+import { TransferEntity, TransferState, TransferInternalStates, PrepareTransferData, FulfilTransferData } from './transfer_entity'
 import { TransfersFactory } from './transfers_factory'
 import { AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
@@ -97,7 +97,8 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       payerId: this._rootEntity.payerId,
       payeeId: this._rootEntity.payeeId,
       payerEndPoints: commandMsg.payload.payerEndPoints,
-      payeeEndPoints: commandMsg.payload.payeeEndPoints
+      payeeEndPoints: commandMsg.payload.payeeEndPoints,
+      prepare: this._rootEntity.prepare
     }
     this.recordDomainEvent(new TransferPreparedEvt(transferPreparedEvtPayload))
 
@@ -125,16 +126,27 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
 
     /* TODO: validation of incoming payload */
 
-    this._rootEntity.fulfilTransfer()
+    const transferPrepareRequestData: FulfilTransferData = {
+      id: commandMsg.payload.transferId,
+      payerId: commandMsg.payload.payerId,
+      payeeId: commandMsg.payload.payeeId,
+      fulfilment: commandMsg.payload.fulfilment,
+      completedTimestamp: commandMsg.payload.completedTimestamp,
+      transferState: commandMsg.payload.transferState,
+      fulfil: {
+        headers: commandMsg.payload.fulfil?.headers,
+        payload: commandMsg.payload.fulfil?.payload
+      }
+    }
+
+    this._rootEntity.fulfilTransfer(transferPrepareRequestData)
 
     const transferFulfilAcceptedEvtPayload = {
       transferId: this._rootEntity.id,
       amount: this._rootEntity.amount,
       currency: this._rootEntity.currency,
       payerId: this._rootEntity.payerId,
-      payeeId: this._rootEntity.payeeId,
-      payerEndPoints: commandMsg.payload.payerEndPoints,
-      payeeEndPoints: commandMsg.payload.payeeEndPoints
+      payeeId: this._rootEntity.payeeId
     }
     this.recordDomainEvent(new TransferFulfilAcceptedEvt(transferFulfilAcceptedEvtPayload))
 
@@ -169,7 +181,8 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       payerId: this._rootEntity.payerId,
       payeeId: this._rootEntity.payeeId,
       payerEndPoints: commandMsg.payload.payerEndPoints,
-      payeeEndPoints: commandMsg.payload.payeeEndPoints
+      payeeEndPoints: commandMsg.payload.payeeEndPoints,
+      fulfil: this._rootEntity.fulfil
     }
     this.recordDomainEvent(new TransferFulfilledEvt(transferFulfiledEvtPayload))
 

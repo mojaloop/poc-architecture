@@ -81,8 +81,8 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
         case PayeeFundsCommittedEvt.name: {
           transferEvt = PayeeFundsCommittedEvt.fromIDomainMessage(message)
           if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${PayeeFundsCommittedEvt.name} is Invalid - ${message?.msgName}:${message?.msgId}`)
-          const AckPayeeFundsCommittedCmdPayload: AckPayeeFundsCommittedCmdPayload = transferEvt.payload
-          transferCmd = new AckPayeeFundsCommittedCmd(AckPayeeFundsCommittedCmdPayload)
+          const ackPayeeFundsCommittedCmdPayload: AckPayeeFundsCommittedCmdPayload = transferEvt.payload
+          transferCmd = new AckPayeeFundsCommittedCmd(ackPayeeFundsCommittedCmdPayload)
           break
         }
         case TransferPrepareRequestedEvt.name: {

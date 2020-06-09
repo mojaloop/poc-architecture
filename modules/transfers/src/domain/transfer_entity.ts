@@ -4,6 +4,7 @@
 'use strict'
 
 import { BaseEntityState, BaseEntity } from '@mojaloop-poc/lib-domain'
+import { TransferRawPayload } from '@mojaloop-poc/lib-public-messages'
 
 export enum TransferInternalStates {
   ABORTED_ERROR = 'ABORTED_ERROR',
@@ -29,10 +30,11 @@ export class TransferState extends BaseEntityState {
   payeeId: string
   expiration: string
   condition: string
-  prepare: {
-    headers: {[key: string]: string}
-    payload: string
-  }
+  prepare: TransferRawPayload
+  fulfilment: string
+  completedTimestamp: string
+  fulfil: TransferRawPayload
+  reject: TransferRawPayload
 }
 
 export type PrepareTransferData = {
@@ -43,10 +45,17 @@ export type PrepareTransferData = {
   payeeId: string
   expiration: string
   condition: string
-  prepare: {
-    headers: {[key: string]: string}
-    payload: string
-  }
+  prepare: TransferRawPayload
+}
+
+export type FulfilTransferData = {
+  id: string
+  payerId: string
+  payeeId: string
+  fulfilment: string
+  completedTimestamp: string
+  transferState: string
+  fulfil: TransferRawPayload
 }
 
 export class TransferEntity extends BaseEntity<TransferState> {
@@ -68,6 +77,18 @@ export class TransferEntity extends BaseEntity<TransferState> {
 
   get payeeId (): string {
     return this._state.payeeId
+  }
+
+  get prepare (): TransferRawPayload {
+    return this._state?.prepare
+  }
+
+  get fulfil (): TransferRawPayload {
+    return this._state?.fulfil
+  }
+
+  get reject (): TransferRawPayload {
+    return this._state?.reject
   }
 
   static CreateInstance (initialState?: TransferState): TransferEntity {
@@ -97,7 +118,8 @@ export class TransferEntity extends BaseEntity<TransferState> {
     this._state.transferInternalState = TransferInternalStates.RESERVED
   }
 
-  fulfilTransfer (): void {
+  fulfilTransfer (incommingTransfer: FulfilTransferData): void {
+    // TODO: Add fulfil transfer logic here
     this._state.transferInternalState = TransferInternalStates.RECEIVED_FULFIL
   }
 

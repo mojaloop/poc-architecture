@@ -5,6 +5,7 @@
 
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
 import { MLTopics } from '../enums'
+import { TransferRawPayload } from '../types'
 
 export type TransferPrepareRequestedEvtPayload = {
   transferId: string
@@ -14,10 +15,7 @@ export type TransferPrepareRequestedEvtPayload = {
   payeeId: string
   expiration: string
   condition: string
-  prepare: {
-    headers: {[key: string]: string}
-    payload: string
-  }
+  prepare: TransferRawPayload
 }
 
 export class TransferPrepareRequestedEvt extends DomainEventMsg {

@@ -56,3 +56,8 @@ export type ParticipantEndpoint = {
   type: string
   value: string
 }
+
+export type TransferRawPayload = {
+  headers: {[key: string]: string}
+  payload: string
+}

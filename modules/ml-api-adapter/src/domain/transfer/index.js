@@ -34,6 +34,7 @@ const ErrorHandler = require('@mojaloop/central-services-error-handling')
 const Config = require('../../lib/config')
 const generalEnum = require('@mojaloop/central-services-shared').Enum
 const TransferPrepareRequestedEvt = require('@mojaloop-poc/lib-public-messages').TransferPrepareRequestedEvt
+const TransferFulfilRequestedEvt = require('@mojaloop-poc/lib-public-messages').TransferFulfilRequestedEvt
 
 /**
  * @module src/domain/transfer
@@ -70,7 +71,8 @@ const prepare = async (headers, dataUri, payload, span) => {
     //   clientId: kafkaConfig.rdkafkaConf['client.id']
     // })
     messageProtocol = await span.injectContextToMessage(messageProtocol)
-    const TransferPrepareRequestedEvtPayload = {
+
+    const transferPrepareRequestedEvtPayload = {
       transferId: payload.transferId,
       payerId: payload.payerFsp,
       payeeId: payload.payeeFsp,
@@ -84,12 +86,12 @@ const prepare = async (headers, dataUri, payload, span) => {
       }
     }
 
-    const transferPrepareRequestedEvt = new TransferPrepareRequestedEvt(TransferPrepareRequestedEvtPayload)
+    const transferPrepareRequestedEvt = new TransferPrepareRequestedEvt(transferPrepareRequestedEvtPayload)
 
     const topicConfig = {
       // topicName: 'topic-transfer-prepare',
       topicName: transferPrepareRequestedEvt.msgTopic,
-      key: null,
+      key: transferPrepareRequestedEvt.msgKey,
       partition: null,
       opaqueKey: null
     }
@@ -127,18 +129,47 @@ const fulfil = async (headers, dataUri, payload, params, span) => {
     const event = StreamingProtocol.createEventMetadata(generalEnum.Events.Event.Type.FULFIL, action, state)
     const metadata = StreamingProtocol.createMetadata(params.id, event)
     let messageProtocol = StreamingProtocol.createMessageFromRequest(params.id, { headers, dataUri, params }, headers[generalEnum.Http.Headers.FSPIOP.DESTINATION], headers[generalEnum.Http.Headers.FSPIOP.SOURCE], metadata)
-    const topicConfig = KafkaUtil.createGeneralTopicConf(Config.KAFKA_CONFIG.TOPIC_TEMPLATES.GENERAL_TOPIC_TEMPLATE.TEMPLATE, generalEnum.Events.Event.Action.TRANSFER, generalEnum.Events.Event.Action.FULFIL)
+    // const topicConfig = KafkaUtil.createGeneralTopicConf(Config.KAFKA_CONFIG.TOPIC_TEMPLATES.GENERAL_TOPIC_TEMPLATE.TEMPLATE, generalEnum.Events.Event.Action.TRANSFER, generalEnum.Events.Event.Action.FULFIL)
     const kafkaConfig = KafkaUtil.getKafkaConfig(Config.KAFKA_CONFIG, generalEnum.Kafka.Config.PRODUCER, generalEnum.Events.Event.Action.TRANSFER.toUpperCase(), generalEnum.Events.Event.Action.FULFIL.toUpperCase())
     Logger.isDebugEnabled && Logger.debug(`domain::transfer::fulfil::messageProtocol - ${messageProtocol}`)
-    Logger.isDebugEnabled && Logger.debug(`domain::transfer::fulfil::topicConfig - ${topicConfig}`)
+    // Logger.isDebugEnabled && Logger.debug(`domain::transfer::fulfil::topicConfig - ${topicConfig}`)
     Logger.isDebugEnabled && Logger.debug(`domain::transfer::fulfil::kafkaConfig - ${kafkaConfig}`)
-    await span.debug({
-      messageProtocol,
-      topicName: topicConfig.topicName,
-      clientId: kafkaConfig.rdkafkaConf['client.id']
-    })
+
     messageProtocol = await span.injectContextToMessage(messageProtocol)
-    await Kafka.Producer.produceMessage(messageProtocol, topicConfig, kafkaConfig)
+
+    const transferFulfilRequestedEvtPayload = {
+      transferId: payload.transferId,
+      payerId: payload.payerFsp,
+      payeeId: payload.payeeFsp,
+      fulfilment: payload.fulfilment,
+      completedTimestamp: payload.completedTimestamp,
+      transferState: payload.transferState,
+      fulfil: {
+        headers: messageProtocol.content.headers,
+        payload: messageProtocol.content.payload
+      }
+    }
+    
+    const transferFulfilRequestedEvt = new TransferFulfilRequestedEvt(transferFulfilRequestedEvtPayload)
+
+    const topicConfig = {
+      // topicName: 'topic-transfer-fulfil',
+      topicName: transferFulfilRequestedEvt.msgTopic,
+      key: transferFulfilRequestedEvt.msgKey,
+      partition: null,
+      opaqueKey: null
+    }
+
+    // await span.debug({
+    //   messageProtocol,
+    //   topicName: topicConfig.topicName,
+    //   clientId: kafkaConfig.rdkafkaConf['client.id']
+    // })
+
+    Logger.isDebugEnabled && Logger.debug(`domain::transfer::fulfil::topicConfig - ${topicConfig}`)
+
+    await Kafka.Producer.produceMessage(transferFulfilRequestedEvt, topicConfig, kafkaConfig)
+    // await Kafka.Producer.produceMessage(messageProtocol, topicConfig, kafkaConfig)
     return true
   } catch (err) {
     Logger.error(`domain::transfer::fulfil::Kafka error:: ERROR:'${err}'`)

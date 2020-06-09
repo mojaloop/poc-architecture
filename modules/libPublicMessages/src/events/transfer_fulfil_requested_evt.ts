@@ -5,13 +5,16 @@
 
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
 import { TransfersTopics } from '../enums'
+import { TransferRawPayload } from '../types'
 
 export type TransferFulfilRequestedEvtPayload = {
   transferId: string
-  amount: string
-  currency: string
   payerId: string
   payeeId: string
+  fulfilment: string
+  completedTimestamp: string
+  transferState: string
+  fulfil: TransferRawPayload
 }
 
 export class TransferFulfilRequestedEvt extends DomainEventMsg {
