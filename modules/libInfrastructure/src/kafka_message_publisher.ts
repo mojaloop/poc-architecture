@@ -40,15 +40,15 @@
 // import * as kafka from 'kafka-node'
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 import { ILogger, IMessage, IMessagePublisher } from '@mojaloop-poc/lib-domain'
-import { KafkaGenericProducer } from './kafka_generic_producer'
+import { KafkaGenericProducer, KafkaGenericProducerOptions } from './kafka_generic_producer'
 
 export class KafkaMessagePublisher implements IMessagePublisher {
   private readonly _producer: KafkaGenericProducer
   protected _logger: ILogger
 
-  constructor (kafkaConString: string, kafkaClientName: string, envName: string, logger?: ILogger) {
+  constructor (options: KafkaGenericProducerOptions, logger?: ILogger) {
     this._logger = logger ?? new ConsoleLogger()
-    this._producer = new KafkaGenericProducer(kafkaConString, kafkaClientName, envName, this._logger)
+    this._producer = new KafkaGenericProducer(options, this._logger)
   }
 
   get envName (): string {

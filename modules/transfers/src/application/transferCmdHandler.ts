@@ -39,7 +39,7 @@
 // import { v4 as uuidv4 } from 'uuid'
 // import {InMemorytransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { CommandMsg, IDomainMessage, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
-import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
 // import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
 // import { TransferState } from '../domain/transfer_entity'
 import { TransfersTopics } from '@mojaloop-poc/lib-public-messages'
@@ -49,7 +49,7 @@ import { AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_c
 import { RedisTransferStateRepo } from '../infrastructure/redis_participant_repo'
 import { ITransfersRepo } from '../domain/transfers_repo'
 import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
-import { AckPayeeFundsReservedCmd } from '../messages/ack_payee_funds_reserved_cmd'
+import { AckPayeeFundsCommitedCmd } from '../messages/ack_payee_funds_reserved_cmd'
 
 export const start = async (appConfig: any, logger: ILogger): Promise<MessageConsumer> => {
   // const repo: IEntityStateRepository<TransferState> = new InMemoryTransferStateRepo()
@@ -57,10 +57,17 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
 
   await repo.init()
 
+  const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
+    client: {
+      kafka: {
+        kafkaHost: appConfig.kafka.host,
+        clientId: 'transferCmdHandler'
+      }
+    }
+  }
+
   const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
-    appConfig.kafka.host,
-    'transfers',
-    'development',
+    kafkaGenericProducerOptions,
     logger
   )
 
@@ -83,8 +90,8 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
           transferCmd = AckPayerFundsReservedCmd.fromIDomainMessage(message)
           break
         }
-        case AckPayeeFundsReservedCmd.name: {
-          transferCmd = AckPayeeFundsReservedCmd.fromIDomainMessage(message)
+        case AckPayeeFundsCommitedCmd.name: {
+          transferCmd = AckPayeeFundsCommitedCmd.fromIDomainMessage(message)
           break
         }
         case FulfilTransferCmd.name: {
