@@ -80,11 +80,11 @@ const prepare = async (headers, dataUri, payload, span) => {
       condition: payload.condition,
       prepare: {
         headers: messageProtocol.content.headers,
-        payload:  messageProtocol.content.payload
+        payload: messageProtocol.content.payload
       }
     }
 
-    const transferPrepareRequestedEvt  = new TransferPrepareRequestedEvt(TransferPrepareRequestedEvtPayload)
+    const transferPrepareRequestedEvt = new TransferPrepareRequestedEvt(TransferPrepareRequestedEvtPayload)
 
     const topicConfig = {
       // topicName: 'topic-transfer-prepare',
