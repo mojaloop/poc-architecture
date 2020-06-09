@@ -49,6 +49,9 @@
     "docker:redis:start": "docker-compose up -d redis",
     "docker:redis:stop": "docker-compose stop redis",
     "docker:redis:logs": "docker-compose logs -f redis",
+    "docker:sim:start": "docker-compose up -d simulator",
+    "docker:sim:stop": "docker-compose stop simulator",
+    "docker:sim:logs": "docker-compose logs -f simulator",
     "docker:store:start": "docker-compose up -d kafka redis",
     "docker:store:stop": "docker-compose stop kafka redis",
     "docker:store:logs": "docker-compose logs -f kafka redis"

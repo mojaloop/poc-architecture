@@ -237,217 +237,157 @@ const processPoCMessage = async (msg, span) => {
     ['success', 'action']
   ).startTimer()
   Logger.isInfoEnabled && Logger.info('Notification::processMessage')
-  // if (!msg.value || !msg.value.content || !msg.value.content.headers || !msg.value.content.payload) {
-  //   histTimerEnd({ success: false, action: 'unknown' })
-  //   throw ErrorHandler.Factory.createInternalServerFSPIOPError('Invalid message received from kafka')
-  // }
+  
+  // Helper function to get endpoints
+  const getEndpoint = (eventList, type) => {
+    if (type == null) return null
+    const endpointState = eventList.find(endpoint => endpoint.type === type)
+    if (endpointState == null) return null
+    return endpointState
+  }
 
-  // Logger.isInfoEnabled && Logger.info('Notification::processMessage action: ' + action)
-  // Logger.isInfoEnabled && Logger.info('Notification::processMessage status: ' + status)
+  // Helper function to process raw payload
+  const processPayload = (rawPayload) => {
+    let payloadForCallback
+    if (isDataUri(rawPayload)) {
+      payloadForCallback = decodePayload(rawPayload, { asParsed: false }).body.toString()
+    } else {
+      const parsedPayload = JSON.parse(decodedPayload.body)
+      if (parsedPayload.errorInformation) {
+        payloadForCallback = JSON.stringify(ErrorHandler.CreateFSPIOPErrorFromErrorInformation(parsedPayload.errorInformation).toApiErrorObject(Config.ERROR_HANDLING))
+      } else {
+        payloadForCallback = decodedPayload.body.toString()
+      }
+    }
+    return payloadForCallback
+  }
+
+  // Helper function to send requests
+  const sendRequest = async (id, to, from, headers, payload, callbackURL, method, endpointTemplate, fromSwitch = false, span = null) => {
+    if (callbackURL == null) {
+      throw new Error(`TransferEvtHandler is unable to process event - ${message.msgName}:${message.msgId} - Unable to find callback URL`)
+    }
+
+    let callbackHeaders = createCallbackHeaders({ headers, httpMethod: method, endpointTemplate }, fromSwitch)
+
+    Logger.isDebugEnabled && Logger.debug(`Notification::processMessage - Callback.sendRequest(${callbackURL}, ${method}, ${JSON.stringify(callbackHeaders)}, ${payload}, ${id}, ${from}, ${to})`)
+    let response = { status: 'unknown' }
+    const histTimerEndSendRequest = Metrics.getHistogram(
+      'notification_event_delivery',
+      'notification_event_delivery - metric for sending notification requests to FSPs',
+      ['success', 'from', 'dest', 'action', 'status']
+    ).startTimer()
+    try {
+      let jwsSigner
+      if (fromSwitch) {
+          jwsSigner = getJWSSigner(ENUM.Http.Headers.FSPIOP.SWITCH.value)
+      }
+      response = await Callback.sendRequest(callbackURL, callbackHeaders, from, to, method, payload, ENUM.Http.ResponseTypes.JSON, span, jwsSigner)
+    } catch (err) {
+      histTimerEndSendRequest({ success: false, from, dest: to, action, status: response.status })
+      throw err
+    }
+    histTimerEndSendRequest({ success: true, from, dest: to, action, status: response.status })
+    return response
+  }
+
+  let action = 'unknown'
   try {
-
-    const getEndpoint = (eventList, type) => {
-      if (type == null) return null
-      const endpointState = eventList.find(endpoint => endpoint.type === type)
-      if (endpointState == null) return null
-      return endpointState
-    } 
-
     let transferEvt
-    let payload
-    let headers
-    let callbackURLTo
-    let callbackURLFrom
-    let id
-    let from
-    let to
     const message = msg.value
     switch (message.msgName) {
       case TransferPreparedEvt.name: {
         transferEvt = TransferPreparedEvt.fromIDomainMessage(message)
-        if (transferEvt == null) throw new Error(`TransferEvtHandler is unable to process event - ${PayerFundsReservedEvt.name} is Invalid - ${message.msgName}:${message.msgId}`)
-        // const ackPayerFundsReservedCmdPayload: AckPayerFundsReservedCmdPayload = transferEvt.payload
-        // transferCmd = new AckPayerFundsReservedCmd(ackPayerFundsReservedCmdPayload)
-
-        // const decodedPayload = decodePayload(message.payload.prepare.payload, { asParsed: false })
+        action = TransferPreparedEvt.name
+        if (transferEvt == null) throw new Error(`TransferEvtHandler is unable to process event - ${TransferPreparedEvt.name} is Invalid - ${message.msgName}:${message.msgId}`)
 
         if (message.payload.prepare == null || message.payload.prepare.payload == null || message.payload.prepare.headers == null) {
-          throw new Error(`TransferEvtHandler is unable to process event - ${PayerFundsReservedEvt.name} - ${message.msgName}:${message.msgId} - Prepare Headers or Payload is missing from event!`)
+          throw new Error(`TransferEvtHandler is unable to process event - ${TransferPreparedEvt.name} - ${message.msgName}:${message.msgId} - Prepare Headers or Payload is missing from event!`)
         }
-
-        id = message.payload.transferId
-        from = message.payload.payerId
-        to = message.payload.payeeId
-        payload = message.payload.prepare.payload
-        headers = message.payload.prepare.headers
 
         const payeeEndPointPostTransfers = getEndpoint(message.payload.payeeEndPoints, ENUM.EndPoints.FspEndpointTypes.FSPIOP_CALLBACK_URL_TRANSFER_POST)
         if (payeeEndPointPostTransfers == null || payeeEndPointPostTransfers.value == null) {
-          throw new Error(`TransferEvtHandler is unable to process event - ${PayerFundsReservedEvt.name} - ${message.msgName}:${message.msgId} - Unable to find callback URL`)
+          throw new Error(`TransferEvtHandler is unable to process event - ${TransferPreparedEvt.name} - ${message.msgName}:${message.msgId} - Unable to find callback URL`)
         }
-        callbackURLTo = payeeEndPointPostTransfers.value
+
+        const payloadForCallback = processPayload(message.payload.prepare.payload)
+
+        const result = await sendRequest(
+          message.payload.transferId, 
+          message.payload.payeeId, 
+          message.payload.payerId, 
+          message.payload.prepare.headers, 
+          payloadForCallback, 
+          payeeEndPointPostTransfers.value, 
+          ENUM.Http.RestMethods.POST, 
+          ENUM.EndPoints.FspEndpointTemplates.TRANSFERS_POST,
+          false
+        )
         break
       }
       case TransferFulfilledEvt.name: {
         transferEvt = TransferFulfilledEvt.fromIDomainMessage(message)
-        if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${PayeeFundsCommittedEvt.name} is Invalid - ${message.msgName}:${message.msgId}`)
-        // const ackPayeeFundsCommittedCmdPayload: AckPayeeFundsCommittedCmdPayload = transferEvt.payload
-        // transferCmd = new AckPayeeFundsCommittedCmd(ackPayeeFundsCommittedCmdPayload)
+        action = TransferFulfilledEvt.name
+        if (transferEvt == null) throw new Error(`TransferEvtHandler is unable to process event - ${TransferFulfilledEvt.name} is Invalid - ${message.msgName}:${message.msgId}`)
+
+        if (message.payload.fulfil == null || message.payload.fulfil.payload == null || message.payload.fulfil.headers == null) {
+          throw new Error(`TransferEvtHandler is unable to process event - ${TransferFulfilledEvt.name} - ${message.msgName}:${message.msgId} - Fulfil Headers or Payload is missing from event!`)
+        }
+
+        const payerEndPointPostTransfers = getEndpoint(message.payload.payerEndPoints, ENUM.EndPoints.FspEndpointTypes.FSPIOP_CALLBACK_URL_TRANSFER_PUT)
+        if (payerEndPointPostTransfers == null || payerEndPointPostTransfers.value == null) {
+          throw new Error(`TransferEvtHandler is unable to process event - ${TransferFulfilledEvt.name} - ${message.msgName}:${message.msgId} - Unable to find callback URL`)
+        }
+
+        const payloadForCallback = processPayload(message.payload.fulfil.payload)
+
+        const result = await sendRequest(
+          message.payload.transferId,
+          message.payload.payerId,
+          message.payload.payeeId,
+          message.payload.fulfil.headers, 
+          payloadForCallback, 
+          payerEndPointPostTransfers.value, 
+          ENUM.Http.RestMethods.PUT, 
+          ENUM.EndPoints.FspEndpointTemplates.TRANSFERS_PUT,
+          false
+        )
+
+        if (Config.SEND_TRANSFER_CONFIRMATION_TO_PAYEE) {
+          const payeeEndPointPostTransfers = getEndpoint(message.payload.payeeEndPoints, ENUM.EndPoints.FspEndpointTypes.FSPIOP_CALLBACK_URL_TRANSFER_PUT)
+          if (payeeEndPointPostTransfers == null || payeeEndPointPostTransfers.value == null) {
+            throw new Error(`TransferEvtHandler is unable to process event - ${TransferFulfilledEvt.name} - ${message.msgName}:${message.msgId} - Unable to find callback URL`)
+          }
+          const result = await sendRequest(
+            message.payload.transferId,
+            message.payload.payeeId,
+            message.payload.payerId,
+            message.payload.fulfil.headers, 
+            payloadForCallback, 
+            payeeEndPointPostTransfers.value, 
+            ENUM.Http.RestMethods.PUT, 
+            ENUM.EndPoints.FspEndpointTemplates.TRANSFERS_PUT,
+            true
+          )
+        }
         break
       }
-      // case TransferPrepareAcceptedEvt.name: {
-      //   // logger.info(`EVENT:Type TransferPrepareAcceptedEvt ignored for now... TODO: refactor the topic names`)
-      //   break
-      // }
       default: {
         Logger.isWarnEnabled && Logger.warn(`TransferEvtHandler processing event - ${message.msgName}:${message.msgId} - Skipping unknown event`)
       }
     }
-    
+
     if (transferEvt != null) {
       Logger.info(`transferEvtHandler publishing cmd - ${message.msgName}:${message.msgId} - We have a known event`)
-
-      let payloadForCallback
-      if (isDataUri(payload)) {
-        payloadForCallback = decodePayload(payload, { asParsed: false }).body.toString()
-      } else {
-        const parsedPayload = JSON.parse(decodedPayload.body)
-        if (parsedPayload.errorInformation) {
-          payloadForCallback = JSON.stringify(ErrorHandler.CreateFSPIOPErrorFromErrorInformation(parsedPayload.errorInformation).toApiErrorObject(Config.ERROR_HANDLING))
-        } else {
-          payloadForCallback = decodedPayload.body.toString()
-        }
-      }
-
-      if (callbackURLTo == null) {
-        throw new Error(`TransferEvtHandler is unable to process event - ${PayerFundsReservedEvt.name} - ${message.msgName}:${message.msgId} - Unable to find callback URL`)
-      }
-
-      let callbackHeaders = createCallbackHeaders({ headers, httpMethod: ENUM.Http.RestMethods.POST, endpointTemplate: ENUM.EndPoints.FspEndpointTemplates.TRANSFERS_POST })
-
-      Logger.isDebugEnabled && Logger.debug(`Notification::processMessage - Callback.sendRequest(${callbackURLTo}, ${ENUM.Http.RestMethods.PUT}, ${JSON.stringify(callbackHeaders)}, ${payloadForCallback}, ${id}, ${from}, ${to})`)
-      let response = { status: 'unknown' }
-      const histTimerEndSendRequest = Metrics.getHistogram(
-        'notification_event_delivery',
-        'notification_event_delivery - metric for sending notification requests to FSPs',
-        ['success', 'from', 'dest', 'action', 'status']
-      ).startTimer()
-      try {
-        let span = null
-        response = await Callback.sendRequest(callbackURLTo, callbackHeaders, from, to, ENUM.Http.RestMethods.PUT, payloadForCallback, ENUM.Http.ResponseTypes.JSON, span)
-      } catch (err) {
-        histTimerEndSendRequest({ success: false, from, dest: to, action, status: response.status })
-        histTimerEnd({ success: false, action })
-        throw err
-      }
-      histTimerEndSendRequest({ success: true, from, dest: to, action, status: response.status })
-      histTimerEnd({ success: false, action })
     }
 
+    histTimerEnd({ success: true, action })
     return true
   } catch (err) {
-    Logger.err(err)
-    return false
+    Logger.error(err)
+    histTimerEnd({ success: false, action })
+    throw err
   }
-
-  // const decodedPayload = decodePayload(content.payload, { asParsed: false })
-  // const id = JSON.parse(decodedPayload.body.toString()).transferId || (content.uriParams && content.uriParams.id)
-  // let payloadForCallback
-  // let callbackHeaders
-
-  // if (isDataUri(content.payload)) {
-  //   payloadForCallback = decodedPayload.body.toString()
-  // } else {
-  //   const parsedPayload = JSON.parse(decodedPayload.body)
-  //   if (parsedPayload.errorInformation) {
-  //     payloadForCallback = JSON.stringify(ErrorHandler.CreateFSPIOPErrorFromErrorInformation(parsedPayload.errorInformation).toApiErrorObject(Config.ERROR_HANDLING))
-  //   } else {
-  //     payloadForCallback = decodedPayload.body.toString()
-  //   }
-  // }
-
-  // let jwsSigner = getJWSSigner(from)
-
-  // if (actionLower === ENUM.Events.Event.Action.PREPARE && statusLower === ENUM.Events.EventStatus.SUCCESS.status) {
-  //   // # TODO - Fix This
-  //   const callbackURLTo = await Participant.getEndpoint(to, ENUM.EndPoints.FspEndpointTypes.FSPIOP_CALLBACK_URL_TRANSFER_POST, id, span)
-  //   callbackHeaders = createCallbackHeaders({ headers: content.headers, httpMethod: ENUM.Http.RestMethods.POST, endpointTemplate: ENUM.EndPoints.FspEndpointTemplates.TRANSFERS_POST })
-  //   Logger.isDebugEnabled && Logger.debug(`Notification::processMessage - Callback.sendRequest(${callbackURLTo}, ${ENUM.Http.RestMethods.POST}, ${JSON.stringify(content.headers)}, ${payloadForCallback}, ${id}, ${from}, ${to})`)
-  //   let response = { status: 'unknown' }
-  //   const histTimerEndSendRequest = Metrics.getHistogram(
-  //     'notification_event_delivery',
-  //     'notification_event_delivery - metric for sending notification requests to FSPs',
-  //     ['success', 'from', 'to', 'dest', 'action', 'status']
-  //   ).startTimer()
-  //   //
-  //   try {
-  //     response = await Callback.sendRequest(callbackURLTo, callbackHeaders, from, to, ENUM.Http.RestMethods.POST, payloadForCallback, ENUM.Http.ResponseTypes.JSON, span)
-  //   } catch (err) {
-  //     Logger.error(err)
-  //     histTimerEndSendRequest({ success: false, from, dest: to, action, status: response.status })
-  //     histTimerEnd({ success: false, action })
-  //     throw err
-  //   }
-  //   histTimerEndSendRequest({ success: true, from, dest: to, action, status: response.status })
-  //   histTimerEnd({ success: false, action })
-  //   return true
-  // }
-
-
-  // if (actionLower === ENUM.Events.Event.Action.COMMIT && statusLower === ENUM.Events.EventStatus.SUCCESS.status) {
-  //   // # TODO - Fix THis
-  //   const callbackURLTo = await Participant.getEndpoint(to, ENUM.EndPoints.FspEndpointTypes.FSPIOP_CALLBACK_URL_TRANSFER_PUT, id, span)
-  //   callbackHeaders = createCallbackHeaders({ dfspId: to, transferId: id, headers: content.headers, httpMethod: ENUM.Http.RestMethods.PUT, endpointTemplate: ENUM.EndPoints.FspEndpointTemplates.TRANSFERS_PUT })
-  //   // forward the fulfil to the destination
-    // Logger.isDebugEnabled && Logger.debug(`Notification::processMessage - Callback.sendRequest(${callbackURLTo}, ${ENUM.Http.RestMethods.PUT}, ${JSON.stringify(callbackHeaders)}, ${payloadForCallback}, ${id}, ${from}, ${to})`)
-    // let response = { status: 'unknown' }
-    // const histTimerEndSendRequest = Metrics.getHistogram(
-    //   'notification_event_delivery',
-    //   'notification_event_delivery - metric for sending notification requests to FSPs',
-    //   ['success', 'from', 'dest', 'action', 'status']
-    // ).startTimer()
-    // try {
-    //   response = await Callback.sendRequest(callbackURLTo, callbackHeaders, from, to, ENUM.Http.RestMethods.PUT, payloadForCallback, ENUM.Http.ResponseTypes.JSON, span)
-    // } catch (err) {
-    //   histTimerEndSendRequest({ success: false, from, dest: to, action, status: response.status })
-    //   histTimerEnd({ success: false, action })
-    //   throw err
-    // }
-    // histTimerEndSendRequest({ success: true, from, dest: to, action, status: response.status })
-
-  //   // send an extra notification back to the original sender (if enabled in config)
-  //   if (Config.SEND_TRANSFER_CONFIRMATION_TO_PAYEE) {
-  //     const callbackURLFrom = await Participant.getEndpoint(from, ENUM.EndPoints.FspEndpointTypes.FSPIOP_CALLBACK_URL_TRANSFER_PUT, id, span)
-  //     Logger.isDebugEnabled && Logger.debug(`Notification::processMessage - Callback.sendRequest(${callbackURLFrom}, ${ENUM.Http.RestMethods.PUT}, ${JSON.stringify(callbackHeaders)}, ${payloadForCallback}, ${id}, ${ENUM.Http.Headers.FSPIOP.SWITCH.value}, ${from})`)
-  //     callbackHeaders = createCallbackHeaders({ dfspId: from, transferId: id, headers: content.headers, httpMethod: ENUM.Http.RestMethods.PUT, endpointTemplate: ENUM.EndPoints.FspEndpointTemplates.TRANSFERS_PUT }, fromSwitch)
-  //     const histTimerEndSendRequest2 = Metrics.getHistogram(
-  //       'notification_event_delivery',
-  //       'notification_event_delivery - metric for sending notification requests to FSPs',
-  //       ['success', 'from', 'to', 'dest', 'action', 'status']
-  //     ).startTimer()
-  //     let rv
-  //     try {
-  //       jwsSigner = getJWSSigner(ENUM.Http.Headers.FSPIOP.SWITCH.value)
-  //       rv = await Callback.sendRequest(callbackURLFrom, callbackHeaders, ENUM.Http.Headers.FSPIOP.SWITCH.value, from, ENUM.Http.RestMethods.PUT, payloadForCallback, ENUM.Http.ResponseTypes.JSON, span, jwsSigner)
-  //     } catch (err) {
-  //       histTimerEndSendRequest2({ success: false, to, dest: from, action, status: response.status })
-  //       histTimerEnd({ success: false, action })
-  //       throw err
-  //     }
-  //     histTimerEndSendRequest2({ success: true, to, dest: from, action, status: response.status })
-
-  //     histTimerEnd({ success: true, action })
-  //     return rv
-  //   } else {
-  //     Logger.isDebugEnabled && Logger.debug(`Notification::processMessage - Action: ${actionLower} - Skipping notification callback to original sender (${from}) because feature is disabled in config.`)
-  //     histTimerEnd({ success: true, action })
-  //     return true
-  //   }
-  // }
-
-  Logger.warn(`Unknown action received from kafka: ${action}`)
-  histTimerEnd({ success: false, action: 'unknown' })
-  return false
 }
 
 const processMessage = async (msg, span) => {

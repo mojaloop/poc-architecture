@@ -69,15 +69,15 @@ const createParticipantCmdPayloadFSP2: CreateParticipantCmdPayload = {
     endpoints: [
       {
         type: 'FSPIOP_CALLBACK_URL_TRANSFER_POST',
-        value: 'http://simulator:8444/payerfsp/transfers'
+        value: 'http://simulator:8444/payeefsp/transfers'
       },
       {
         type: 'FSPIOP_CALLBACK_URL_TRANSFER_PUT',
-        value: 'http://simulator:8444/payerfsp/transfers/{{transferId}}'
+        value: 'http://simulator:8444/payeefsp/transfers/{{transferId}}'
       },
       {
         type: 'FSPIOP_CALLBACK_URL_TRANSFER_ERROR',
-        value: 'http://simulator:8444/payerfsp/transfers/{{transferId}}/error'
+        value: 'http://simulator:8444/payeefsp/transfers/{{transferId}}/error'
       },
       {
         type: 'SETTLEMENT_TRANSFER_POSITION_CHANGE_EMAIL',
