@@ -74,7 +74,8 @@ function logRPS (): void {
 const evtMap: Map<string, number> = new Map<string, number>()
 
 const evtHandler = (message: IDomainMessage): void => {
-  if (message.msgName === 'TransferPreparedEvt') {
+  // if (message.msgName === 'TransferPreparedEvt') {
+  if (message.msgName === 'TransferFulfilledEvt') {
     const reqReceivedAt = evtMap.get(message.aggregateId)
     if (reqReceivedAt != null) {
       // console.log(`Prepare leg completed for transfer id: ${message.aggregateId} took: - ${message.msgTimestamp - reqReceivedAt} ms`)

@@ -85,8 +85,8 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
           break
         }
         default: {
-          logger.warn(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
-          break
+          logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+          return
         }
       }
 
