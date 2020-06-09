@@ -4,7 +4,7 @@
 'use strict'
 
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
-import { TransfersTopics } from '../enums'
+import { MLTopics } from '../enums'
 import { TransferRawPayload } from '../types'
 
 export type TransferFulfilRequestedEvtPayload = {
@@ -21,7 +21,7 @@ export class TransferFulfilRequestedEvt extends DomainEventMsg {
   aggregateId: string
   aggregateName: string = 'Transfers'
   msgKey: string
-  msgTopic: string = TransfersTopics.DomainEvents
+  msgTopic: string = MLTopics.DomainEvents
 
   payload: TransferFulfilRequestedEvtPayload
 

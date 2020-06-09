@@ -138,9 +138,9 @@ const fulfil = async (headers, dataUri, payload, params, span) => {
     messageProtocol = await span.injectContextToMessage(messageProtocol)
 
     const transferFulfilRequestedEvtPayload = {
-      transferId: payload.transferId,
-      payerId: payload.payerFsp,
-      payeeId: payload.payeeFsp,
+      transferId: messageProtocol.id,
+      payerId: messageProtocol.to,
+      payeeId: messageProtocol.from,
       fulfilment: payload.fulfilment,
       completedTimestamp: payload.completedTimestamp,
       transferState: payload.transferState,
