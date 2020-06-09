@@ -93,8 +93,6 @@ services:
       - QUOTES_ENDPOINT=http://host.docker.internal:3002
       - PARTIES_ENDPOINT=http://host.docker.internal:4002
       - TRANSFERS_FULFIL_RESPONSE_DISABLED=false
-      - TRANSFERS_CONDITION=HOr22-H3AfTDHrSkPjJtVPRdKouuMkDXTR4ejlQa8Ks
-      - TRANSFERS_FULFILMENT=XoSz1cL0tljJSCp_VtIYmPNw-zFUgGfbUqf69AagUzY
     networks:
       - mojaloop-poc
     healthcheck:
