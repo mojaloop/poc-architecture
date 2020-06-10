@@ -104,7 +104,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
           break
         }
         default: {
-          logger.warn(`TransferEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+          logger.debug(`TransferEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
         }
       }
 
@@ -115,7 +115,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
       }
     } catch (err) {
       const errMsg: string = err?.message?.toString()
-      logger.info(`transferEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+      logger.warn(`transferEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
       logger.error(err)
     }
   }

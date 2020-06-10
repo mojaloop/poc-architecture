@@ -382,7 +382,7 @@ const processPoCMessage = async (msg, span) => {
         break
       }
       default: {
-        Logger.isWarnEnabled && Logger.warn(`TransferEvtHandler processing event - ${message.msgName}:${message.msgId} - Skipping unknown event`)
+        Logger.isDebugEnabled && Logger.debug(`TransferEvtHandler processing event - ${message.msgName}:${message.msgId} - Skipping unknown event`)
       }
     }
 

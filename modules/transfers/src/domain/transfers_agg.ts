@@ -83,7 +83,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       }
 
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
-      this._logger.info(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
       return false
     }
 
@@ -119,7 +119,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       }
 
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
-      this._logger.info(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
       return false
     }
 
@@ -148,7 +148,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       }
 
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
-      this._logger.info(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
       return false
     }
 
@@ -179,7 +179,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       }
 
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
-      this._logger.info(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
       return false
     }
 
