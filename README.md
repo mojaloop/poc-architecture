@@ -55,17 +55,52 @@ npm run docker:kafka:start
 npm run start:participants
 ```
 
+#### Participant TODO
+
+1. Add Validation to Events
+2. Add Validation to Commands
+4. Add support for `thresholdAlarmPercentage` to limits, and implementation on position changes for `reserve` (prepare) and `commit` (fulfil)
+5. Parrelize Validations for FSP-checks
+6. ...
+7. Unhappy Paths Scenarios
+    - Validation failures on incoming Events/Commands
+    - un-reserve position for PayerFSP on Rejection/Abort from PayeeFSP
+    - un-reserve position for PayerFSP on timeouts
+    - ...
+
 ### Transfer Handlers
 
 ```sh
 npm run start:transfers
 ```
 
-## Todo
+#### Transfers TODO
 
-1. Handle currencies with something that can handle arbitrary precision (or at a minimum big numbers, etc)
-2. Prometheus Metric Instrumentation
-3. ...
+1. Add Validation to Events
+2. Add Validation to Commands
+3. Optional config flag to support disabling On-Us transfers (currently support both On-Us and Off-Us unlike the As-Is switch implementation)
+4. ...
+5. Unhappy Paths Scenarios
+    - Validation failures on incoming Events/Commands
+    - Validation of expiration date on fulfils
+    - Duplicate Checks for Prepare leg (support GET operations?)
+    - Duplicate Checks for Fulfil leg (support GET operations?)
+    - Rejection/Abort from PayeeFSP
+    - Rejection/Abort on timeouts
+    - ...
+
+
+## General TODO
+
+1. ~~Handle currencies with something that can handle arbitrary precision (or at a minimum big numbers, etc)~~
+2. Prometheus Metric Instrumentation & Dashboards
+3. Tracing Support
+4. Helm charts for deployment
+5. Add support for currency specific ISO precision validations (validation as part of transfer handler or perhaps commands/events?)
+6. Non-inflight Long-term Persistant Storage for Reporting (contains full history of transfers, transfer-state-changes, position-state-changes, participants, etc)
+7. Assign completed transfers to a Settlement Window
+8. ...
+
 
 ## Known Issues
 
