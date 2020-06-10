@@ -41,7 +41,7 @@ import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg 
 import { TransferPrepareRequestedEvt, TransferFulfilRequestedEvt, TransferPreparedEvt, TransferFulfilledEvt, TransferFulfilRequestedEvtPayload, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
 import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { Crypto } from '@mojaloop-poc/lib-utilities'
-
+/* eslint-disable @typescript-eslint/no-var-requires */
 const encodePayload = require('@mojaloop/central-services-shared').Util.StreamingProtocol.encodePayload
 const contentType = 'application/vnd.interoperability.transfers+json;version=1'
 
@@ -74,6 +74,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
           if (simulatorEvt == null) throw new Error(`simulatorEvtHandler is unable to process event - ${TransferPrepareRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
           // const prepareTransferCmdPayload: PrepareTransferCmdPayload = simulatorEvt.payload
           // transferCmd = new PrepareTransferCmd(prepareTransferCmdPayload)
+          /* eslint-disable @typescript-eslint/restrict-template-expressions */
           logger.info(`simulatorEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - ${TransferPreparedEvt.name} Received - transferId: ${simulatorEvt.payload.transferId}`)
           const fulfilPayload = {
             completedTimestamp: (new Date()).toISOString(),
@@ -111,13 +112,14 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
               payload: encodedFulfilPayload
             }
           }
-      
+
           transferEvt = new TransferFulfilRequestedEvt(transferFulfilRequestedEvtPayload)
 
           break
         }
         case TransferFulfilledEvt.name: {
           simulatorEvt = TransferFulfilledEvt.fromIDomainMessage(message)
+          /* eslint-disable @typescript-eslint/restrict-template-expressions */
           if (simulatorEvt == null) throw new Error(`simulatorEvtHandler is unable to process event - ${TransferFulfilRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
           logger.info(`simulatorEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - ${TransferFulfilRequestedEvt.name} Received - transferId: ${simulatorEvt.payload.transferId}`)
           break

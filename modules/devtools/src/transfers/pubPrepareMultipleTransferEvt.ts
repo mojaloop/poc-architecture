@@ -1,5 +1,3 @@
-/* eslint-disable no-useless-escape */
-
 import { publishMessageMultiple, publishMessageMultipleInit, publishMessageMultipleDestroy } from '../utilities/publisher'
 import {
   CurrencyTypes,
@@ -9,10 +7,11 @@ import { v4 as uuidv4 } from 'uuid'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 
+/* eslint-disable @typescript-eslint/no-var-requires */
 const encodePayload = require('@mojaloop/central-services-shared').Util.StreamingProtocol.encodePayload
 
 const logger: ILogger = new ConsoleLogger()
-const INJECTED_PER_SECOND = 50
+const INJECTED_PER_SECOND = 100
 const contentType = 'application/vnd.interoperability.transfers+json;version=1'
 
 const timeout = async (ms: number): Promise<void> => {

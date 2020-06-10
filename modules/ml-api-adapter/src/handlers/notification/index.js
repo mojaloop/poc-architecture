@@ -177,9 +177,9 @@ const consumeMessage = async (error, message) => {
         Logger.error(`Notification:consumeMessage message processed error: - ${err}`)
         const fspiopError = ErrorHandler.Factory.reformatFSPIOPError(err)
         const state = new EventSdk.EventStateMetadata(EventSdk.EventStatusType.failed, fspiopError.apiErrorCode.code, fspiopError.apiErrorCode.message)
-        if (span){
+        if (span) {
           await span.error(fspiopError, state)
-          await span.finish(fspiopError.message, state)  
+          await span.finish(fspiopError.message, state)
         }
         throw fspiopError
       } finally {
@@ -385,7 +385,7 @@ const processPoCMessage = async (msg, span) => {
         break
       }
       default: {
-        Logger.isWarnEnabled && Logger.warn(`TransferEvtHandler processing event - ${message.msgName}:${message.msgId} - Skipping unknown event`)
+        Logger.isDebugEnabled && Logger.debug(`TransferEvtHandler processing event - ${message.msgName}:${message.msgId} - Skipping unknown event`)
       }
     }
 
