@@ -174,10 +174,13 @@ const consumeMessage = async (error, message) => {
         Logger.isDebugEnabled && Logger.debug(`Notification:consumeMessage message processed: - ${res}`)
         combinedResult = (combinedResult && res)
       } catch (err) {
+        Logger.error(`Notification:consumeMessage message processed error: - ${err}`)
         const fspiopError = ErrorHandler.Factory.reformatFSPIOPError(err)
         const state = new EventSdk.EventStateMetadata(EventSdk.EventStatusType.failed, fspiopError.apiErrorCode.code, fspiopError.apiErrorCode.message)
-        await span.error(fspiopError, state)
-        await span.finish(fspiopError.message, state)
+        if (span){
+          await span.error(fspiopError, state)
+          await span.finish(fspiopError.message, state)  
+        }
         throw fspiopError
       } finally {
         // ## Commented out for PoC Arch until we have included the trace metadata information in the message payloads
