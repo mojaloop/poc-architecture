@@ -32,7 +32,7 @@
 							"pm.test(\"Status code is 202\", function () {",
 							"    pm.response.to.have.status(202);",
 							"});",
-							"",
+							"var timeout = 500",
 							"//Check the request that Switch forwards to payeefsp",
 							"setTimeout(function () {",
 							"    pm.sendRequest(pm.environment.get(\"HOST_SIMULATOR\") + \"/payeefsp/requests/\" + pm.environment.get(\"transfer_ID\"), function (err, response) {",
@@ -104,11 +104,11 @@
 							"",
 							"        }",
 							"    });",
-							"}, 1100)",
+							"}, timeout)",
 							"",
 							"//Check the callback response that Switch forwards to payerfsp",
 							"setTimeout(function () {",
-							"    pm.sendRequest(pm.environment.get(\"HOST_SIMULATOR\") + \"/payerfsp/callbacks/\" + pm.environment.get(\"transfer_ID\"), function (err, response) {",
+							"    pm.sendRequest(pm.environment.get(\"HOST_SIMULATOR\") + \"/payeefsp/callbacks/\" + pm.environment.get(\"transfer_ID\"), function (err, response) {",
 							"        if (response.responseSize !== 0) {",
 							"            //Checking headers",
 							"            var headers = response.json().headers;",
@@ -150,7 +150,7 @@
 							"",
 							"        }",
 							"    });",
-							"}, 1300)",
+							"}, timeout)",
 							"",
 							"",
 							""
@@ -159,6 +159,11 @@
 					}
 				}
 			],
+			"protocolProfileBehavior": {
+				"disabledSystemHeaders": {
+					"content-type": true
+				}
+			},
 			"request": {
 				"method": "POST",
 				"header": [
