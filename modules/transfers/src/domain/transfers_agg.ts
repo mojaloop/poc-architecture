@@ -143,10 +143,10 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       this._rootEntity.fulfilTransfer(transferFulfilRequestData)
     } catch (err) {
       const invalidTransferEvtPayload: InvalidTransferEvtPayload = {
-        transferId: commandMsg.payload.transferId,
-        reason: 'transfer fulfill failed (probably fulfil condition check failed)'
+        transferId: commandMsg.payload.transferId
       }
-
+      /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+      invalidTransferEvtPayload.reason = `${err.constructor.name} ${err.message}`
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
       this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
       return false

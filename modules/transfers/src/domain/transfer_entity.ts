@@ -25,6 +25,7 @@ export enum TransferInternalStates {
 }
 
 export class ValidateFulfilConditionFailed extends Error {}
+export class ValidateFulfilConditionNoMatch extends Error {}
 
 export class TransferState extends BaseEntityState {
   amount: string
@@ -67,7 +68,7 @@ const fulfilmentToCondition = (fulfilment: string): string => {
   const preimage = base64url.toBuffer(fulfilment)
 
   if (preimage.length !== 32) {
-    throw new Error('fulfilmentToCondition:: Interledger preimages must be exactly 32 bytes')
+    throw new ValidateFulfilConditionFailed('fulfilmentToCondition: Interledger preimages must be exactly 32 bytes')
   }
 
   const calculatedConditionDigest = hashSha256.update(preimage).digest('base64')
@@ -143,7 +144,7 @@ export class TransferEntity extends BaseEntity<TransferState> {
   fulfilTransfer (incommingTransfer: FulfilTransferData): void {
     if (!this.validateFulfilCondition(incommingTransfer.fulfilment)) {
       this._state.transferInternalState = TransferInternalStates.RECEIVED_ERROR
-      throw new ValidateFulfilConditionFailed('Unable to \'validateFulfilCondition\'')
+      throw new ValidateFulfilConditionNoMatch(`Fulfilment and condition do not match (condition: ${this._state.condition} fulfilment: ${incommingTransfer.fulfilment})`)
     }
     this._state.fulfilment = incommingTransfer.fulfilment
     this._state.completedTimestamp = incommingTransfer.completedTimestamp
