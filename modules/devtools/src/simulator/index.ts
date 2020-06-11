@@ -39,8 +39,8 @@
 
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { MessageConsumer, KafkaInfraTypes } from '@mojaloop-poc/lib-infrastructure'
-import * as SimulatorEvtHandler from './simulatorEvtHandler'
+import { iRunHandler, KafkaInfraTypes } from '@mojaloop-poc/lib-infrastructure'
+import { SimulatorEvtHandler } from './simulatorEvtHandler'
 import * as dotenv from 'dotenv'
 import { Command } from 'commander'
 import { resolve as Resolve } from 'path'
@@ -80,16 +80,12 @@ Program.command('handler')
     logger.debug(`appConfig=${JSON.stringify(appConfig)}`)
 
     // list of all handlers
-    const consumerHandlerList: MessageConsumer[] = []
+    const runHandlerList: iRunHandler[] = []
 
     // start all handlers here
-    consumerHandlerList.push(await SimulatorEvtHandler.start(appConfig, logger))
-    // if (args.transferEvt == null && args.transferCmd == null) {
-    //   consumerHandlerList.push(await SimulatorEvtHandler.start(appConfig, logger))
-    // }
-    // if (args.transferEvt != null) {
-    //   consumerHandlerList.push(await TransferEvtHandler.start(appConfig, logger))
-    // }
+    const simulatorEvtHandler = new SimulatorEvtHandler()
+    await simulatorEvtHandler.start(appConfig, logger)
+    runHandlerList.push(simulatorEvtHandler)
 
     // lets clean up all consumers here
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
@@ -97,9 +93,9 @@ Program.command('handler')
       logger.info('Exiting process...')
       logger.info('Disconnecting handlers...')
       /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-      consumerHandlerList.forEach(async (consumer) => {
-        logger.info(`\tDestroying handler...${consumer.constructor.name}`)
-        await consumer.destroy(true)
+      runHandlerList.forEach(async (handler) => {
+        logger.info(`\tDestroying handler...${handler.constructor.name}`)
+        await handler.destroy()
       })
       logger.info('Exit complete!')
       process.exit(2)

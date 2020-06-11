@@ -39,9 +39,9 @@
 
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { MessageConsumer, KafkaInfraTypes } from '@mojaloop-poc/lib-infrastructure'
-import * as ParticipantCmdHandler from './participantCmdHandler'
-import * as ParticipantEvtHandler from './participantEvtHandler'
+import { iRunHandler, KafkaInfraTypes } from '@mojaloop-poc/lib-infrastructure'
+import { ParticipantCmdHandler } from './participantCmdHandler'
+import { ParticipantEvtHandler } from './participantEvtHandler'
 import * as dotenv from 'dotenv'
 import { Command } from 'commander'
 import { resolve as Resolve } from 'path'
@@ -86,29 +86,38 @@ Program.command('handler')
     logger.debug(`appConfig=${JSON.stringify(appConfig)}`)
 
     // list of all handlers
-    const consumerHandlerList: MessageConsumer[] = []
+    const runHandlerList: iRunHandler[] = []
 
     // start all handlers here
     if (args.participantsEvtHandler == null && args.participantsCmdHandler == null) {
-      consumerHandlerList.push(await ParticipantEvtHandler.start(appConfig, logger))
-      consumerHandlerList.push(await ParticipantCmdHandler.start(appConfig, logger))
+      const participantEvtHandler = new ParticipantEvtHandler()
+      await participantEvtHandler.start(appConfig, logger)
+      runHandlerList.push(participantEvtHandler)
+
+      const participantCmdHandler = new ParticipantCmdHandler()
+      await participantCmdHandler.start(appConfig, logger)
+      runHandlerList.push(participantCmdHandler)
     }
     if (args.participantsEvtHandler != null) {
-      consumerHandlerList.push(await ParticipantEvtHandler.start(appConfig, logger))
+      const participantEvtHandler = new ParticipantEvtHandler()
+      await participantEvtHandler.start(appConfig, logger)
+      runHandlerList.push(participantEvtHandler)
     }
     if (args.participantsCmdHandler != null) {
-      consumerHandlerList.push(await ParticipantCmdHandler.start(appConfig, logger))
+      const participantCmdHandler = new ParticipantCmdHandler()
+      await participantCmdHandler.start(appConfig, logger)
+      runHandlerList.push(participantCmdHandler)
     }
 
     // lets clean up all consumers here
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     const killProcess = async (): Promise<void> => {
       logger.info('Exiting process...')
-      logger.info('Disconnecting handlers...')
+      logger.info('Destroying handlers...')
       /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-      consumerHandlerList.forEach(async (consumer) => {
-        logger.info(`\tDestroying handler...${consumer.constructor.name}`)
-        await consumer.destroy(true)
+      runHandlerList.forEach(async (handler) => {
+        logger.info(`\tDestroying handler...${handler.constructor.name}`)
+        await handler.destroy()
       })
       logger.info('Exit complete!')
       process.exit(2)

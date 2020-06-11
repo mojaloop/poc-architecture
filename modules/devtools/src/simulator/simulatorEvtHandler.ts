@@ -39,183 +39,193 @@
 // import {InMemoryTransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransferPrepareRequestedEvt, TransferFulfilRequestedEvt, TransferPreparedEvt, TransferFulfilledEvt, TransferFulfilRequestedEvtPayload, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
-import { KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { iRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { Crypto } from '@mojaloop-poc/lib-utilities'
 /* eslint-disable @typescript-eslint/no-var-requires */
 const encodePayload = require('@mojaloop/central-services-shared').Util.StreamingProtocol.encodePayload
 const contentType = 'application/vnd.interoperability.transfers+json;version=1'
 
-export const start = async (appConfig: any, logger: ILogger): Promise<MessageConsumer> => {
-  let kafkaMsgPublisher: IMessagePublisher | undefined
+export class SimulatorEvtHandler implements iRunHandler {
+  private _consumer: MessageConsumer
+  private _publisher: IMessagePublisher
 
-  /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-  logger.info(`Creating ${appConfig.kafka.consumer} simulatorEvtHandler.kafkaMsgPublisher...`)
-  switch (appConfig.kafka.consumer) {
-    case (KafkaInfraTypes.NODE_KAFKA): {
-      const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
-        client: {
-          kafka: {
-            kafkaHost: appConfig.kafka.host,
-            clientId: `simulatorEvtHandler-${Crypto.randomBytes(8)}`
-          }
-        }
-      }
-      kafkaMsgPublisher = new KafkaMessagePublisher(
-        kafkaGenericProducerOptions,
-        logger
-      )
-      break
-    }
-    case (KafkaInfraTypes.KAFKAJS): {
-      const kafkaJsConsumerOptions: KafkaJsProducerOptions = {
-        client: {
-          client: { // https://kafka.js.org/docs/configuration#options
-            brokers: ['localhost:9092'],
-            clientId: `simulatorEvtHandler-${Crypto.randomBytes(8)}`
-          },
-          producer: { // https://kafka.js.org/docs/producing#options
-            allowAutoTopicCreation: true,
-            idempotent: true, // false is default
-            transactionTimeout: 60000
-          }
-        }
-      }
-      kafkaMsgPublisher = new KafkajsMessagePublisher(
-        kafkaJsConsumerOptions,
-        logger
-      )
-      break
-    }
-    default: {
-      logger.warn('Unable to find a Kafka Producer implementation!')
-      throw new Error('simulatorEvtHandler.kafkaMsgPublisher was not created!')
-    }
-  }
+  async start (appConfig: any, logger: ILogger): Promise<void> {
+    let kafkaMsgPublisher: IMessagePublisher | undefined
 
-  await kafkaMsgPublisher.init()
-
-  const simulatorEvtHandler = async (message: IDomainMessage): Promise<void> => {
-    try {
-      logger.info(`simulatorEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
-      let simulatorEvt: DomainEventMsg | undefined
-      let transferEvt: CommandMsg | null = null
-      // # Transform messages into correct Command
-      switch (message.msgName) {
-        case TransferPreparedEvt.name: {
-          simulatorEvt = TransferPreparedEvt.fromIDomainMessage(message)
-          if (simulatorEvt == null) throw new Error(`simulatorEvtHandler is unable to process event - ${TransferPrepareRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
-          // const prepareTransferCmdPayload: PrepareTransferCmdPayload = simulatorEvt.payload
-          // transferCmd = new PrepareTransferCmd(prepareTransferCmdPayload)
-          /* eslint-disable @typescript-eslint/restrict-template-expressions */
-          logger.info(`simulatorEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - ${TransferPreparedEvt.name} Received - transferId: ${simulatorEvt.payload.transferId}`)
-          const fulfilPayload = {
-            completedTimestamp: (new Date()).toISOString(),
-            transferState: 'COMMITTED',
-            fulfilment: 'XoSz1cL0tljJSCp_VtIYmPNw-zFUgGfbUqf69AagUzY'
-          }
-
-          const encodedFulfilPayload = encodePayload(Buffer.from(JSON.stringify(fulfilPayload)), contentType)
-
-          const transferFulfilRequestedEvtPayload: TransferFulfilRequestedEvtPayload = {
-            transferId: message.payload.transferId,
-            payerId: message.payload.payerId,
-            payeeId: message.payload.payeeId,
-            fulfilment: fulfilPayload.fulfilment,
-            completedTimestamp: fulfilPayload.completedTimestamp,
-            transferState: fulfilPayload.transferState,
-            fulfil: {
-              headers: {
-                accept: 'application/vnd.interoperability.transfers+json;version=1',
-                'content-type': 'application/vnd.interoperability.transfers+json;version=1.0',
-                date: '2020-06-08T08:15:26.000Z',
-                'fspiop-source': message.payload.payerId,
-                'fspiop-destination': message.payload.payeeId,
-                'fspiop-signature': '{"signature":"iU4GBXSfY8twZMj1zXX1CTe3LDO8Zvgui53icrriBxCUF_wltQmnjgWLWI4ZUEueVeOeTbDPBZazpBWYvBYpl5WJSUoXi14nVlangcsmu2vYkQUPmHtjOW-yb2ng6_aPfwd7oHLWrWzcsjTF-S4dW7GZRPHEbY_qCOhEwmmMOnE1FWF1OLvP0dM0r4y7FlnrZNhmuVIFhk_pMbEC44rtQmMFv4pm4EVGqmIm3eyXz0GkX8q_O1kGBoyIeV_P6RRcZ0nL6YUVMhPFSLJo6CIhL2zPm54Qdl2nVzDFWn_shVyV0Cl5vpcMJxJ--O_Zcbmpv6lxqDdygTC782Ob3CNMvg","protectedHeader":"eyJhbGciOiJSUzI1NiIsIkZTUElPUC1VUkkiOiIvdHJhbnNmZXJzIiwiRlNQSU9QLUhUVFAtTWV0aG9kIjoiUE9TVCIsIkZTUElPUC1Tb3VyY2UiOiJPTUwiLCJGU1BJT1AtRGVzdGluYXRpb24iOiJNVE5Nb2JpbGVNb25leSIsIkRhdGUiOiIifQ"}',
-                'fspiop-uri': `/transfers/${message.payload.transferId}`,
-                'fspiop-http-method': 'POST',
-                'user-agent': 'PostmanRuntime/7.25.0',
-                'cache-control': 'no-cache',
-                'postman-token': 'e9db5115-86d7-48dd-ab0f-07b4059d5063',
-                host: 'ml-api-adapter.local:3000',
-                'accept-encoding': 'gzip, deflate, br',
-                connection: 'keep-alive',
-                'content-length': '1062'
-              },
-              payload: encodedFulfilPayload
+    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+    logger.info(`Creating ${appConfig.kafka.consumer} simulatorEvtHandler.kafkaMsgPublisher...`)
+    switch (appConfig.kafka.consumer) {
+      case (KafkaInfraTypes.NODE_KAFKA): {
+        const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
+          client: {
+            kafka: {
+              kafkaHost: appConfig.kafka.host,
+              clientId: `simulatorEvtHandler-${Crypto.randomBytes(8)}`
             }
           }
-
-          transferEvt = new TransferFulfilRequestedEvt(transferFulfilRequestedEvtPayload)
-
-          break
         }
-        case TransferFulfilledEvt.name: {
-          simulatorEvt = TransferFulfilledEvt.fromIDomainMessage(message)
-          /* eslint-disable @typescript-eslint/restrict-template-expressions */
-          if (simulatorEvt == null) throw new Error(`simulatorEvtHandler is unable to process event - ${TransferFulfilRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
-          logger.info(`simulatorEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - ${TransferFulfilRequestedEvt.name} Received - transferId: ${simulatorEvt.payload.transferId}`)
-          break
-        }
-        default: {
-          logger.debug(`simulatorEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
-        }
+        kafkaMsgPublisher = new KafkaMessagePublisher(
+          kafkaGenericProducerOptions,
+          logger
+        )
+        break
       }
-
-      if (transferEvt != null) {
-        logger.info(`simulatorEvtHandler publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${transferEvt?.msgName}:${transferEvt?.msgId}`)
-        await kafkaMsgPublisher!.publish(transferEvt)
-        logger.info(`simulatorEvtHandler publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
-      }
-    } catch (err) {
-      const errMsg: string = err?.message?.toString()
-      logger.info(`simulatorEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
-      logger.error(err)
-    }
-  }
-
-  let simulatorEvtConsumer: MessageConsumer | undefined
-
-  /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-  logger.info(`Creating ${appConfig.kafka.consumer} simulatorEvtConsumer...`)
-  switch (appConfig.kafka.consumer) {
-    case (KafkaInfraTypes.NODE_KAFKA): {
-      const simulatorEvtConsumerOptions: KafkaGenericConsumerOptions = {
-        client: {
-          kafkaHost: appConfig.kafka.host,
-          id: `simulatorEvtConsumer-${Crypto.randomBytes(8)}`,
-          groupId: 'simulatorEvtGroup',
-          fromOffset: EnumOffset.LATEST
-        },
-        topics: [TransfersTopics.DomainEvents]
-      }
-      simulatorEvtConsumer = new KafkaGenericConsumer(simulatorEvtConsumerOptions, logger)
-      break
-    }
-    case (KafkaInfraTypes.KAFKAJS): {
-      const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
-        client: {
-          client: { // https://kafka.js.org/docs/configuration#options
-            brokers: ['localhost:9092'],
-            clientId: `simulatorEvtConsumer-${Crypto.randomBytes(8)}`
-          },
-          consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
-            groupId: 'simulatorEvtGroup'
+      case (KafkaInfraTypes.KAFKAJS): {
+        const kafkaJsConsumerOptions: KafkaJsProducerOptions = {
+          client: {
+            client: { // https://kafka.js.org/docs/configuration#options
+              brokers: ['localhost:9092'],
+              clientId: `simulatorEvtHandler-${Crypto.randomBytes(8)}`
+            },
+            producer: { // https://kafka.js.org/docs/producing#options
+              allowAutoTopicCreation: true,
+              idempotent: true, // false is default
+              transactionTimeout: 60000
+            }
           }
-        },
-        topics: [TransfersTopics.DomainEvents]
+        }
+        kafkaMsgPublisher = new KafkajsMessagePublisher(
+          kafkaJsConsumerOptions,
+          logger
+        )
+        break
       }
-      simulatorEvtConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
-      break
+      default: {
+        logger.warn('Unable to find a Kafka Producer implementation!')
+        throw new Error('simulatorEvtHandler.kafkaMsgPublisher was not created!')
+      }
     }
-    default: {
-      logger.warn('Unable to find a Kafka consumer implementation!')
-      throw new Error('simulatorEvtConsumer was not created!')
+
+    this._publisher = kafkaMsgPublisher
+    await kafkaMsgPublisher.init()
+
+    const simulatorEvtHandler = async (message: IDomainMessage): Promise<void> => {
+      try {
+        logger.info(`simulatorEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+        let simulatorEvt: DomainEventMsg | undefined
+        let transferEvt: CommandMsg | null = null
+        // # Transform messages into correct Command
+        switch (message.msgName) {
+          case TransferPreparedEvt.name: {
+            simulatorEvt = TransferPreparedEvt.fromIDomainMessage(message)
+            if (simulatorEvt == null) throw new Error(`simulatorEvtHandler is unable to process event - ${TransferPrepareRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+            // const prepareTransferCmdPayload: PrepareTransferCmdPayload = simulatorEvt.payload
+            // transferCmd = new PrepareTransferCmd(prepareTransferCmdPayload)
+            /* eslint-disable @typescript-eslint/restrict-template-expressions */
+            logger.info(`simulatorEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - ${TransferPreparedEvt.name} Received - transferId: ${simulatorEvt.payload.transferId}`)
+            const fulfilPayload = {
+              completedTimestamp: (new Date()).toISOString(),
+              transferState: 'COMMITTED',
+              fulfilment: 'XoSz1cL0tljJSCp_VtIYmPNw-zFUgGfbUqf69AagUzY'
+            }
+
+            const encodedFulfilPayload = encodePayload(Buffer.from(JSON.stringify(fulfilPayload)), contentType)
+
+            const transferFulfilRequestedEvtPayload: TransferFulfilRequestedEvtPayload = {
+              transferId: message.payload.transferId,
+              payerId: message.payload.payerId,
+              payeeId: message.payload.payeeId,
+              fulfilment: fulfilPayload.fulfilment,
+              completedTimestamp: fulfilPayload.completedTimestamp,
+              transferState: fulfilPayload.transferState,
+              fulfil: {
+                headers: {
+                  accept: 'application/vnd.interoperability.transfers+json;version=1',
+                  'content-type': 'application/vnd.interoperability.transfers+json;version=1.0',
+                  date: '2020-06-08T08:15:26.000Z',
+                  'fspiop-source': message.payload.payerId,
+                  'fspiop-destination': message.payload.payeeId,
+                  'fspiop-signature': '{"signature":"iU4GBXSfY8twZMj1zXX1CTe3LDO8Zvgui53icrriBxCUF_wltQmnjgWLWI4ZUEueVeOeTbDPBZazpBWYvBYpl5WJSUoXi14nVlangcsmu2vYkQUPmHtjOW-yb2ng6_aPfwd7oHLWrWzcsjTF-S4dW7GZRPHEbY_qCOhEwmmMOnE1FWF1OLvP0dM0r4y7FlnrZNhmuVIFhk_pMbEC44rtQmMFv4pm4EVGqmIm3eyXz0GkX8q_O1kGBoyIeV_P6RRcZ0nL6YUVMhPFSLJo6CIhL2zPm54Qdl2nVzDFWn_shVyV0Cl5vpcMJxJ--O_Zcbmpv6lxqDdygTC782Ob3CNMvg","protectedHeader":"eyJhbGciOiJSUzI1NiIsIkZTUElPUC1VUkkiOiIvdHJhbnNmZXJzIiwiRlNQSU9QLUhUVFAtTWV0aG9kIjoiUE9TVCIsIkZTUElPUC1Tb3VyY2UiOiJPTUwiLCJGU1BJT1AtRGVzdGluYXRpb24iOiJNVE5Nb2JpbGVNb25leSIsIkRhdGUiOiIifQ"}',
+                  'fspiop-uri': `/transfers/${message.payload.transferId}`,
+                  'fspiop-http-method': 'POST',
+                  'user-agent': 'PostmanRuntime/7.25.0',
+                  'cache-control': 'no-cache',
+                  'postman-token': 'e9db5115-86d7-48dd-ab0f-07b4059d5063',
+                  host: 'ml-api-adapter.local:3000',
+                  'accept-encoding': 'gzip, deflate, br',
+                  connection: 'keep-alive',
+                  'content-length': '1062'
+                },
+                payload: encodedFulfilPayload
+              }
+            }
+
+            transferEvt = new TransferFulfilRequestedEvt(transferFulfilRequestedEvtPayload)
+
+            break
+          }
+          case TransferFulfilledEvt.name: {
+            simulatorEvt = TransferFulfilledEvt.fromIDomainMessage(message)
+            /* eslint-disable @typescript-eslint/restrict-template-expressions */
+            if (simulatorEvt == null) throw new Error(`simulatorEvtHandler is unable to process event - ${TransferFulfilRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+            logger.info(`simulatorEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - ${TransferFulfilRequestedEvt.name} Received - transferId: ${simulatorEvt.payload.transferId}`)
+            break
+          }
+          default: {
+            logger.debug(`simulatorEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+          }
+        }
+
+        if (transferEvt != null) {
+          logger.info(`simulatorEvtHandler publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${transferEvt?.msgName}:${transferEvt?.msgId}`)
+          await kafkaMsgPublisher!.publish(transferEvt)
+          logger.info(`simulatorEvtHandler publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+        }
+      } catch (err) {
+        const errMsg: string = err?.message?.toString()
+        logger.info(`simulatorEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+        logger.error(err)
+      }
     }
+
+    let simulatorEvtConsumer: MessageConsumer | undefined
+
+    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+    logger.info(`Creating ${appConfig.kafka.consumer} simulatorEvtConsumer...`)
+    switch (appConfig.kafka.consumer) {
+      case (KafkaInfraTypes.NODE_KAFKA): {
+        const simulatorEvtConsumerOptions: KafkaGenericConsumerOptions = {
+          client: {
+            kafkaHost: appConfig.kafka.host,
+            id: `simulatorEvtConsumer-${Crypto.randomBytes(8)}`,
+            groupId: 'simulatorEvtGroup',
+            fromOffset: EnumOffset.LATEST
+          },
+          topics: [TransfersTopics.DomainEvents]
+        }
+        simulatorEvtConsumer = new KafkaGenericConsumer(simulatorEvtConsumerOptions, logger)
+        break
+      }
+      case (KafkaInfraTypes.KAFKAJS): {
+        const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
+          client: {
+            client: { // https://kafka.js.org/docs/configuration#options
+              brokers: ['localhost:9092'],
+              clientId: `simulatorEvtConsumer-${Crypto.randomBytes(8)}`
+            },
+            consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
+              groupId: 'simulatorEvtGroup'
+            }
+          },
+          topics: [TransfersTopics.DomainEvents]
+        }
+        simulatorEvtConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
+        break
+      }
+      default: {
+        logger.warn('Unable to find a Kafka consumer implementation!')
+        throw new Error('simulatorEvtConsumer was not created!')
+      }
+    }
+
+    this._consumer = simulatorEvtConsumer
+    logger.info('Initializing transferCmdConsumer...')
+    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+    await simulatorEvtConsumer.init(simulatorEvtHandler)
   }
 
-  logger.info('Initializing transferCmdConsumer...')
-  /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-  await simulatorEvtConsumer.init(simulatorEvtHandler)
-
-  return simulatorEvtConsumer
+  async destroy (): Promise<void> {
+    await this._consumer.destroy(true)
+    await this._publisher.destroy()
+  }
 }

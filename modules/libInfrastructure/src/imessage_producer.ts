@@ -44,7 +44,7 @@ export type Options<tClientOptions> = {
   client: tClientOptions
 }
 
-export type iMessageProducer = {
+export interface iMessageProducer {
   init: (handlerCallback: (message: IDomainMessage) => void) => void
   destroy: (forceCommit: boolean) => Promise<void>
   connect: () => void

@@ -38,28 +38,9 @@
 
 'use strict'
 
-import { IDomainMessage } from '@mojaloop-poc/lib-domain'
-import { EventEmitter } from 'events'
+import { ILogger } from '@mojaloop-poc/lib-domain'
 
-export type Options<tClientOptions> = {
-  client: tClientOptions
-  topics: string | string[]
-}
-
-export interface iMessageConsumer {
-  init: (handlerCallback: (message: IDomainMessage) => void) => void
-  destroy: (forceCommit: boolean) => Promise<void>
-  connect: () => void
-  pause: () => void
-  resume: () => void
-  disconnect: () => void
-}
-
-export abstract class MessageConsumer extends EventEmitter implements iMessageConsumer {
-  abstract init (handlerCallback: (message: IDomainMessage) => void): void
-  abstract destroy (forceCommit: boolean): Promise<void>
-  abstract connect (): void
-  abstract pause (): void
-  abstract resume (): void
-  abstract disconnect (): void
+export interface iRunHandler {
+  start: (appConfig: any, logger: ILogger) => Promise<void>
+  destroy: () => Promise<void>
 }
