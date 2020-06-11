@@ -12,6 +12,13 @@ import { logLevel, Consumer, PartitionAssigners, ConsumerConfig, KafkaConfig, Ka
 type KafkajsConfig = {
   client: KafkaConfig
   consumer: ConsumerConfig
+  consumerRunConfig?: {
+    autoCommit?: boolean
+    autoCommitInterval?: number | null
+    autoCommitThreshold?: number | null
+    eachBatchAutoResolve?: boolean
+    partitionsConsumedConcurrently?: number
+  }
 }
 
 export type KafkaJsConsumerOptions = Options<KafkajsConfig>
@@ -23,6 +30,7 @@ export class KafkaJsConsumer extends MessageConsumer {
   private readonly _initialized: boolean = false
   private readonly _syncQueue: async.AsyncQueue<any> | undefined
   private readonly _options: KafkaJsConsumerOptions
+  private _defaultedKafkajsConfig: KafkajsConfig
 
   private readonly _queue: any[] = []
   private readonly _processing: boolean = false
@@ -75,7 +83,7 @@ export class KafkaJsConsumer extends MessageConsumer {
         logLevel: logLevel.ERROR
       },
       consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
-        groupId: 'notset',
+        groupId: 'notset', // cannot make this null, but it should be unique
         partitionAssigners: [PartitionAssigners.roundRobin]
         // metadataMaxAge: 300000,
         // sessionTimeout: 30000,
@@ -89,6 +97,13 @@ export class KafkaJsConsumer extends MessageConsumer {
         // allowAutoTopicCreation: true,
         // maxInFlightRequests: undefined,
         // readUncommitted: false
+      },
+      consumerRunConfig: {
+        autoCommit: true,
+        autoCommitInterval: null,
+        autoCommitThreshold: null,
+        eachBatchAutoResolve: true,
+        partitionsConsumedConcurrently: 1
       }
     }
 
@@ -96,6 +111,8 @@ export class KafkaJsConsumer extends MessageConsumer {
     const KafkajsOptions = { ...defaultKafkajsOptions }
     // override any values with the options given to the client
     Object.assign(KafkajsOptions, this._options.client)
+
+    this._defaultedKafkajsConfig = Object.assign({}, KafkajsOptions)
 
     this._logger.debug(`Consumer options: \n${JSON.stringify(KafkajsOptions)}`)
     this._client = new Kafkajs(KafkajsOptions.client)
@@ -115,7 +132,11 @@ export class KafkaJsConsumer extends MessageConsumer {
     }
 
     await this._consumer.run({
-      autoCommit: false,
+      autoCommit: this._defaultedKafkajsConfig.consumerRunConfig?.autoCommit,
+      autoCommitInterval: this._defaultedKafkajsConfig.consumerRunConfig?.autoCommitInterval,
+      autoCommitThreshold: this._defaultedKafkajsConfig.consumerRunConfig?.autoCommitThreshold,
+      eachBatchAutoResolve: this._defaultedKafkajsConfig.consumerRunConfig?.eachBatchAutoResolve,
+      partitionsConsumedConcurrently: this._defaultedKafkajsConfig.consumerRunConfig?.partitionsConsumedConcurrently,
       eachMessage: async ({ topic, partition, message }) => {
         try {
           const domainMessage = JSON.parse(message.value.toString()) as IDomainMessage

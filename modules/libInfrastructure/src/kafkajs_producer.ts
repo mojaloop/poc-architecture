@@ -40,11 +40,20 @@
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 import { ILogger, IMessage } from '@mojaloop-poc/lib-domain'
 import { MessageProducer, Options, iMessageProducer } from './imessage_producer'
-import { TopicMessages, logLevel, Producer, Partitioners, ProducerConfig, KafkaConfig, Kafka as Kafkajs } from 'kafkajs'
+import { CompressionTypes, TopicMessages, logLevel, Producer, Partitioners, ProducerConfig, KafkaConfig, Kafka as Kafkajs } from 'kafkajs'
+
+export enum KafkajsAcks {
+  ALL = -1,
+  NONE = 0,
+  LEADER = 1
+}
 
 type KafkajsConfig = {
   client: KafkaConfig
   producer: ProducerConfig
+  acks?: KafkajsAcks
+  timeout?: number
+  compression?: CompressionTypes
 }
 
 export type KafkaJsProducerOptions = Options<KafkajsConfig>
@@ -54,6 +63,7 @@ export class KafkajsProducer extends MessageProducer {
   private _producer!: Producer
   private readonly _knownTopics = new Map<string, boolean>()
   private readonly _options: KafkaJsProducerOptions
+  private _defaultedKafkajsConfig: KafkajsConfig
 
   constructor (options: KafkaJsProducerOptions, logger?: ILogger) {
     super()
@@ -105,13 +115,18 @@ export class KafkajsProducer extends MessageProducer {
         // transactionalId?: string // cant find much about this?
         transactionTimeout: 60000
         // maxInFlightRequests: 1 // default is unlimited
-      }
+      },
+      acks: KafkajsAcks.ALL,
+      timeout: 30000,
+      compression: CompressionTypes.None
     }
 
     // copy default config
-    const KafkajsOptions = { ...defaultKafkajsOptions }
+    const KafkajsOptions: KafkajsConfig = { ...defaultKafkajsOptions }
     // override any values with the options given to the client
     Object.assign(KafkajsOptions, this._options.client)
+
+    this._defaultedKafkajsConfig = Object.assign({}, KafkajsOptions)
 
     this._logger.debug(`Producer options: \n${JSON.stringify(KafkajsOptions)}`)
 
@@ -153,9 +168,9 @@ export class KafkajsProducer extends MessageProducer {
     await this._producer.sendBatch({
       topicMessages,
       // # Ref: https://kafka.js.org/docs/producing#options
-      acks: -1
-      // timeout: 1000,
-      // compression: TBD
+      acks: this._defaultedKafkajsConfig.acks,
+      timeout: this._defaultedKafkajsConfig.timeout,
+      compression: this._defaultedKafkajsConfig.compression
     })
   }
 
