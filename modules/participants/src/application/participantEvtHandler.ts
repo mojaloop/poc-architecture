@@ -40,7 +40,7 @@
 // import {InMemoryParticipantStateRepo} from "../infrastructure/inmemory_participant_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransferPrepareAcceptedEvt, TransferFulfilAcceptedEvt, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
-import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { KafkaConsumerTypes, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { ReservePayerFundsCmd, ReservePayerFundsCmdPayload } from '../messages/reserve_payer_funds_cmd'
 import { CommitPayeeFundsCmd, CommitPayeeFundsCmdPayload } from '../messages/commit_payee_funds_cmd'
 import { InvalidParticipantEvtError } from './errors'
@@ -105,22 +105,48 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
     }
   }
 
-  const participantEvtConsumerOptions: KafkaGenericConsumerOptions = {
-    client: {
-      kafkaHost: appConfig.kafka.host,
-      id: `participantEvtConsumer-${Crypto.randomBytes(8)}`,
-      groupId: 'participantEvtGroup',
-      fromOffset: EnumOffset.LATEST
-    },
-    topics: [TransfersTopics.DomainEvents]
-  }
+  let participantEvtConsumer: MessageConsumer | undefined
 
-  logger.info('Creating participantEvtConsumer...')
-  const participantEvtConsumer = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(participantEvtConsumerOptions, logger)
+  /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+  logger.info(`Creating ${appConfig.kafka.consumer} participantEvtConsumer...`)
+  switch (appConfig.kafka.consumer) {
+    case (KafkaConsumerTypes.NODE_KAFKA): {
+      const participantEvtConsumerOptions: KafkaGenericConsumerOptions = {
+        client: {
+          kafkaHost: appConfig.kafka.host,
+          id: `participantEvtConsumer-${Crypto.randomBytes(8)}`,
+          groupId: 'participantEvtGroup',
+          fromOffset: EnumOffset.LATEST
+        },
+        topics: [TransfersTopics.DomainEvents]
+      }
+      participantEvtConsumer = new KafkaGenericConsumer(participantEvtConsumerOptions, logger)
+      break
+    }
+    case (KafkaConsumerTypes.KAFKAJS): {
+      const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
+        client: {
+          client: { // https://kafka.js.org/docs/configuration#options
+            brokers: ['localhost:9092'],
+            clientId: `participantEvtConsumer-${Crypto.randomBytes(8)}`
+          },
+          consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
+            groupId: 'participantEvtGroup'
+          }
+        },
+        topics: [TransfersTopics.DomainEvents]
+      }
+      participantEvtConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
+      break
+    }
+    default: {
+      logger.warn('Unable to find a Kafka consumer implementation!')
+      throw new Error('participantEvtConsumer was not created!')
+    }
+  }
 
   logger.info('Initializing participantCmdConsumer...')
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
   await participantEvtConsumer.init(participantEvtHandler)
-
   return participantEvtConsumer
 }

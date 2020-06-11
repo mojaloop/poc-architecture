@@ -39,7 +39,7 @@
 // import {InMemoryTransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransferPrepareRequestedEvt, TransferFulfilRequestedEvt, TransferPreparedEvt, TransferFulfilledEvt, TransferFulfilRequestedEvtPayload, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
-import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { KafkaConsumerTypes, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { Crypto } from '@mojaloop-poc/lib-utilities'
 /* eslint-disable @typescript-eslint/no-var-requires */
 const encodePayload = require('@mojaloop/central-services-shared').Util.StreamingProtocol.encodePayload
@@ -141,18 +141,45 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
     }
   }
 
-  const simulatorEvtConsumerOptions: KafkaGenericConsumerOptions = {
-    client: {
-      kafkaHost: appConfig.kafka.host,
-      id: `simulatorEvtConsumer-${Crypto.randomBytes(8)}`,
-      groupId: 'simulatorEvtGroup',
-      fromOffset: EnumOffset.LATEST
-    },
-    topics: [TransfersTopics.DomainEvents]
-  }
+  let simulatorEvtConsumer: MessageConsumer | undefined
 
-  logger.info('Creating simulatorEvtConsumer...')
-  const simulatorEvtConsumer = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(simulatorEvtConsumerOptions, logger)
+  /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+  logger.info(`Creating ${appConfig.kafka.consumer} simulatorEvtConsumer...`)
+  switch (appConfig.kafka.consumer) {
+    case (KafkaConsumerTypes.NODE_KAFKA): {
+      const simulatorEvtConsumerOptions: KafkaGenericConsumerOptions = {
+        client: {
+          kafkaHost: appConfig.kafka.host,
+          id: `simulatorEvtConsumer-${Crypto.randomBytes(8)}`,
+          groupId: 'simulatorEvtGroup',
+          fromOffset: EnumOffset.LATEST
+        },
+        topics: [TransfersTopics.DomainEvents]
+      }
+      simulatorEvtConsumer = new KafkaGenericConsumer(simulatorEvtConsumerOptions, logger)
+      break
+    }
+    case (KafkaConsumerTypes.KAFKAJS): {
+      const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
+        client: {
+          client: { // https://kafka.js.org/docs/configuration#options
+            brokers: ['localhost:9092'],
+            clientId: `simulatorEvtConsumer-${Crypto.randomBytes(8)}`
+          },
+          consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
+            groupId: 'simulatorEvtGroup'
+          }
+        },
+        topics: [TransfersTopics.DomainEvents]
+      }
+      simulatorEvtConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
+      break
+    }
+    default: {
+      logger.warn('Unable to find a Kafka consumer implementation!')
+      throw new Error('simulatorEvtConsumer was not created!')
+    }
+  }
 
   logger.info('Initializing transferCmdConsumer...')
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */

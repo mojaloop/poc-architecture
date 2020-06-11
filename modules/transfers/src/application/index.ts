@@ -72,7 +72,8 @@ Program.command('handler')
     // # setup application config
     const appConfig = {
       kafka: {
-        host: process.env.KAFKA_HOST
+        host: process.env.KAFKA_HOST,
+        consumer: process.env.KAFKA_CONSUMER
       },
       redis: {
         host: process.env.REDIS_HOST

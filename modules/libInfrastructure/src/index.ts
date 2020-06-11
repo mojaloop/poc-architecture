@@ -37,8 +37,15 @@
 
 'use strict'
 
+export enum KafkaConsumerTypes {
+  NODE_KAFKA = 'node-kafka',
+  KAFKAJS = 'kafkajs',
+  // NODE_RDKAFKA = 'node-rdkafka'
+}
+
 // Exports for Infrastructure
 export * from './kafka_generic_consumer'
+export * from './kafkajs_consumer'
 export * from './kafka_generic_producer'
 export * from './kafka_message_publisher'
 export * from './imessage_consumer'

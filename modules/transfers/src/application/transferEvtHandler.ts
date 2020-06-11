@@ -39,7 +39,7 @@
 // import {InMemoryTransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { MLTopics, ParticipantsTopics, PayerFundsReservedEvt, TransferPrepareRequestedEvt, TransferPrepareAcceptedEvt, TransferFulfilRequestedEvt, PayeeFundsCommittedEvt } from '@mojaloop-poc/lib-public-messages'
-import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { KafkaConsumerTypes, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { AckPayerFundsReservedCmdPayload, AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { AckPayeeFundsCommittedCmdPayload, AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
 import { InvalidTransferEvtError } from './errors'
@@ -120,18 +120,45 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
     }
   }
 
-  const transferEvtConsumerOptions: KafkaGenericConsumerOptions = {
-    client: {
-      kafkaHost: appConfig.kafka.host,
-      id: `transferEvtConsumer-${Crypto.randomBytes(8)}`,
-      groupId: 'transferEvtGroup',
-      fromOffset: EnumOffset.LATEST
-    },
-    topics: [MLTopics.Events, ParticipantsTopics.DomainEvents]
-  }
+  let transferEvtConsumer: MessageConsumer | undefined
 
-  logger.info('Creating transferEvtConsumer...')
-  const transferEvtConsumer = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(transferEvtConsumerOptions, logger)
+  /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+  logger.info(`Creating ${appConfig.kafka.consumer} transferEvtConsumer...`)
+  switch (appConfig.kafka.consumer) {
+    case (KafkaConsumerTypes.NODE_KAFKA): {
+      const transferEvtConsumerOptions: KafkaGenericConsumerOptions = {
+        client: {
+          kafkaHost: appConfig.kafka.host,
+          id: `transferEvtConsumer-${Crypto.randomBytes(8)}`,
+          groupId: 'transferEvtGroup',
+          fromOffset: EnumOffset.LATEST
+        },
+        topics: [MLTopics.Events, ParticipantsTopics.DomainEvents]
+      }
+      transferEvtConsumer = new KafkaGenericConsumer(transferEvtConsumerOptions, logger)
+      break
+    }
+    case (KafkaConsumerTypes.KAFKAJS): {
+      const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
+        client: {
+          client: { // https://kafka.js.org/docs/configuration#options
+            brokers: ['localhost:9092'],
+            clientId: `transferEvtConsumer-${Crypto.randomBytes(8)}`
+          },
+          consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
+            groupId: 'transferEvtGroup'
+          }
+        },
+        topics: [MLTopics.Events, ParticipantsTopics.DomainEvents]
+      }
+      transferEvtConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
+      break
+    }
+    default: {
+      logger.warn('Unable to find a Kafka consumer implementation!')
+      throw new Error('transferCmdConsumer was not created!')
+    }
+  }
 
   logger.info('Initializing transferCmdConsumer...')
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
