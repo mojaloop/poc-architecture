@@ -92,9 +92,10 @@ Program.command('handler')
     if (args.transferEvt == null && args.transferCmd == null) {
       const transferEvtHandler = new TransferEvtHandler()
       await transferEvtHandler.start(appConfig, logger)
+      runHandlerList.push(transferEvtHandler)
+      
       const transferCmdHandler = new TransferCmdHandler()
       await transferCmdHandler.start(appConfig, logger)
-      runHandlerList.push(transferEvtHandler)
       runHandlerList.push(transferCmdHandler)
     }
     if (args.transferEvt != null) {
