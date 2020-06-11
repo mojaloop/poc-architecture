@@ -129,7 +129,7 @@ export class KafkaGenericProducer extends MessageProducer {
       this._logger.debug(`clientOptions: \n${JSON.stringify(clientOptions)}`)
 
       const defaultProducerOptions: kafka.ProducerOptions = {
-        requireAcks: -1,
+        requireAcks: -1, // https://github.com/SOHU-Co/kafka-node/blob/master/lib/baseProducer.js#L44
         ackTimeoutMs: 100,
         partitionerType: PartitionerType.KEYED
       }

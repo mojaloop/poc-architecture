@@ -40,7 +40,7 @@
 // import {InMemoryParticipantStateRepo} from "../infrastructure/inmemory_participant_repo";
 import { CommandMsg, IDomainMessage, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
-import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { ParticpantsAgg } from '../domain/participants_agg'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 import { CreateParticipantCmd } from '../messages/create_participant_cmd'
@@ -55,19 +55,51 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
 
   await repo.init()
 
-  const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
-    client: {
-      kafka: {
-        kafkaHost: appConfig.kafka.host,
-        clientId: `participantCmdHandler-${Crypto.randomBytes(8)}`
+  let kafkaMsgPublisher: IMessagePublisher | undefined
+
+  /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+  logger.info(`Creating ${appConfig.kafka.consumer} participantCmdHandler.kafkaMsgPublisher...`)
+  switch (appConfig.kafka.consumer) {
+    case (KafkaInfraTypes.NODE_KAFKA): {
+      const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
+        client: {
+          kafka: {
+            kafkaHost: appConfig.kafka.host,
+            clientId: `participantCmdHandler-${Crypto.randomBytes(8)}`
+          }
+        }
       }
+      kafkaMsgPublisher = new KafkaMessagePublisher(
+        kafkaGenericProducerOptions,
+        logger
+      )
+      break
+    }
+    case (KafkaInfraTypes.KAFKAJS): {
+      const kafkaJsConsumerOptions: KafkaJsProducerOptions = {
+        client: {
+          client: { // https://kafka.js.org/docs/configuration#options
+            brokers: ['localhost:9092'],
+            clientId: `participantCmdHandler-${Crypto.randomBytes(8)}`
+          },
+          producer: { // https://kafka.js.org/docs/producing#options
+            allowAutoTopicCreation: true,
+            idempotent: true, // false is default
+            transactionTimeout: 60000
+          }
+        }
+      }
+      kafkaMsgPublisher = new KafkajsMessagePublisher(
+        kafkaJsConsumerOptions,
+        logger
+      )
+      break
+    }
+    default: {
+      logger.warn('Unable to find a Kafka Producer implementation!')
+      throw new Error('participantCmdHandler.kafkaMsgPublisher was not created!')
     }
   }
-
-  const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
-    kafkaGenericProducerOptions,
-    logger
-  )
 
   await kafkaMsgPublisher.init()
 
@@ -132,35 +164,48 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
     }
   }
 
-  const participantCmdConsumerOptions: KafkaGenericConsumerOptions = {
-    client: {
-      kafkaHost: appConfig.kafka.host,
-      id: `participantCmdConsumer-${Crypto.randomBytes(8)}`,
-      groupId: 'participantCmdGroup',
-      fromOffset: EnumOffset.LATEST
-    },
-    topics: [ParticipantsTopics.Commands]
+  let participantCmdConsumer: MessageConsumer | undefined
+
+  /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+  logger.info(`Creating ${appConfig.kafka.consumer} participantCmdConsumer...`)
+  switch (appConfig.kafka.consumer) {
+    case (KafkaInfraTypes.NODE_KAFKA): {
+      const participantCmdConsumerOptions: KafkaGenericConsumerOptions = {
+        client: {
+          kafkaHost: appConfig.kafka.host,
+          id: `participantCmdConsumer-${Crypto.randomBytes(8)}`,
+          groupId: 'participantCmdGroup',
+          fromOffset: EnumOffset.LATEST
+        },
+        topics: [ParticipantsTopics.Commands]
+      }
+      participantCmdConsumer = new KafkaGenericConsumer(participantCmdConsumerOptions, logger)
+      break
+    }
+    case (KafkaInfraTypes.KAFKAJS): {
+      const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
+        client: {
+          client: { // https://kafka.js.org/docs/configuration#options
+            brokers: ['localhost:9092'],
+            clientId: `participantCmdConsumer-${Crypto.randomBytes(8)}`
+          },
+          consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
+            groupId: 'participantCmdGroup'
+          }
+        },
+        topics: [ParticipantsTopics.Commands]
+      }
+      participantCmdConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
+      break
+    }
+    default: {
+      logger.warn('Unable to find a Kafka consumer implementation!')
+      throw new Error('participantCmdConsumer was not created!')
+    }
   }
-
-  logger.info('Creating participantCmdConsumer...')
-  const participantCmdConsumer = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(participantCmdConsumerOptions, logger)
-
-  /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-  // process.on('exit', async (): Promise<void> => {
-  //   logger.info('Exiting process...')
-  //   logger.info('Disconnecting handlers...')
-  //   await createParticipantCmdConsumer.disconnect()
-  //   logger.info('Exit complete')
-  // })
 
   logger.info('Initializing participantCmdConsumer...')
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
   await participantCmdConsumer.init(participantCmdHandler)
-
   return participantCmdConsumer
 }
-
-// start().catch((err) => {
-//   logger.error(err)
-// }).finally(() => {
-// })

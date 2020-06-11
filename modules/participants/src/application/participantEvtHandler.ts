@@ -40,26 +40,58 @@
 // import {InMemoryParticipantStateRepo} from "../infrastructure/inmemory_participant_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransferPrepareAcceptedEvt, TransferFulfilAcceptedEvt, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
-import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { ReservePayerFundsCmd, ReservePayerFundsCmdPayload } from '../messages/reserve_payer_funds_cmd'
 import { CommitPayeeFundsCmd, CommitPayeeFundsCmdPayload } from '../messages/commit_payee_funds_cmd'
 import { InvalidParticipantEvtError } from './errors'
 import { Crypto } from '@mojaloop-poc/lib-utilities'
 
 export const start = async (appConfig: any, logger: ILogger): Promise<MessageConsumer> => {
-  const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
-    client: {
-      kafka: {
-        kafkaHost: appConfig.kafka.host,
-        clientId: `participantEvtHandler-${Crypto.randomBytes(8)}`
+  let kafkaMsgPublisher: IMessagePublisher | undefined
+
+  /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+  logger.info(`Creating ${appConfig.kafka.consumer} participantEvtHandler.kafkaMsgPublisher...`)
+  switch (appConfig.kafka.consumer) {
+    case (KafkaInfraTypes.NODE_KAFKA): {
+      const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
+        client: {
+          kafka: {
+            kafkaHost: appConfig.kafka.host,
+            clientId: `participantEvtHandler-${Crypto.randomBytes(8)}`
+          }
+        }
       }
+      kafkaMsgPublisher = new KafkaMessagePublisher(
+        kafkaGenericProducerOptions,
+        logger
+      )
+      break
+    }
+    case (KafkaInfraTypes.KAFKAJS): {
+      const kafkaJsConsumerOptions: KafkaJsProducerOptions = {
+        client: {
+          client: { // https://kafka.js.org/docs/configuration#options
+            brokers: ['localhost:9092'],
+            clientId: `participantEvtHandler-${Crypto.randomBytes(8)}`
+          },
+          producer: { // https://kafka.js.org/docs/producing#options
+            allowAutoTopicCreation: true,
+            idempotent: true, // false is default
+            transactionTimeout: 60000
+          }
+        }
+      }
+      kafkaMsgPublisher = new KafkajsMessagePublisher(
+        kafkaJsConsumerOptions,
+        logger
+      )
+      break
+    }
+    default: {
+      logger.warn('Unable to find a Kafka Producer implementation!')
+      throw new Error('participantEvtHandler.kafkaMsgPublisher was not created!')
     }
   }
-
-  const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
-    kafkaGenericProducerOptions,
-    logger
-  )
 
   await kafkaMsgPublisher.init()
 
@@ -92,7 +124,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
 
       if (participantCmd != null) {
         logger.info(`participantEvtHandler publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${participantCmd?.msgName}:${message?.msgKey}:${participantCmd?.msgId}`)
-        await kafkaMsgPublisher.publish(participantCmd)
+        await kafkaMsgPublisher!.publish(participantCmd)
       } else {
         logger.warn(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
       }
@@ -105,22 +137,48 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
     }
   }
 
-  const participantEvtConsumerOptions: KafkaGenericConsumerOptions = {
-    client: {
-      kafkaHost: appConfig.kafka.host,
-      id: `participantEvtConsumer-${Crypto.randomBytes(8)}`,
-      groupId: 'participantEvtGroup',
-      fromOffset: EnumOffset.LATEST
-    },
-    topics: [TransfersTopics.DomainEvents]
-  }
+  let participantEvtConsumer: MessageConsumer | undefined
 
-  logger.info('Creating participantEvtConsumer...')
-  const participantEvtConsumer = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(participantEvtConsumerOptions, logger)
+  /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+  logger.info(`Creating ${appConfig.kafka.consumer} participantEvtConsumer...`)
+  switch (appConfig.kafka.consumer) {
+    case (KafkaInfraTypes.NODE_KAFKA): {
+      const participantEvtConsumerOptions: KafkaGenericConsumerOptions = {
+        client: {
+          kafkaHost: appConfig.kafka.host,
+          id: `participantEvtConsumer-${Crypto.randomBytes(8)}`,
+          groupId: 'participantEvtGroup',
+          fromOffset: EnumOffset.LATEST
+        },
+        topics: [TransfersTopics.DomainEvents]
+      }
+      participantEvtConsumer = new KafkaGenericConsumer(participantEvtConsumerOptions, logger)
+      break
+    }
+    case (KafkaInfraTypes.KAFKAJS): {
+      const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
+        client: {
+          client: { // https://kafka.js.org/docs/configuration#options
+            brokers: ['localhost:9092'],
+            clientId: `participantEvtConsumer-${Crypto.randomBytes(8)}`
+          },
+          consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
+            groupId: 'participantEvtGroup'
+          }
+        },
+        topics: [TransfersTopics.DomainEvents]
+      }
+      participantEvtConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
+      break
+    }
+    default: {
+      logger.warn('Unable to find a Kafka consumer implementation!')
+      throw new Error('participantEvtConsumer was not created!')
+    }
+  }
 
   logger.info('Initializing participantCmdConsumer...')
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
   await participantEvtConsumer.init(participantEvtHandler)
-
   return participantEvtConsumer
 }
