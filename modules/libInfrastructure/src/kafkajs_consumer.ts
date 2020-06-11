@@ -18,7 +18,7 @@ export type KafkaJsConsumerOptions = Options<KafkajsConfig>
 // export class KafkaGenericConsumer extends EventEmitter implements MessageConsumer {
 export class KafkaJsConsumer extends MessageConsumer {
   private readonly _topics: string[]
-  private _client: Kafkajs
+  private _client!: Kafkajs
   private _consumer!: Consumer
   private readonly _initialized: boolean = false
   private readonly _syncQueue: async.AsyncQueue<any> | undefined

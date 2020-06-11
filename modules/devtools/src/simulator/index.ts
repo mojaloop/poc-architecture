@@ -39,7 +39,7 @@
 
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { MessageConsumer } from '@mojaloop-poc/lib-infrastructure'
+import { MessageConsumer, KafkaInfraTypes } from '@mojaloop-poc/lib-infrastructure'
 import * as SimulatorEvtHandler from './simulatorEvtHandler'
 import * as dotenv from 'dotenv'
 import { Command } from 'commander'
@@ -70,7 +70,8 @@ Program.command('handler')
     const appConfig = {
       kafka: {
         host: process.env.KAFKA_HOST,
-        consumer: process.env.KAFKA_CONSUMER
+        consumer: (process.env.KAFKA_CONSUMER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_CONSUMER,
+        producer: (process.env.KAFKA_PRODUCER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_PRODUCER
       }
     }
 

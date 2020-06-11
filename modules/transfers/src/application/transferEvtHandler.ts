@@ -39,7 +39,7 @@
 // import {InMemoryTransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { MLTopics, ParticipantsTopics, PayerFundsReservedEvt, TransferPrepareRequestedEvt, TransferPrepareAcceptedEvt, TransferFulfilRequestedEvt, PayeeFundsCommittedEvt } from '@mojaloop-poc/lib-public-messages'
-import { KafkaConsumerTypes, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { AckPayerFundsReservedCmdPayload, AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { AckPayeeFundsCommittedCmdPayload, AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
 import { InvalidTransferEvtError } from './errors'
@@ -48,19 +48,51 @@ import { FulfilTransferCmd, FulfilTransferCmdPayload } from '../messages/fulfil_
 import { Crypto } from '@mojaloop-poc/lib-utilities'
 
 export const start = async (appConfig: any, logger: ILogger): Promise<MessageConsumer> => {
-  const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
-    client: {
-      kafka: {
-        kafkaHost: appConfig.kafka.host,
-        clientId: `transferEvtHandler-${Crypto.randomBytes(8)}`
+  let kafkaMsgPublisher: IMessagePublisher | undefined
+
+  /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+  logger.info(`Creating ${appConfig.kafka.consumer} transferEvtHandler.kafkaMsgPublisher...`)
+  switch (appConfig.kafka.consumer) {
+    case (KafkaInfraTypes.NODE_KAFKA): {
+      const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
+        client: {
+          kafka: {
+            kafkaHost: appConfig.kafka.host,
+            clientId: `transferEvtHandler-${Crypto.randomBytes(8)}`
+          }
+        }
       }
+      kafkaMsgPublisher = new KafkaMessagePublisher(
+        kafkaGenericProducerOptions,
+        logger
+      )
+      break
+    }
+    case (KafkaInfraTypes.KAFKAJS): {
+      const kafkaJsConsumerOptions: KafkaJsProducerOptions = {
+        client: {
+          client: { // https://kafka.js.org/docs/configuration#options
+            brokers: ['localhost:9092'],
+            clientId: `transferEvtHandler-${Crypto.randomBytes(8)}`
+          },
+          producer: { // https://kafka.js.org/docs/producing#options
+            allowAutoTopicCreation: true,
+            idempotent: true, // false is default
+            transactionTimeout: 60000
+          }
+        }
+      }
+      kafkaMsgPublisher = new KafkajsMessagePublisher(
+        kafkaJsConsumerOptions,
+        logger
+      )
+      break
+    }
+    default: {
+      logger.warn('Unable to find a Kafka Producer implementation!')
+      throw new Error('transferEvtHandler.kafkaMsgPublisher was not created!')
     }
   }
-
-  const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
-    kafkaGenericProducerOptions,
-    logger
-  )
 
   await kafkaMsgPublisher.init()
 
@@ -110,7 +142,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
 
       if (transferCmd != null) {
         logger.info(`transferEvtHandler publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${transferCmd?.msgName}:${transferCmd?.msgId}`)
-        await kafkaMsgPublisher.publish(transferCmd)
+        await kafkaMsgPublisher!.publish(transferCmd)
         logger.info(`transferEvtHandler publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
       }
     } catch (err) {
@@ -125,7 +157,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
   /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
   logger.info(`Creating ${appConfig.kafka.consumer} transferEvtConsumer...`)
   switch (appConfig.kafka.consumer) {
-    case (KafkaConsumerTypes.NODE_KAFKA): {
+    case (KafkaInfraTypes.NODE_KAFKA): {
       const transferEvtConsumerOptions: KafkaGenericConsumerOptions = {
         client: {
           kafkaHost: appConfig.kafka.host,
@@ -138,7 +170,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
       transferEvtConsumer = new KafkaGenericConsumer(transferEvtConsumerOptions, logger)
       break
     }
-    case (KafkaConsumerTypes.KAFKAJS): {
+    case (KafkaInfraTypes.KAFKAJS): {
       const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
         client: {
           client: { // https://kafka.js.org/docs/configuration#options
