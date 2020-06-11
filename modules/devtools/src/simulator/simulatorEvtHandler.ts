@@ -79,7 +79,7 @@ export const start = async (appConfig: any, logger: ILogger): Promise<MessageCon
           const fulfilPayload = {
             completedTimestamp: (new Date()).toISOString(),
             transferState: 'COMMITTED',
-            fulfilment: 'XoSz1cL0tljJSCp_VtIYmPNw-zFUgGfbUqf69AagUzP'
+            fulfilment: 'XoSz1cL0tljJSCp_VtIYmPNw-zFUgGfbUqf69AagUzY'
           }
 
           const encodedFulfilPayload = encodePayload(Buffer.from(JSON.stringify(fulfilPayload)), contentType)

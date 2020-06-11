@@ -8,7 +8,7 @@ TBD
 
 ## Setup
 
-Ensure you have the following Pre-requisite tools installed: 
+Ensure you have the following Pre-requisite tools installed:
 - [Docker](https://docs.docker.com/get-docker/)
 - [kafkacat](https://github.com/edenhill/kafkacat#install)
 - NodeJs - v12.16.0
@@ -57,10 +57,10 @@ npm run start:participants
 
 #### Participant TODO
 
-1. Add Validation to Events
-2. Add Validation to Commands
+1. Add Validation to Events - (don't need it for now)
+2. Add Validation to Commands - [#1435](https://github.com/mojaloop/project/issues/1435)
 4. Add support for `thresholdAlarmPercentage` to limits, and implementation on position changes for `reserve` (prepare) and `commit` (fulfil)
-5. Parrelize Validations for FSP-checks
+5. Parallelize Validations for FSP-checks
 6. ...
 7. Unhappy Paths Scenarios
     - Validation failures on incoming Events/Commands
@@ -76,8 +76,8 @@ npm run start:transfers
 
 #### Transfers TODO
 
-1. Add Validation to Events
-2. Add Validation to Commands
+1. Add Validation to Events - (don't need it for now)
+2. Add Validation to Commands - [#1435](https://github.com/mojaloop/project/issues/1435)
 3. Optional config flag to support disabling On-Us transfers (currently support both On-Us and Off-Us unlike the As-Is switch implementation)
 4. ...
 5. Unhappy Paths Scenarios
@@ -93,9 +93,9 @@ npm run start:transfers
 ## General TODO
 
 1. ~~Handle currencies with something that can handle arbitrary precision (or at a minimum big numbers, etc)~~
-2. Prometheus Metric Instrumentation & Dashboards
-3. Tracing Support
-4. Helm charts for deployment
+2. Prometheus Metric Instrumentation & Dashboards - [#1417](https://github.com/mojaloop/project/issues/1417)
+3. Tracing Support - [#1417](https://github.com/mojaloop/project/issues/1417)
+4. Helm charts for deployment [#1434](https://github.com/mojaloop/project/issues/1434)
 5. Add support for currency specific ISO precision validations (validation as part of transfer handler or perhaps commands/events?)
 6. Non-inflight Long-term Persistant Storage for Reporting (contains full history of transfers, transfer-state-changes, position-state-changes, participants, etc)
 7. Assign completed transfers to a Settlement Window
