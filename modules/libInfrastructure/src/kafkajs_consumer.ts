@@ -151,7 +151,7 @@ export class KafkaJsConsumer extends MessageConsumer {
         } finally {
           const offset = (parseInt(message.offset) + 1).toString()
           const commitData = { topic, partition, offset }
-          if (this._defaultedKafkajsConfig?.consumerRunConfig?.autoCommit === true) {
+          if (this._defaultedKafkajsConfig?.consumerRunConfig?.autoCommit === false) {
             this._logger.debug(`Consumer commit @ - ${JSON.stringify(commitData)}`)
             await this._consumer.commitOffsets([
               commitData
