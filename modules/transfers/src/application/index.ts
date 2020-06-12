@@ -93,7 +93,7 @@ Program.command('handler')
       const transferEvtHandler = new TransferEvtHandler()
       await transferEvtHandler.start(appConfig, logger)
       runHandlerList.push(transferEvtHandler)
-      
+
       const transferCmdHandler = new TransferCmdHandler()
       await transferCmdHandler.start(appConfig, logger)
       runHandlerList.push(transferCmdHandler)
