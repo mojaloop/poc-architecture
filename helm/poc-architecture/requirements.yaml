@@ -1,0 +1,42 @@
+# requirements.yaml
+dependencies:
+# Mojaloop API Adapter Handlers
+- name: ml-api-adapter
+  version: 10.2.0
+  repository: "file://../ml-api-adapter"
+  condition: ml-api-adapter-handler-notification.enabled
+# Transfers Handlers
+- name: transfers
+  version: 0.1.0
+  repository: "file://./transfers"
+  condition: transfers.enabled
+# Participant Handlers
+- name: participants
+  version: 0.1.0
+  repository: "file://./participants"
+  condition: participants.enabled
+# Devtools (simulators, publishers, etc)
+- name: simulators
+  version: 0.1.0
+  repository: "file://./simulators"
+  condition: simulators.enabled
+- name: publishers
+  version: 0.1.0
+  repository: "file://./publishers"
+  condition: publishers.enabled
+# We will pull simulator from the official mojaloop helm repo
+# - name: legacy-simulator
+#   version: 0.1.0
+#   repository: "http://mojaloop.io/helm/repo/"
+#   condition: legacy-simulator.enabled
+# This is used for testing ml-api-adapter deployments
+- name: kafka
+  version: 0.13.11
+  repository: http://storage.googleapis.com/kubernetes-charts-incubator
+  alias: kafka
+  condition: kafka.enabled
+- name: redis
+  version: 0.7.2
+  repository: https://github.com/bitnami/charts/tree/master/bitnami/redis
+  alias: redis
+  condition: redis.enabled
