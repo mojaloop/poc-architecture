@@ -42,7 +42,7 @@ import { ParticipantEntity, ParticipantState, InvalidAccountError, InvalidLimitE
 import { ParticipantsFactory } from './participants_factory'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 import { CreateParticipantCmd } from '../messages/create_participant_cmd'
-import { DuplicateParticipantDetectedEvt, InvalidParticipantEvt, PayerFundsReservedEvt, ParticipantCreatedEvt, NetCapLimitExceededEvt, PayeeFundsCommittedEvt, ParticipantAccountTypes } from '@mojaloop-poc/lib-public-messages'
+import { DuplicateParticipantDetectedEvt, InvalidParticipantEvt, PayerFundsReservedEvt, ParticipantCreatedEvt, NetCapLimitExceededEvt, PayeeFundsCommittedEvt, ParticipantAccountTypes, PayerFundsReservedEvtPayload, ParticipantEndpoint } from '@mojaloop-poc/lib-public-messages'
 import { IParticipantRepo } from './participant_repo'
 import { CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'
 
@@ -122,7 +122,7 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
     participantState.accounts = participantAccountStateList
     participantState.endpoints = participantEndpointStateList
 
-    this._rootEntity!.setupInitialState(participantState)
+    this._rootEntity = new ParticipantEntity(participantState)
 
     const participantCreatedEvtPayload = {
       participant: {
@@ -178,29 +178,49 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
       return false
     }
 
-    // # Validate PayerFSP account - commenting this out since we validate the PayerFSP account as part of the reseverFunds
-    // const payerHasAccount: boolean = this._rootEntity.hasAccount(commandMsg.payload.currency)
-    // if (!payerHasAccount) {
-    //   recordInvalidParticipantEvt(commandMsg.payload.payerId, commandMsg.payload.transferId)
-    //   return false
-    // }
+    // # Fetch Payee FSP so that we can validate the accounts, and retrieve endpoints
+    const payeeFspState = await (this._entity_state_repo as IParticipantRepo).load(commandMsg.payload.payeeId)
 
+    if (payeeFspState == null) {
+      this.recordInvalidParticipantEvt(commandMsg.payload.payeeId, commandMsg.payload.transferId)
+      return false
+    }
+
+    const payeeFspEntity = new ParticipantEntity(payeeFspState)
     // # Validate PayeeFSP account
-    const payeeHasAccount: boolean = await (this._entity_state_repo as IParticipantRepo).hasAccount(commandMsg.payload.payeeId, ParticipantAccountTypes.POSITION, commandMsg.payload.currency)
+    const payeeHasAccount: boolean = payeeFspEntity.hasAccount(ParticipantAccountTypes.POSITION, commandMsg.payload.currency)
     if (!payeeHasAccount) {
       this.recordInvalidParticipantEvt(commandMsg.payload.payeeId, commandMsg.payload.transferId)
       return false
     }
 
+    // # Lets try reserve funds
     try {
       // # Validate PayerFSP Account+Limit, and Reserve-Funds against position if NET_DEBIG_CAP limit has not been exceeded
       this._rootEntity.reserveFunds(commandMsg.payload.currency, commandMsg.payload.amount)
       const currentPosition = this._rootEntity.getCurrentPosition(commandMsg.payload.currency)
-      const payerFundsReservedEvtPayload = {
+
+      const payerEndPoints: ParticipantEndpoint[] = this._rootEntity?.endpoints?.map(endPoint => {
+        return {
+          type: endPoint.type,
+          value: endPoint.value
+        }
+      })
+
+      const payeeEndPoints: ParticipantEndpoint[] = payeeFspEntity?.endpoints?.map(endPoint => {
+        return {
+          type: endPoint.type,
+          value: endPoint.value
+        }
+      })
+
+      const payerFundsReservedEvtPayload: PayerFundsReservedEvtPayload = {
         transferId: commandMsg.payload.transferId,
         payerId: commandMsg.payload.payerId,
         currency: commandMsg.payload.currency,
-        currentPosition: currentPosition
+        currentPosition: currentPosition,
+        payerEndPoints,
+        payeeEndPoints
       }
       this.recordDomainEvent(new PayerFundsReservedEvt(payerFundsReservedEvtPayload))
       return true
@@ -244,25 +264,51 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
       return false
     }
 
-    // # Validate PayerFSP account - Is this required?
-    const payerHasAccount: boolean = await (this._entity_state_repo as IParticipantRepo).hasAccount(commandMsg.payload.payerId, ParticipantAccountTypes.POSITION, commandMsg.payload.currency)
-    if (!payerHasAccount) {
+    // # Fetch Payer FSP so that we can validate the accounts, and retrieve endpoints
+    const payerFspState = await (this._entity_state_repo as IParticipantRepo).load(commandMsg.payload.payerId)
+
+    if (payerFspState == null) {
       this.recordInvalidParticipantEvt(commandMsg.payload.payerId, commandMsg.payload.transferId)
       return false
     }
 
-    // # TODO: Should we also include checks that this commit is in a response to a reserve?
+    const payerFspEntity = new ParticipantEntity(payerFspState)
+    // # Validate PayeeFSP account
+    const payerHasAccount: boolean = payerFspEntity.hasAccount(ParticipantAccountTypes.POSITION, commandMsg.payload.currency)
+    if (!payerHasAccount) {
+      this.recordInvalidParticipantEvt(commandMsg.payload.payeeId, commandMsg.payload.transferId)
+      return false
+    }
 
+    // # Lets try commit funds
+    // # TODO: Should we also include checks that this commit is in a response to a reserve?
     try {
       // # Validate PayerFSP Account+Limit, and Reserve-Funds against position if NET_DEBIG_CAP limit has not been exceeded
       this._rootEntity.commitFunds(commandMsg.payload.currency, commandMsg.payload.amount)
       const currentPosition = this._rootEntity.getCurrentPosition(commandMsg.payload.currency)
+
+      const payerEndPoints: ParticipantEndpoint[] = payerFspEntity?.endpoints?.map(endPoint => {
+        return {
+          type: endPoint.type,
+          value: endPoint.value
+        }
+      })
+
+      const payeeEndPoints: ParticipantEndpoint[] = this._rootEntity?.endpoints?.map(endPoint => {
+        return {
+          type: endPoint.type,
+          value: endPoint.value
+        }
+      })
+
       const payeeFundsCommittedEvtPayload = {
         transferId: commandMsg.payload.transferId,
         payerId: commandMsg.payload.payerId,
         payeeId: commandMsg.payload.payeeId,
         currency: commandMsg.payload.currency,
-        currentPosition: currentPosition
+        currentPosition: currentPosition,
+        payerEndPoints,
+        payeeEndPoints
       }
       this.recordDomainEvent(new PayeeFundsCommittedEvt(payeeFundsCommittedEvtPayload))
       return true

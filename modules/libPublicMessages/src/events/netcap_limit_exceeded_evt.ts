@@ -40,7 +40,7 @@
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics } from '../enums'
 
-export interface NetCapLimitExceededEvtPayload {
+export type NetCapLimitExceededEvtPayload = {
   payerId: string
   transferId: string
   reason?: string

@@ -260,6 +260,10 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
 
     const eventNames = this._uncommittedEvents.map(evt => evt.msgName)
 
+    this._uncommittedEvents.forEach(evt => {
+      this._logger.debug(`Commiting name:'${evt.msgName}';key:'${evt.msgKey}';id:'${evt.msgId}'`)
+    })
+
     await this._msgPublisher.publishMany(this._uncommittedEvents)
 
     this._logger.debug(`Aggregate committed ${this._uncommittedEvents.length} events - ${JSON.stringify(eventNames)}`)

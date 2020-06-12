@@ -40,5 +40,5 @@
 import { IEntityStateRepository } from '@mojaloop-poc/lib-domain'
 import { TransferState } from './transfer_entity'
 
-export interface ITransfersRepo extends IEntityStateRepository<TransferState> {
-}
+export type ITransfersRepo = {
+} & IEntityStateRepository<TransferState>

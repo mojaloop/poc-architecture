@@ -40,7 +40,7 @@
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
 import { TransfersTopics } from '../enums'
 
-export interface InvalidTransferEvtPayload {
+export type InvalidTransferEvtPayload = {
   transferId: string
   reason?: string
 }

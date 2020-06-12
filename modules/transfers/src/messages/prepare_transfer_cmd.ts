@@ -6,12 +6,18 @@
 import { CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransfersAggTopics } from '../domain/transfers_agg'
 
-export interface PrepareTransferCmdPayload {
+export type PrepareTransferCmdPayload = {
   transferId: string
-  amount: number
+  amount: string
   currency: string
   payerId: string
   payeeId: string
+  expiration: string
+  condition: string
+  prepare: {
+    headers: {[key: string]: string}
+    payload: string
+  }
 }
 
 export class PrepareTransferCmd extends CommandMsg {

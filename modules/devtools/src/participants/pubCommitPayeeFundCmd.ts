@@ -15,7 +15,7 @@ const commitPayeeFundsCmdPayload: CommitPayeeFundsCmdPayload = {
   payeeId: 'fsp-2',
   transferId: uuidv4(),
   currency: CurrencyTypes.USD,
-  amount: 1
+  amount: '1'
 }
 const commitPayeeFundsCmd = new CommitPayeeFundsCmd(commitPayeeFundsCmdPayload)
 

@@ -37,8 +37,17 @@
 
 'use strict'
 
-export interface ILogger {
+export type ILogger = {
   // trace(...anything);
+
+  // methods to check debug level
+  isDebugEnabled: () => boolean
+  isInfoEnabled: () => boolean
+  isWarnEnabled: () => boolean
+  isErrorEnabled: () => boolean
+  isFatalEnabled: () => boolean
+
+  // methods to handle logging per level
   debug: (message?: any, ...optionalParams: any[]) => void
   info: (message?: any, ...optionalParams: any[]) => void
   warn: (message?: any, ...optionalParams: any[]) => void

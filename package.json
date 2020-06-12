@@ -21,8 +21,9 @@
   ],
   "scripts": {
     "start": "npx lerna run --no-progress --stream  start",
-    "start:participants": "npm run build && npx lerna run --no-progress --stream --scope='@mojaloop-poc/participants' start",
-    "start:transfers": "npm run build && npx lerna run --no-progress --stream --scope='@mojaloop-poc/transfers' start",
+    "start:participants": "npm run build --scope='@mojaloop-poc/participants' && npx lerna run --no-progress --stream --scope='@mojaloop-poc/participants' start",
+    "start:transfers": "npm run build --scope='@mojaloop-poc/transfers' && npx lerna run --no-progress --stream --scope='@mojaloop-poc/transfers' start",
+    "start:ml": "npx lerna run --no-progress --stream --scope='@mojaloop-poc/ml-api-adapter' start",
     "build": "npx lerna run --stream build",
     "watch": "npx lerna run --no-progress --stream --parallel watch",
     "clean": "npm run clean:dist && npm run clean:npm",
@@ -48,9 +49,15 @@
     "docker:redis:start": "docker-compose up -d redis",
     "docker:redis:stop": "docker-compose stop redis",
     "docker:redis:logs": "docker-compose logs -f redis",
+    "docker:sim:start": "docker-compose up -d simulator",
+    "docker:sim:stop": "docker-compose stop simulator",
+    "docker:sim:logs": "docker-compose logs -f simulator",
     "docker:store:start": "docker-compose up -d kafka redis",
     "docker:store:stop": "docker-compose stop kafka redis",
-    "docker:store:logs": "docker-compose logs -f kafka redis"
+    "docker:store:logs": "docker-compose logs -f kafka redis",
+    "docker:backend:start": "docker-compose up -d kafka redis simulator",
+    "docker:backend:stop": "docker-compose stop kafka redis simulator",
+    "docker:backend:logs": "docker-compose logs -f kafka redis simulator"
   },
   "dependencies": {
     "knex": "^0.21.1",

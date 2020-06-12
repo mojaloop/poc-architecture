@@ -44,29 +44,59 @@ export class ConsoleLogger implements ILogger {
   // trace(...anything) {
   //  console.trace.apply(this, anything);
   // }
+  private readonly _logger: any
+
+  constructor () {
+    this._logger = require('@mojaloop/central-services-logger')
+  }
+
+  isDebugEnabled (): boolean {
+    return this._logger.isDebugEnabled()
+  }
+
+  isInfoEnabled (): boolean {
+    return this._logger.isInfoEnabled()
+  }
+
+  isWarnEnabled (): boolean {
+    return this._logger.isWarnEnabled()
+  }
+
+  isErrorEnabled (): boolean {
+    return this._logger.isErrorEnabled()
+  }
+
+  isFatalEnabled (): boolean {
+    return this._logger.isErrorEnabled()
+  }
 
   debug (message?: any, ...optional: any[]): void {
-    // @ts-expect-error
-    console.log.apply(this, arguments)
+    // #@ts-expect-error
+    // console.log.apply(this, arguments)
+    this._logger.debug(message, arguments)
   }
 
   info (message?: any, ...optionalParams: any[]): void {
-    // @ts-expect-error
-    console.info.apply(this, arguments)
+    // #@ts-expect-error
+    // console.info.apply(this, arguments)
+    this._logger.info(message, arguments)
   }
 
   warn (message?: any, ...optional: any[]): void {
-    // @ts-expect-error
-    console.warn.apply(this, arguments)
+    // #@ts-expect-error
+    // console.warn.apply(this, arguments)
+    this._logger.warn(message, arguments)
   }
 
   error (message?: any, ...optional: any[]): void {
-    // @ts-expect-error
-    console.error.apply(this, arguments)
+    // #@ts-expect-error
+    // console.error.apply(this, arguments)
+    this._logger.error(message, arguments)
   }
 
   fatal (message?: any, ...optional: any[]): void {
-    // @ts-expect-error
-    console.error.apply(this, arguments)
+    // #@ts-expect-error
+    // console.error.apply(this, arguments)
+    this._logger.error(message, arguments)
   }
 }

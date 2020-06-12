@@ -39,7 +39,7 @@
 // import { v4 as uuidv4 } from 'uuid'
 // import {InMemorytransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { CommandMsg, IDomainMessage, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
-import { MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { iRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
 // import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
 // import { TransferState } from '../domain/transfer_entity'
 import { TransfersTopics } from '@mojaloop-poc/lib-public-messages'
@@ -49,89 +49,161 @@ import { AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_c
 import { RedisTransferStateRepo } from '../infrastructure/redis_participant_repo'
 import { ITransfersRepo } from '../domain/transfers_repo'
 import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
-import { AckPayeeFundsCommitedCmd } from '../messages/ack_payee_funds_reserved_cmd'
+import { AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
+import { Crypto } from '@mojaloop-poc/lib-utilities'
 
-export const start = async (appConfig: any, logger: ILogger): Promise<MessageConsumer> => {
-  // const repo: IEntityStateRepository<TransferState> = new InMemoryTransferStateRepo()
-  const repo: ITransfersRepo = new RedisTransferStateRepo(appConfig.redis.host, logger)
+export class TransferCmdHandler implements iRunHandler {
+  private _consumer: MessageConsumer
+  private _publisher: IMessagePublisher
+  private _repo: ITransfersRepo
 
-  await repo.init()
+  async start (appConfig: any, logger: ILogger): Promise<void> {
+    // const repo: IEntityStateRepository<TransferState> = new InMemoryTransferStateRepo()
+    const repo: ITransfersRepo = new RedisTransferStateRepo(appConfig.redis.host, logger)
+    this._repo = repo
+    await repo.init()
 
-  const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
-    client: {
-      kafka: {
-        kafkaHost: appConfig.kafka.host,
-        clientId: 'transferCmdHandler'
+    let kafkaMsgPublisher: IMessagePublisher | undefined
+
+    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+    logger.info(`Creating ${appConfig.kafka.consumer} transferCmdHandler.kafkaMsgPublisher...`)
+    switch (appConfig.kafka.consumer) {
+      case (KafkaInfraTypes.NODE_KAFKA): {
+        const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
+          client: {
+            kafka: {
+              kafkaHost: appConfig.kafka.host,
+              clientId: `transferCmdHandler-${Crypto.randomBytes(8)}`
+            }
+          }
+        }
+        kafkaMsgPublisher = new KafkaMessagePublisher(
+          kafkaGenericProducerOptions,
+          logger
+        )
+        break
+      }
+      case (KafkaInfraTypes.KAFKAJS): {
+        const kafkaJsConsumerOptions: KafkaJsProducerOptions = {
+          client: {
+            client: { // https://kafka.js.org/docs/configuration#options
+              brokers: ['localhost:9092'],
+              clientId: `transferCmdHandler-${Crypto.randomBytes(8)}`
+            },
+            producer: { // https://kafka.js.org/docs/producing#options
+              allowAutoTopicCreation: true,
+              idempotent: true, // false is default
+              transactionTimeout: 60000
+            }
+          }
+        }
+        kafkaMsgPublisher = new KafkajsMessagePublisher(
+          kafkaJsConsumerOptions,
+          logger
+        )
+        break
+      }
+      default: {
+        logger.warn('Unable to find a Kafka Producer implementation!')
+        throw new Error('transferCmdHandler.kafkaMsgPublisher was not created!')
       }
     }
-  }
 
-  const kafkaMsgPublisher: IMessagePublisher = new KafkaMessagePublisher(
-    kafkaGenericProducerOptions,
-    logger
-  )
+    this._publisher = kafkaMsgPublisher
+    await kafkaMsgPublisher.init()
 
-  await kafkaMsgPublisher.init()
+    const agg: TransfersAgg = new TransfersAgg(repo, kafkaMsgPublisher, logger)
 
-  const agg: TransfersAgg = new TransfersAgg(repo, kafkaMsgPublisher, logger)
-
-  // ## Setup transferCmdConsumer
-  const transferCmdHandler = async (message: IDomainMessage): Promise<void> => {
-    try {
-      logger.info(`transferCmdHandler processing event - ${message?.msgName}:${message?.msgId} - Start`)
-      let transferCmd: CommandMsg | undefined
-      // Transform messages into correct Command
-      switch (message.msgName) {
-        case PrepareTransferCmd.name: {
-          transferCmd = PrepareTransferCmd.fromIDomainMessage(message)
-          break
+    // ## Setup transferCmdConsumer
+    const transferCmdHandler = async (message: IDomainMessage): Promise<void> => {
+      try {
+        logger.info(`transferCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+        let transferCmd: CommandMsg | undefined
+        // Transform messages into correct Command
+        switch (message.msgName) {
+          case PrepareTransferCmd.name: {
+            transferCmd = PrepareTransferCmd.fromIDomainMessage(message)
+            break
+          }
+          case AckPayerFundsReservedCmd.name: {
+            transferCmd = AckPayerFundsReservedCmd.fromIDomainMessage(message)
+            break
+          }
+          case AckPayeeFundsCommittedCmd.name: {
+            transferCmd = AckPayeeFundsCommittedCmd.fromIDomainMessage(message)
+            break
+          }
+          case FulfilTransferCmd.name: {
+            transferCmd = FulfilTransferCmd.fromIDomainMessage(message)
+            break
+          }
+          default: {
+            const err = new Error(`COMMAND:Type - Unknown - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+            logger.error(err)
+            throw err
+          }
         }
-        case AckPayerFundsReservedCmd.name: {
-          transferCmd = AckPayerFundsReservedCmd.fromIDomainMessage(message)
-          break
+        let processCommandResult: boolean = false
+        if (transferCmd != null) {
+          processCommandResult = await agg.processCommand(transferCmd)
+        } else {
+          logger.warn('transferCmdHandler is Unable to process command')
         }
-        case AckPayeeFundsCommitedCmd.name: {
-          transferCmd = AckPayeeFundsCommitedCmd.fromIDomainMessage(message)
-          break
-        }
-        case FulfilTransferCmd.name: {
-          transferCmd = FulfilTransferCmd.fromIDomainMessage(message)
-          break
-        }
-        default: {
-          const err = new Error(`COMMAND:Type - Unknown - ${message?.msgName}:${message?.msgId}`)
-          logger.error(err)
-          throw err
-        }
+        logger.info(`transferCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
+      } catch (err) {
+        logger.error(err)
       }
-      let processCommandResult: boolean = false
-      if (transferCmd != null) {
-        processCommandResult = await agg.processCommand(transferCmd)
-      } else {
-        logger.warn('transferCmdHandler is Unable to process command')
-      }
-      logger.info(`transferCmdHandler processing event - ${message?.msgName}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
-    } catch (err) {
-      logger.error(err)
     }
+
+    let transferCmdConsumer: MessageConsumer | undefined
+
+    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+    logger.info(`Creating ${appConfig.kafka.consumer} transferCmdConsumer...`)
+    switch (appConfig.kafka.consumer) {
+      case (KafkaInfraTypes.NODE_KAFKA): {
+        const transferCmdConsumerOptions: KafkaGenericConsumerOptions = {
+          client: {
+            kafkaHost: appConfig.kafka.host,
+            id: `transferCmdConsumer-${Crypto.randomBytes(8)}`,
+            groupId: 'transferCmdGroup',
+            fromOffset: EnumOffset.LATEST
+          },
+          topics: [TransfersTopics.Commands]
+        }
+        transferCmdConsumer = new KafkaGenericConsumer(transferCmdConsumerOptions, logger)
+        break
+      }
+      case (KafkaInfraTypes.KAFKAJS): {
+        const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
+          client: {
+            client: { // https://kafka.js.org/docs/configuration#options
+              brokers: ['localhost:9092'],
+              clientId: `transferCmdConsumer-${Crypto.randomBytes(8)}`
+            },
+            consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
+              groupId: 'transferCmdGroup'
+            }
+          },
+          topics: [TransfersTopics.Commands]
+        }
+        transferCmdConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
+        break
+      }
+      default: {
+        logger.warn('Unable to find a Kafka consumer implementation!')
+        throw new Error('transferCmdConsumer was not created!')
+      }
+    }
+
+    this._consumer = transferCmdConsumer
+    logger.info('Initializing transferCmdConsumer...')
+    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+    await transferCmdConsumer.init(transferCmdHandler)
   }
 
-  const transferCmdConsumerOptions: KafkaGenericConsumerOptions = {
-    client: {
-      kafkaHost: appConfig.kafka.host,
-      // id: 'transferCmdConsumer', // this has to be unique
-      groupId: 'transferCmdGroup',
-      fromOffset: EnumOffset.LATEST
-    },
-    topics: [TransfersTopics.Commands]
+  async destroy (): Promise<void> {
+    await this._consumer.destroy(true)
+    await this._publisher.destroy()
+    await this._repo.destroy()
   }
-
-  logger.info('Creating transferCmdConsumer...')
-  const transferCmdConsumer = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(transferCmdConsumerOptions, logger)
-
-  logger.info('Initializing transferCmdConsumer...')
-  /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-  await transferCmdConsumer.init(transferCmdHandler)
-
-  return transferCmdConsumer
 }

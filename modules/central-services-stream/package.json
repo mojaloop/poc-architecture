@@ -1,0 +1,71 @@
+{
+  "name": "@mojaloop-poc/central-services-stream",
+  "version": "10.2.0",
+  "description": "Streaming library code for central services.",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/mojaloop/central-services-stream/issues"
+  },
+  "homepage": "https://github.com/mojaloop/central-services-stream#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mojaloop/central-services-stream.git"
+  },
+  "author": "ModusBox",
+  "contributors": [
+    "Miguel de Barros <miguel.debarros@modusbox.com>",
+    "Rajiv Mothilal <rajiv.mothilal@modusbox.com>",
+    "Georgi Georgiev <georgi.georgiev@modusbox.com>",
+    "Valentin Genev <valentin.genev@modusbox.com>"
+  ],
+  "keywords": [
+    "shared",
+    "central",
+    "services"
+  ],
+  "main": "src/index.js",
+  "pre-commit": [
+    "standard",
+    "dep:check",
+    "test"
+  ],
+  "scripts": {
+    "test": "npm run test:unit | faucet",
+    "pretest": "npx standard",
+    "standard": "npx standard",
+    "lint": "npm run standard",
+    "lint:fix": "npx standard --fix",
+    "test:unit": "tapes 'test/unit/**/**.test.js'",
+    "test:xunit": "npm run test:unit | tap-xunit",
+    "test:coverage": "nyc --reporter=lcov --reporter=text-summary tapes -- 'test/unit/**/**.test.js'",
+    "test:coverage-check": "npm run test:coverage && nyc check-coverage",
+    "audit:resolve": "SHELL=sh resolve-audit --production",
+    "audit:check": "SHELL=sh check-audit --production",
+    "dep:check": "npx ncu -e 2",
+    "dep:update": "npx ncu -u"
+  },
+  "dependencies": {
+    "@mojaloop/central-services-error-handling": "10.2.2",
+    "@mojaloop/central-services-logger": "9.5.1",
+    "async": "3.2.0",
+    "events": "3.1.0",
+    "node-rdkafka": "2.8.1"
+  },
+  "devDependencies": {
+    "faucet": "0.0.1",
+    "npm-audit-resolver": "2.2.0",
+    "npm-check-updates": "6.0.1",
+    "nyc": "15.0.1",
+    "pre-commit": "1.2.2",
+    "rewire": "5.0.0",
+    "sinon": "9.0.2",
+    "standard": "14.3.4",
+    "tap-xunit": "2.4.1",
+    "tape": "4.13.2",
+    "tapes": "4.1.0",
+    "uuid4": "1.1.4"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  }
+}

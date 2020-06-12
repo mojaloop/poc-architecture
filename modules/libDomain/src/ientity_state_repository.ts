@@ -40,7 +40,7 @@
 // import { BaseEntity } from './base_entity'
 import { BaseEntityState } from './base_entity_state'
 
-export interface IEntityStateRepository<S extends BaseEntityState>{
+export type IEntityStateRepository<S extends BaseEntityState> = {
   init: () => Promise<void>
   destroy: () => Promise<void>
   canCall: () => boolean // for circuit breaker

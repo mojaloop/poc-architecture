@@ -39,7 +39,7 @@
 
 import { IMessage } from './messages'
 
-export interface IMessagePublisher{
+export type IMessagePublisher = {
   init: () => Promise<void>
   destroy: () => Promise<void>
 

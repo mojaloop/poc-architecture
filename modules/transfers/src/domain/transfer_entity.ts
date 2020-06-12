@@ -4,6 +4,9 @@
 'use strict'
 
 import { BaseEntityState, BaseEntity } from '@mojaloop-poc/lib-domain'
+import { TransferRawPayload } from '@mojaloop-poc/lib-public-messages'
+import * as crypto from 'crypto'
+import base64url from 'base64url'
 
 export enum TransferInternalStates {
   ABORTED_ERROR = 'ABORTED_ERROR',
@@ -21,24 +24,60 @@ export enum TransferInternalStates {
   RESERVED_TIMEOUT = 'RESERVED_TIMEOUT'
 }
 
+export class ValidateFulfilConditionFailed extends Error {}
+export class ValidateFulfilConditionNoMatch extends Error {}
+
 export class TransferState extends BaseEntityState {
-  amount: number = 0
-  currency: string = ''
-  transferInternalState: TransferInternalStates = TransferInternalStates.INVALID
-  payerId: string = ''
-  payeeId: string = ''
+  amount: string
+  currency: string
+  transferInternalState: TransferInternalStates
+  payerId: string
+  payeeId: string
+  expiration: string
+  condition: string
+  prepare: TransferRawPayload
+  fulfilment: string
+  completedTimestamp: string
+  fulfil: TransferRawPayload
+  reject: TransferRawPayload
 }
 
-export interface PrepareTransferData {
+export type PrepareTransferData = {
   id: string
-  amount: number
+  amount: string
   currency: string
   payerId: string
   payeeId: string
+  expiration: string
+  condition: string
+  prepare: TransferRawPayload
+}
+
+export type FulfilTransferData = {
+  id: string
+  payerId: string
+  payeeId: string
+  fulfilment: string
+  completedTimestamp: string
+  transferState: string
+  fulfil: TransferRawPayload
+}
+
+const fulfilmentToCondition = (fulfilment: string): string => {
+  const hashSha256 = crypto.createHash('sha256')
+  const preimage = base64url.toBuffer(fulfilment)
+
+  if (preimage.length !== 32) {
+    throw new ValidateFulfilConditionFailed('fulfilmentToCondition: Interledger preimages must be exactly 32 bytes')
+  }
+
+  const calculatedConditionDigest = hashSha256.update(preimage).digest('base64')
+  const calculatedConditionUrlEncoded = base64url.fromBase64(calculatedConditionDigest)
+  return calculatedConditionUrlEncoded
 }
 
 export class TransferEntity extends BaseEntity<TransferState> {
-  get amount (): number {
+  get amount (): string {
     return this._state.amount
   }
 
@@ -58,6 +97,18 @@ export class TransferEntity extends BaseEntity<TransferState> {
     return this._state.payeeId
   }
 
+  get prepare (): TransferRawPayload {
+    return this._state?.prepare
+  }
+
+  get fulfil (): TransferRawPayload {
+    return this._state?.fulfil
+  }
+
+  get reject (): TransferRawPayload {
+    return this._state?.reject
+  }
+
   static CreateInstance (initialState?: TransferState): TransferEntity {
     initialState = initialState ?? new TransferState()
 
@@ -66,20 +117,38 @@ export class TransferEntity extends BaseEntity<TransferState> {
     return entity
   }
 
-  prepareTransfer (incominmgTransfer: PrepareTransferData): void {
-    this._state.id = incominmgTransfer.id
-    this._state.amount = incominmgTransfer.amount
-    this._state.currency = incominmgTransfer.currency
-    this._state.payerId = incominmgTransfer.payerId
-    this._state.payeeId = incominmgTransfer.payeeId
+  prepareTransfer (incommingTransfer: PrepareTransferData): void {
+    this._state.id = incommingTransfer.id
+    this._state.amount = incommingTransfer.amount
+    this._state.currency = incommingTransfer.currency
+    this._state.payerId = incommingTransfer.payerId
+    this._state.payeeId = incommingTransfer.payeeId
     this._state.transferInternalState = TransferInternalStates.RECEIVED_PREPARE
+    this._state.expiration = incommingTransfer.expiration
+    this._state.condition = incommingTransfer.condition
+    this._state.prepare = {
+      headers: incommingTransfer.prepare?.headers,
+      payload: incommingTransfer.prepare?.payload
+    }
   }
 
   acknowledgeTransferReserved (): void {
     this._state.transferInternalState = TransferInternalStates.RESERVED
   }
 
-  fulfilTransfer (): void {
+  validateFulfilCondition (fulfilment: string): boolean {
+    const calculatedCondition = fulfilmentToCondition(fulfilment)
+    return calculatedCondition === this._state.condition
+  }
+
+  fulfilTransfer (incommingTransfer: FulfilTransferData): void {
+    if (!this.validateFulfilCondition(incommingTransfer.fulfilment)) {
+      this._state.transferInternalState = TransferInternalStates.RECEIVED_ERROR
+      throw new ValidateFulfilConditionNoMatch(`Fulfilment and condition do not match (condition: ${this._state.condition} fulfilment: ${incommingTransfer.fulfilment})`)
+    }
+    this._state.fulfilment = incommingTransfer.fulfilment
+    this._state.completedTimestamp = incommingTransfer.completedTimestamp
+    this._state.fulfil = incommingTransfer.fulfil
     this._state.transferInternalState = TransferInternalStates.RECEIVED_FULFIL
   }
 

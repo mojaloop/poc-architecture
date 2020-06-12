@@ -129,6 +129,6 @@ dist/
 # Lerna files
 **/*.lerna_backup
 
-**/src/**/**.js
+**/dist/**/**.js
 **/src/**/**.js.map
 **/src/**/**.d.ts
