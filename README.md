@@ -26,6 +26,8 @@ export LDFLAGS=-L/usr/local/opt/openssl/lib
 
 This project uses [Lerna](https://lerna.js.org/) to manage packages and their respective dependencies. All individual modules (i.e. packages in Lerna speak) are their own respective micro-service/library which uses standard NPM for management, lerna will inject the dependencies when running NPM install at the root-level of the project.
 
+**Note:** Lerna will manage project dependencies and build order based on each package's `package.json`.
+
 ```sh
 npm install
 ```
@@ -43,7 +45,6 @@ Add the following line to your `/etc/hosts` file:
 
 `127.0.0.1  simulator`
 
-**Note:** Lerna will manage project dependencies and build order based on each package's `package.json`.
 
 ## Running
 
