@@ -163,9 +163,9 @@ Program.command('handler')
         await handler.destroy()
       })
 
-      if (apiServer != null){
+      if (apiServer != null) {
         logger.info('Destroying API server...')
-        await apiServer.destroy()  
+        await apiServer.destroy()
       }
 
       logger.info('Exit complete!')

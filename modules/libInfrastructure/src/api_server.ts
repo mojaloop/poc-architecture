@@ -138,7 +138,7 @@ export class ApiServer {
     // })
   }
 
-  async destroy(): Promise<void> {
+  async destroy (): Promise<void> {
     await this._server.close()
   }
 }
