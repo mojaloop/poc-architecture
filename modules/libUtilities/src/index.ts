@@ -38,5 +38,7 @@
 'use strict'
 
 // Exports for Utilities
-export * from './logger'
+export * from './logger_console'
+export * from './logger_moja'
 export * from './crypto'
+export * from './metrics'

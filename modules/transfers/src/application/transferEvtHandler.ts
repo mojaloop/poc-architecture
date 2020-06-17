@@ -39,19 +39,19 @@
 // import {InMemoryTransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { MLTopics, ParticipantsTopics, PayerFundsReservedEvt, TransferPrepareRequestedEvt, TransferPrepareAcceptedEvt, TransferFulfilRequestedEvt, PayeeFundsCommittedEvt } from '@mojaloop-poc/lib-public-messages'
-import { iRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { IRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { AckPayerFundsReservedCmdPayload, AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { AckPayeeFundsCommittedCmdPayload, AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
 import { InvalidTransferEvtError } from './errors'
 import { PrepareTransferCmdPayload, PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
 import { FulfilTransferCmd, FulfilTransferCmdPayload } from '../messages/fulfil_transfer_cmd'
-import { Crypto } from '@mojaloop-poc/lib-utilities'
+import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 
-export class TransferEvtHandler implements iRunHandler {
+export class TransferEvtHandler implements IRunHandler {
   private _consumer: MessageConsumer
   private _publisher: IMessagePublisher
 
-  async start (appConfig: any, logger: ILogger): Promise<void> {
+  async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
@@ -101,7 +101,15 @@ export class TransferEvtHandler implements iRunHandler {
     this._publisher = kafkaMsgPublisher
     await kafkaMsgPublisher.init()
 
+
+    const histoTransferEvtHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+      'transferEvtHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+      'Instrumentation for transferEvtHandler', // Description of metric
+      ['success', 'error'] // Define a custom label 'success'
+    )
+
     const transferEvtHandler = async (message: IDomainMessage): Promise<void> => {
+      const histTimer = histoTransferEvtHandlerMetric.startTimer()
       try {
         logger.info(`transferEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
         let transferEvt: DomainEventMsg | undefined
@@ -142,6 +150,7 @@ export class TransferEvtHandler implements iRunHandler {
           }
           default: {
             logger.debug(`TransferEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+            return
           }
         }
 
@@ -150,10 +159,12 @@ export class TransferEvtHandler implements iRunHandler {
           await kafkaMsgPublisher!.publish(transferCmd)
           logger.info(`transferEvtHandler publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
         }
+        histTimer({success: 'true'})
       } catch (err) {
         const errMsg: string = err?.message?.toString()
         logger.warn(`transferEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
         logger.error(err)
+        histTimer({success: 'false', error: err.message})
       }
     }
 

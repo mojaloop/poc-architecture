@@ -39,17 +39,17 @@
 // import {InMemoryTransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransferPrepareRequestedEvt, TransferFulfilRequestedEvt, TransferPreparedEvt, TransferFulfilledEvt, TransferFulfilRequestedEvtPayload, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
-import { iRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
-import { Crypto } from '@mojaloop-poc/lib-utilities'
+import { IRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 /* eslint-disable @typescript-eslint/no-var-requires */
 const encodePayload = require('@mojaloop/central-services-shared').Util.StreamingProtocol.encodePayload
 const contentType = 'application/vnd.interoperability.transfers+json;version=1'
 
-export class SimulatorEvtHandler implements iRunHandler {
+export class SimulatorEvtHandler implements IRunHandler {
   private _consumer: MessageConsumer
   private _publisher: IMessagePublisher
 
-  async start (appConfig: any, logger: ILogger): Promise<void> {
+  async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
@@ -99,7 +99,14 @@ export class SimulatorEvtHandler implements iRunHandler {
     this._publisher = kafkaMsgPublisher
     await kafkaMsgPublisher.init()
 
+    const histoSimulatorEvtHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+      'simulatorEvtHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+      'Instrumentation for simulatorEvtHandler', // Description of metric
+      ['success', 'error'] // Define a custom label 'success'
+    )
+
     const simulatorEvtHandler = async (message: IDomainMessage): Promise<void> => {
+      const histTimer = histoSimulatorEvtHandlerMetric.startTimer()
       try {
         logger.info(`simulatorEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
         let simulatorEvt: DomainEventMsg | undefined
@@ -163,6 +170,8 @@ export class SimulatorEvtHandler implements iRunHandler {
           }
           default: {
             logger.debug(`simulatorEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+            histTimer({success: 'true'})
+            return
           }
         }
 
@@ -171,10 +180,12 @@ export class SimulatorEvtHandler implements iRunHandler {
           await kafkaMsgPublisher!.publish(transferEvt)
           logger.info(`simulatorEvtHandler publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
         }
+        histTimer({success: 'true'})
       } catch (err) {
         const errMsg: string = err?.message?.toString()
         logger.info(`simulatorEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
         logger.error(err)
+        histTimer({success: 'false', error: err.message})
       }
     }
 
