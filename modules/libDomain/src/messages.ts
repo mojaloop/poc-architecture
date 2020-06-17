@@ -89,7 +89,6 @@ export type IDomainMessage = {
 //   abstract payload: any
 // }
 
-
 // export class DomainMsg implements IDomainMessage{
 //   msgId: string = uuidv4() // unique per message
 //   msgTimestamp: number = Date.now()
@@ -126,8 +125,7 @@ export type IDomainMessage = {
 //   }
 // }
 
-
-export abstract class DomainMsg implements IDomainMessage{
+export abstract class DomainMsg implements IDomainMessage {
   msgId: string = uuidv4() // unique per message
   msgTimestamp: number = Date.now()
   msgName: string = (this as any).constructor.name
