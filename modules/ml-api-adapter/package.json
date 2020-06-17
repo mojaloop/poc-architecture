@@ -38,7 +38,7 @@
     "standard": "npx standard",
     "lint": "npm run standard",
     "lint:fix": "npx standard --fix",
-    "test:unit": "tape 'test/unit/**/*.test.js'",
+    "test:unit": "",
     "test:int1": "ENDPOINT_HOST=http://localhost:4545 node test/integration/server/index.js",
     "test:int2": "MLAPI_ENDPOINT_SOURCE_URL=http://localhost:4545/participants/{{fsp}}/endpoints node src/api/index.js",
     "test:int": "tape 'test/integration/**/*.test.js'",

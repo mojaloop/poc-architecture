@@ -12,6 +12,12 @@ export class SimpleLogger implements ILogger {
   //  console.trace.apply(this, anything);
   // }
 
+  isDebugEnabled = () => false
+  isInfoEnabled = () => false
+  isWarnEnabled = () => true
+  isErrorEnabled = () => false
+  isFatalEnabled = () => false
+
   debug = jest.fn()
   
   info = jest.fn()
