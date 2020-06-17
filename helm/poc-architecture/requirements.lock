@@ -1,6 +1,6 @@
 dependencies:
 - name: transfers
-  repository: file://./transfers
+  repository: file://./participants
   version: 0.1.0
 - name: participants
   repository: file://./participants
@@ -17,5 +17,5 @@ dependencies:
 - name: redis
   repository: https://charts.bitnami.com/bitnami
   version: 10.7.1
-digest: sha256:afcf9f87ee0ecb3a015092e7a2bbe8e62345be49a42c6f473af30bffe6967229
-generated: "2020-06-12T13:18:25.389397999+01:00"
+digest: sha256:862cb166e1ae72899d830ba53eed799f31c2e555eb146cebb195782a60161dec
+generated: "2020-06-17T14:06:44.362085172+01:00"

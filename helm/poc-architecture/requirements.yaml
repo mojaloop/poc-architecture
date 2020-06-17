@@ -6,9 +6,10 @@ dependencies:
 #   repository: "file://../ml-api-adapter"
 #   condition: ml-api-adapter-handler-notification.enabled
 # Transfers Handlers
-- name: transfers
+- name: participants
+  alias: transfers
   version: 0.1.0
-  repository: "file://./transfers"
+  repository: "file://./participants"
   condition: transfers.enabled
 # Participant Handlers
 - name: participants
