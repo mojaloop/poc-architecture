@@ -170,7 +170,7 @@ export class SimulatorEvtHandler implements IRunHandler {
           }
           default: {
             logger.debug(`simulatorEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
-            histTimer({success: 'true'})
+            histTimer({ success: 'true' })
             return
           }
         }
@@ -180,12 +180,12 @@ export class SimulatorEvtHandler implements IRunHandler {
           await kafkaMsgPublisher!.publish(transferEvt)
           logger.info(`simulatorEvtHandler publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
         }
-        histTimer({success: 'true'})
+        histTimer({ success: 'true' })
       } catch (err) {
         const errMsg: string = err?.message?.toString()
         logger.info(`simulatorEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
         logger.error(err)
-        histTimer({success: 'false', error: err.message})
+        histTimer({ success: 'false', error: err.message })
       }
     }
 

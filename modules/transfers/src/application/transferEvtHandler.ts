@@ -101,7 +101,6 @@ export class TransferEvtHandler implements IRunHandler {
     this._publisher = kafkaMsgPublisher
     await kafkaMsgPublisher.init()
 
-
     const histoTransferEvtHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
       'transferEvtHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
       'Instrumentation for transferEvtHandler', // Description of metric
@@ -159,12 +158,12 @@ export class TransferEvtHandler implements IRunHandler {
           await kafkaMsgPublisher!.publish(transferCmd)
           logger.info(`transferEvtHandler publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
         }
-        histTimer({success: 'true'})
+        histTimer({ success: 'true' })
       } catch (err) {
         const errMsg: string = err?.message?.toString()
         logger.warn(`transferEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
         logger.error(err)
-        histTimer({success: 'false', error: err.message})
+        histTimer({ success: 'false', error: err.message })
       }
     }
 

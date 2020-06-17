@@ -43,33 +43,32 @@ import { Server, IncomingMessage, ServerResponse } from 'http'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 
 export type TApiServerOptions = {
-  host: string,
-  port: number,
-  metricCallback: () => Promise<any>,
+  host: string
+  port: number
+  metricCallback: () => Promise<any>
   healthCallback: () => Promise<any>
 }
 
 export class ApiServer {
-  private _logger: ILogger
-  private _options: TApiServerOptions
+  private readonly _logger: ILogger
+  private readonly _options: TApiServerOptions
   private _serverOptions: TApiServerOptions
-  private _server: fastify.FastifyInstance<Server, IncomingMessage, ServerResponse>
-  
+  private readonly _server: fastify.FastifyInstance<Server, IncomingMessage, ServerResponse>
+
   constructor (opts: TApiServerOptions, logger: ILogger) {
     this._logger = logger
     this._options = opts
     this._server = fastify({
-      //todo here
+      // todo here
     })
   }
 
   async init (): Promise<void> {
-
     const defaultHttpServerOptions: TApiServerOptions = {
       host: '0.0.0.0',
       port: 3000,
-      metricCallback: async ()=> undefined,
-      healthCallback: async ()=> undefined 
+      metricCallback: async () => undefined,
+      healthCallback: async () => undefined
     }
 
     // copy default config
@@ -117,7 +116,7 @@ export class ApiServer {
       }
     }
 
-    this._server.get('/metrics', routeHealthOpts, async (request, reply) => {
+    this._server.get('/metrics', routeMetricOpts, async (request, reply) => {
       // console.log(reply.res) // this is the http.ServerResponse with correct typings!
       // this._logger.debug(JSON.stringify(reply.res))
       const response = await this._serverOptions.metricCallback()
@@ -128,7 +127,7 @@ export class ApiServer {
     await this._server.listen(this._serverOptions.port, this._serverOptions.host)
 
     this._logger.info(`Http Server start on port:${this._serverOptions.port}, host: ${this._serverOptions.host}`)
-    
+
     // Run the server!
     // this._server..listen(this._options.port, this._options.host, function (err, address) {
     //   if (err) {

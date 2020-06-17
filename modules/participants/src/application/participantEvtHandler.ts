@@ -130,7 +130,7 @@ export class ParticipantEvtHandler implements IRunHandler {
           }
           default: {
             logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
-            histTimer({success: 'true'})
+            histTimer({ success: 'true' })
             return
           }
         }
@@ -143,12 +143,12 @@ export class ParticipantEvtHandler implements IRunHandler {
         }
 
         logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: true`)
-        histTimer({success: 'true'})
+        histTimer({ success: 'true' })
       } catch (err) {
         const errMsg: string = err?.message?.toString()
         logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
         logger.error(err)
-        histTimer({success: 'false', error: err.message})
+        histTimer({ success: 'false', error: err.message })
       }
     }
 

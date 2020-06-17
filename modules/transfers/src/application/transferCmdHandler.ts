@@ -156,10 +156,10 @@ export class TransferCmdHandler implements IRunHandler {
           logger.warn('transferCmdHandler is Unable to process command')
         }
         logger.info(`transferCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
-        histTimer({success: 'true'})
+        histTimer({ success: 'true' })
       } catch (err) {
         logger.error(err)
-        histTimer({success: 'false', error: err.message})
+        histTimer({ success: 'false', error: err.message })
       }
     }
 
