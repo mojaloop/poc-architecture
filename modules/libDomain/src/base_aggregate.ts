@@ -39,7 +39,7 @@
 
 import { BaseEntity } from './base_entity'
 import { BaseEntityState } from './base_entity_state'
-import { CommandMsg, DomainEventMsg, DomainMsg } from './messages'
+import { CommandMsg, DomainEventMsg, DomainMsg, IDomainMessage } from './messages'
 import { IMessagePublisher } from './imessage_publisher'
 import { IEntityStateRepository } from './ientity_state_repository'
 import { IEntityFactory } from './entity_factory'
@@ -121,6 +121,7 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
 
     // TODO check for consistency, ie, versions
     return await handler.call(this, commandMsg).then(async (result: boolean) => {
+      this.propagateTraceInfo(commandMsg)
       await this.commit() // send out the unpublished events regardless
 
       // until we have full event sourcing we have to persist
@@ -269,6 +270,12 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
     this._logger.debug(`Aggregate committed ${this._uncommittedEvents.length} events - ${JSON.stringify(eventNames)}`)
 
     this._uncommittedEvents = []
+  }
+
+  protected propagateTraceInfo (sourceMsg: IDomainMessage): void{
+    if (sourceMsg.traceInfo != null) return
+
+    this._uncommittedEvents.forEach(msg => msg.passTraceInfo(sourceMsg))
   }
 
   private _resetState (): void {
