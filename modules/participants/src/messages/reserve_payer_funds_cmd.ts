@@ -40,12 +40,12 @@
 import { CommandMsg } from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics, CurrencyTypes } from '@mojaloop-poc/lib-public-messages'
 
-export interface ReservePayerFundsCmdPayload {
+export type ReservePayerFundsCmdPayload = {
   payerId: string
   payeeId: string
   transferId: string
   currency: CurrencyTypes
-  amount: number
+  amount: string
 }
 
 export class ReservePayerFundsCmd extends CommandMsg {

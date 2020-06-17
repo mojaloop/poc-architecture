@@ -5,24 +5,29 @@ networks:
     name: mojaloop-poc
 
 services:
-  kafka:
-    image: johnnypark/kafka-zookeeper:2.3.0
-    container_name: kafka
-    volumes:
-      - ./docker/kafka/:/opt/kafka_2.12-2.3.0/config/
+  # Transfers
+  transfers:
+    image: mojaloop-poc/transfers:v0.1.0
+    container_name: transfers
+    command: sh -c "/opt/transfers/wait4/wait4.js transfers && npm start"
     ports:
-      - "2181:2181"
-      - "9092:9092"
+      - "3000:3001"
+    volumes:
+       - ./docker/transfers/default.json:/opt/transfers/config/default.json
+       - ./docker/wait4:/opt/transfers/wait4
     environment:
-      - ZOO_LOG4J_PROP=WARN
+      - LOG_LEVEL=info
+      - REDIS_HOST=redis
+      - KAFKA_HOST="kafka:9092"
     networks:
       - mojaloop-poc
-    healthcheck:
-      test: ["CMD" ,"/opt/kafka_2.12-2.3.0/bin/kafka-broker-api-versions.sh","--bootstrap-server","172.17.0.1:9092"]
-      timeout: 20s
-      retries: 10
-      start_period: 40s
-      interval: 30s
+    depends_on:
+      - kafka
+    # healthcheck:
+    #   test: wget -q http://172.17.0.1:3001/health -O /dev/null || exit 1
+    #   timeout: 20s
+    #   retries: 30
+    #   interval: 15s
 
   # Participants
   participants:
@@ -49,6 +54,25 @@ services:
     #   retries: 30
     #   interval: 15s
 
+  kafka:
+    image: johnnypark/kafka-zookeeper:2.3.0
+    container_name: kafka
+    volumes:
+      - ./docker/kafka/:/opt/kafka_2.12-2.3.0/config/
+    ports:
+      - "2181:2181"
+      - "9092:9092"
+    environment:
+      - ZOO_LOG4J_PROP=WARN
+    networks:
+      - mojaloop-poc
+    healthcheck:
+      test: ["CMD" ,"/opt/kafka_2.12-2.3.0/bin/kafka-broker-api-versions.sh","--bootstrap-server","172.17.0.1:9092"]
+      timeout: 20s
+      retries: 10
+      start_period: 40s
+      interval: 30s
+
   redis:
     container_name: redis
     image: "redis:5.0.4-alpine"
@@ -58,26 +82,23 @@ services:
       - mojaloop-poc
     restart: always
 
-  # Transfers
-  transfers:
-    image: mojaloop-poc/transfers:v0.1.0
-    container_name: transfers
-    command: sh -c "/opt/transfers/wait4/wait4.js transfers && npm start"
+  simulator:
+    image: mojaloop/simulator:v9.5.0
+    container_name: simulator
     ports:
-      - "3000:3001"
-    volumes:
-       - ./docker/transfers/default.json:/opt/transfers/config/default.json
-       - ./docker/wait4:/opt/transfers/wait4
+      - "8444:8444"
     environment:
       - LOG_LEVEL=info
-      - REDIS_HOST=redis
-      - KAFKA_HOST="kafka:9092"
+      - TRANSFERS_ENDPOINT=http://host.docker.internal:3000
+      - QUOTES_ENDPOINT=http://host.docker.internal:3002
+      - PARTIES_ENDPOINT=http://host.docker.internal:4002
+      - TRANSFERS_FULFIL_RESPONSE_DISABLED=false
+      - TRANSFERS_FULFILMENT=XoSz1cL0tljJSCp_VtIYmPNw-zFUgGfbUqf69AagUzY
+      - TRANSFERS_CONDITION=HOr22-H3AfTDHrSkPjJtVPRdKouuMkDXTR4ejlQa8Ks
     networks:
       - mojaloop-poc
-    depends_on:
-      - kafka
-    # healthcheck:
-    #   test: wget -q http://172.17.0.1:3001/health -O /dev/null || exit 1
-    #   timeout: 20s
-    #   retries: 30
-    #   interval: 15s
+    healthcheck:
+      test: ["CMD", "sh", "-c" ,"apk --no-cache add curl", ";", "curl", "http://localhost:8444/health"]
+      timeout: 20s
+      retries: 10
+      interval: 30s

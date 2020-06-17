@@ -40,7 +40,7 @@
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics } from '../enums'
 
-export interface DuplicateParticipantDetectedEvtPayload {
+export type DuplicateParticipantDetectedEvtPayload = {
   participantId: string
 }
 

@@ -41,6 +41,6 @@ import { IEntityStateRepository } from '@mojaloop-poc/lib-domain'
 import { ParticipantAccountTypes } from '@mojaloop-poc/lib-public-messages'
 import { ParticipantState } from './participant_entity'
 
-export interface IParticipantRepo extends IEntityStateRepository<ParticipantState> {
+export type IParticipantRepo = {
   hasAccount: (participantId: string, accType: ParticipantAccountTypes, currency: string) => Promise<boolean>
-}
+} & IEntityStateRepository<ParticipantState>

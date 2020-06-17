@@ -8,7 +8,8 @@ module.exports = {
   rules: {
     'no-console': 'error',
     'no-async-promise-executor': 'off',
-    '@typescript-eslint/no-non-null-assertion': 'off'
+    '@typescript-eslint/no-non-null-assertion': 'off',
+    '@typescript-eslint/consistent-type-definitions': 'off'
   },
   ignorePatterns: [ '**/*.js',  '**/*.d.ts'],
   overrides: [

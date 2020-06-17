@@ -40,7 +40,7 @@
 import { IDomainMessage, IMessage } from '@mojaloop-poc/lib-domain'
 import { EventEmitter } from 'events'
 
-export interface Options<tClientOptions> {
+export type Options<tClientOptions> = {
   client: tClientOptions
 }
 

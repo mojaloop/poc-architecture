@@ -9,6 +9,8 @@ import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 
 const logger: ILogger = new ConsoleLogger()
 
+const LIMIT = '10000000'
+
 const createParticipantCmdPayloadFSP1: CreateParticipantCmdPayload = {
   participant: {
     id: 'fsp-1',
@@ -17,24 +19,28 @@ const createParticipantCmdPayloadFSP1: CreateParticipantCmdPayload = {
       {
         type: ParticipantAccountTypes.POSITION,
         currency: CurrencyTypes.USD,
-        initialPosition: 0,
-        position: 0, // TODO remove one of these (this or the above)
+        initialPosition: '0',
+        position: '0', // TODO remove one of these (this or the above)
         limits: [
           {
             type: AccountLimitTypes.NET_DEBIT_CAP,
-            value: 100000
+            value: LIMIT
           }
         ]
       }
     ],
     endpoints: [
       {
-        type: 'FSPIOP_CALLBACK_URL_TRANSFER',
-        value: 'http://test'
+        type: 'FSPIOP_CALLBACK_URL_TRANSFER_POST',
+        value: 'http://simulator:8444/payeefsp/transfers'
       },
       {
-        type: 'FSPIOP_CALLBACK_URL_TRANSFER',
-        value: 'http://test'
+        type: 'FSPIOP_CALLBACK_URL_TRANSFER_PUT',
+        value: 'http://simulator:8444/payeefsp/transfers/{{transferId}}'
+      },
+      {
+        type: 'FSPIOP_CALLBACK_URL_TRANSFER_ERROR',
+        value: 'http://simulator:8444/payeefsp/transfers/{{transferId}}/error'
       },
       {
         type: 'SETTLEMENT_TRANSFER_POSITION_CHANGE_EMAIL',
@@ -52,24 +58,106 @@ const createParticipantCmdPayloadFSP2: CreateParticipantCmdPayload = {
       {
         type: ParticipantAccountTypes.POSITION,
         currency: CurrencyTypes.USD,
-        initialPosition: 0,
-        position: 0,
+        initialPosition: '0',
+        position: '0', // TODO remove one of these (this or the above)
         limits: [
           {
             type: AccountLimitTypes.NET_DEBIT_CAP,
-            value: 100000
+            value: LIMIT
           }
         ]
       }
     ],
     endpoints: [
       {
-        type: 'FSPIOP_CALLBACK_URL_TRANSFER',
-        value: 'http://test'
+        type: 'FSPIOP_CALLBACK_URL_TRANSFER_POST',
+        value: 'http://simulator:8444/payeefsp/transfers'
       },
       {
-        type: 'FSPIOP_CALLBACK_URL_TRANSFER',
-        value: 'http://test'
+        type: 'FSPIOP_CALLBACK_URL_TRANSFER_PUT',
+        value: 'http://simulator:8444/payeefsp/transfers/{{transferId}}'
+      },
+      {
+        type: 'FSPIOP_CALLBACK_URL_TRANSFER_ERROR',
+        value: 'http://simulator:8444/payeefsp/transfers/{{transferId}}/error'
+      },
+      {
+        type: 'SETTLEMENT_TRANSFER_POSITION_CHANGE_EMAIL',
+        value: 'joe@test.com'
+      }
+    ]
+  }
+}
+
+const createParticipantCmdPayloadFSP3: CreateParticipantCmdPayload = {
+  participant: {
+    id: 'fsp-3',
+    name: 'fsp-3',
+    accounts: [
+      {
+        type: ParticipantAccountTypes.POSITION,
+        currency: CurrencyTypes.USD,
+        initialPosition: '0',
+        position: '0', // TODO remove one of these (this or the above)
+        limits: [
+          {
+            type: AccountLimitTypes.NET_DEBIT_CAP,
+            value: LIMIT
+          }
+        ]
+      }
+    ],
+    endpoints: [
+      {
+        type: 'FSPIOP_CALLBACK_URL_TRANSFER_POST',
+        value: 'http://simulator:8444/payeefsp/transfers'
+      },
+      {
+        type: 'FSPIOP_CALLBACK_URL_TRANSFER_PUT',
+        value: 'http://simulator:8444/payeefsp/transfers/{{transferId}}'
+      },
+      {
+        type: 'FSPIOP_CALLBACK_URL_TRANSFER_ERROR',
+        value: 'http://simulator:8444/payeefsp/transfers/{{transferId}}/error'
+      },
+      {
+        type: 'SETTLEMENT_TRANSFER_POSITION_CHANGE_EMAIL',
+        value: 'joe@test.com'
+      }
+    ]
+  }
+}
+
+const createParticipantCmdPayloadFSP4: CreateParticipantCmdPayload = {
+  participant: {
+    id: 'fsp-4',
+    name: 'fsp-4',
+    accounts: [
+      {
+        type: ParticipantAccountTypes.POSITION,
+        currency: CurrencyTypes.USD,
+        initialPosition: '0',
+        position: '0', // TODO remove one of these (this or the above)
+        limits: [
+          {
+            type: AccountLimitTypes.NET_DEBIT_CAP,
+            value: LIMIT
+          }
+        ]
+      }
+    ],
+    endpoints: [
+      {
+        type: 'FSPIOP_CALLBACK_URL_TRANSFER_POST',
+        value: 'http://simulator:8444/payeefsp/transfers'
+      },
+      {
+        type: 'FSPIOP_CALLBACK_URL_TRANSFER_PUT',
+        value: 'http://simulator:8444/payeefsp/transfers/{{transferId}}'
+      },
+      {
+        type: 'FSPIOP_CALLBACK_URL_TRANSFER_ERROR',
+        value: 'http://simulator:8444/payeefsp/transfers/{{transferId}}/error'
       },
       {
         type: 'SETTLEMENT_TRANSFER_POSITION_CHANGE_EMAIL',
@@ -81,11 +169,15 @@ const createParticipantCmdPayloadFSP2: CreateParticipantCmdPayload = {
 
 const createParticipantCmdFSP1 = new CreateParticipantCmd(createParticipantCmdPayloadFSP1)
 const createParticipantCmdFSP2 = new CreateParticipantCmd(createParticipantCmdPayloadFSP2)
+const createParticipantCmdFSP3 = new CreateParticipantCmd(createParticipantCmdPayloadFSP3)
+const createParticipantCmdFSP4 = new CreateParticipantCmd(createParticipantCmdPayloadFSP4)
 
 /* eslint-disable-next-line @typescript-eslint/explicit-function-return-type */
 const start = async () => {
   await publishMessage(createParticipantCmdFSP1)
   await publishMessage(createParticipantCmdFSP2)
+  await publishMessage(createParticipantCmdFSP3)
+  await publishMessage(createParticipantCmdFSP4)
   process.exit(0)
 }
 

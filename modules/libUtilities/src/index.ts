@@ -39,3 +39,4 @@
 
 // Exports for Utilities
 export * from './logger'
+export * from './crypto'

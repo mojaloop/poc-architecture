@@ -39,14 +39,12 @@
 
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { MessageConsumer } from '@mojaloop-poc/lib-infrastructure'
-import * as TransferCmdHandler from './transferCmdHandler'
-import * as TransferEvtHandler from './transferEvtHandler'
+import { iRunHandler, KafkaInfraTypes } from '@mojaloop-poc/lib-infrastructure'
+import { TransferCmdHandler } from './transferCmdHandler'
+import { TransferEvtHandler } from './transferEvtHandler'
 import * as dotenv from 'dotenv'
 import { Command } from 'commander'
 import { resolve as Resolve } from 'path'
-
-export const logger: ILogger = new ConsoleLogger()
 
 const Program = new Command()
 Program
@@ -74,39 +72,52 @@ Program.command('handler')
     // # setup application config
     const appConfig = {
       kafka: {
-        host: process.env.KAFKA_HOST
+        host: process.env.KAFKA_HOST,
+        consumer: (process.env.KAFKA_CONSUMER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_CONSUMER,
+        producer: (process.env.KAFKA_PRODUCER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_PRODUCER
       },
       redis: {
         host: process.env.REDIS_HOST
       }
     }
 
+    const logger: ILogger = new ConsoleLogger()
+
     logger.debug(`appConfig=${JSON.stringify(appConfig)}`)
 
     // list of all handlers
-    const consumerHandlerList: MessageConsumer[] = []
+    const runHandlerList: iRunHandler[] = []
 
     // start all handlers here
     if (args.transferEvt == null && args.transferCmd == null) {
-      consumerHandlerList.push(await TransferEvtHandler.start(appConfig, logger))
-      consumerHandlerList.push(await TransferCmdHandler.start(appConfig, logger))
+      const transferEvtHandler = new TransferEvtHandler()
+      await transferEvtHandler.start(appConfig, logger)
+      runHandlerList.push(transferEvtHandler)
+
+      const transferCmdHandler = new TransferCmdHandler()
+      await transferCmdHandler.start(appConfig, logger)
+      runHandlerList.push(transferCmdHandler)
     }
     if (args.transferEvt != null) {
-      consumerHandlerList.push(await TransferEvtHandler.start(appConfig, logger))
+      const transferEvtHandler = new TransferEvtHandler()
+      await transferEvtHandler.start(appConfig, logger)
+      runHandlerList.push(transferEvtHandler)
     }
     if (args.transferCmd != null) {
-      consumerHandlerList.push(await TransferCmdHandler.start(appConfig, logger))
+      const transferCmdHandler = new TransferCmdHandler()
+      await transferCmdHandler.start(appConfig, logger)
+      runHandlerList.push(transferCmdHandler)
     }
 
     // lets clean up all consumers here
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     const killProcess = async (): Promise<void> => {
       logger.info('Exiting process...')
-      logger.info('Disconnecting handlers...')
+      logger.info('Destroying handlers...')
       /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-      consumerHandlerList.forEach(async (consumer) => {
-        logger.info(`\tDestroying handler...${consumer.constructor.name}`)
-        await consumer.destroy(true)
+      runHandlerList.forEach(async (handler) => {
+        logger.info(`\tDestroying handler...${handler.constructor.name}`)
+        await handler.destroy()
       })
       logger.info('Exit complete!')
       process.exit(2)

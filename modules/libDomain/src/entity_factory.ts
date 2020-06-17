@@ -40,7 +40,7 @@
 import { BaseEntity } from './base_entity'
 import { BaseEntityState } from './base_entity_state'
 
-export interface IEntityFactory<E extends BaseEntity<S>, S extends BaseEntityState>{
+export type IEntityFactory<E extends BaseEntity<S>, S extends BaseEntityState> = {
   create: () => E
   createFromState: (initialState: S) => E // optional initial id
   createWithId: (initialId: string) => E

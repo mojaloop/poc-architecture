@@ -6,12 +6,11 @@
 import { BaseAggregate, IEntityStateRepository, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
 import { DuplicateTransferDetectedEvt, TransferPrepareAcceptedEvt, TransferFulfilledEvt, TransferFulfilledEvtPayload, TransferNotFoundEvt, TransferPreparedEvt, TransferPreparedEvtPayload, InvalidTransferEvt, InvalidTransferEvtPayload, TransferFulfilAcceptedEvt } from '@mojaloop-poc/lib-public-messages'
 import { PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
-import { TransferEntity, TransferState, TransferInternalStates, PrepareTransferData } from './transfer_entity'
+import { TransferEntity, TransferState, TransferInternalStates, PrepareTransferData, FulfilTransferData } from './transfer_entity'
 import { TransfersFactory } from './transfers_factory'
 import { AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
-import { logger } from '../application'
-import { AckPayeeFundsCommitedCmd } from '../messages/ack_payee_funds_reserved_cmd'
+import { AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
 
 export enum TransfersAggTopics {
   'Commands' = 'TransferCommands',
@@ -23,7 +22,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
     super(TransfersFactory.GetInstance(), entityStateRepo, msgPublisher, logger)
     this._registerCommandHandler('PrepareTransferCmd', this.processPrepareTransferCommand)
     this._registerCommandHandler('AckPayerFundsReservedCmd', this.processAckPayerFundsReservedCommand)
-    this._registerCommandHandler('AckPayeeFundsCommitedCmd', this.processAckPayeeFundsReservedCommand)
+    this._registerCommandHandler('AckPayeeFundsCommittedCmd', this.processAckPayeeFundsReservedCommand)
     this._registerCommandHandler('FulfilTransferCmd', this.processFulfilTransferCommand)
   }
 
@@ -40,13 +39,21 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
     /* TODO: validation of incoming payload */
 
     this.create()
+
     const transferPrepareRequestData: PrepareTransferData = {
       id: commandMsg.payload.transferId,
       amount: commandMsg.payload.amount,
       currency: commandMsg.payload.currency,
       payerId: commandMsg.payload.payerId,
-      payeeId: commandMsg.payload.payeeId
+      payeeId: commandMsg.payload.payeeId,
+      expiration: commandMsg.payload.expiration,
+      condition: commandMsg.payload.condition,
+      prepare: {
+        headers: commandMsg.payload.prepare?.headers,
+        payload: commandMsg.payload.prepare?.payload
+      }
     }
+
     this._rootEntity!.prepareTransfer(transferPrepareRequestData)
 
     const transferPrepareAcceptedEvtPayload = {
@@ -76,7 +83,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       }
 
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
-      logger.info(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
       return false
     }
 
@@ -87,7 +94,10 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       amount: this._rootEntity.amount,
       currency: this._rootEntity.currency,
       payerId: this._rootEntity.payerId,
-      payeeId: this._rootEntity.payeeId
+      payeeId: this._rootEntity.payeeId,
+      payerEndPoints: commandMsg.payload.payerEndPoints,
+      payeeEndPoints: commandMsg.payload.payeeEndPoints,
+      prepare: this._rootEntity.prepare
     }
     this.recordDomainEvent(new TransferPreparedEvt(transferPreparedEvtPayload))
 
@@ -109,13 +119,38 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       }
 
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
-      logger.info(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
       return false
     }
 
     /* TODO: validation of incoming payload */
 
-    this._rootEntity.fulfilTransfer()
+    // # Lets try fulfilling transfer
+    try {
+      const transferFulfilRequestData: FulfilTransferData = {
+        id: commandMsg.payload.transferId,
+        payerId: commandMsg.payload.payerId,
+        payeeId: commandMsg.payload.payeeId,
+        fulfilment: commandMsg.payload.fulfilment,
+        completedTimestamp: commandMsg.payload.completedTimestamp,
+        transferState: commandMsg.payload.transferState,
+        fulfil: {
+          headers: commandMsg.payload.fulfil?.headers,
+          payload: commandMsg.payload.fulfil?.payload
+        }
+      }
+
+      this._rootEntity.fulfilTransfer(transferFulfilRequestData)
+    } catch (err) {
+      const invalidTransferEvtPayload: InvalidTransferEvtPayload = {
+        transferId: commandMsg.payload.transferId
+      }
+      /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+      invalidTransferEvtPayload.reason = `${err.constructor.name} ${err.message}`
+      this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
+      this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      return false
+    }
 
     const transferFulfilAcceptedEvtPayload = {
       transferId: this._rootEntity.id,
@@ -129,7 +164,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
     return true
   }
 
-  async processAckPayeeFundsReservedCommand (commandMsg: AckPayeeFundsCommitedCmd): Promise<boolean> {
+  async processAckPayeeFundsReservedCommand (commandMsg: AckPayeeFundsCommittedCmd): Promise<boolean> {
     await this.load(commandMsg.payload.transferId, false)
 
     if (this._rootEntity === null) {
@@ -144,7 +179,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       }
 
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
-      logger.info(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
       return false
     }
 
@@ -155,7 +190,10 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       amount: this._rootEntity.amount,
       currency: this._rootEntity.currency,
       payerId: this._rootEntity.payerId,
-      payeeId: this._rootEntity.payeeId
+      payeeId: this._rootEntity.payeeId,
+      payerEndPoints: commandMsg.payload.payerEndPoints,
+      payeeEndPoints: commandMsg.payload.payeeEndPoints,
+      fulfil: this._rootEntity.fulfil
     }
     this.recordDomainEvent(new TransferFulfilledEvt(transferFulfiledEvtPayload))
 

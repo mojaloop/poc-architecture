@@ -41,7 +41,8 @@
     "dep:update": "npx ncu -u"
   },
   "dependencies": {
-    "@mojaloop-poc/lib-domain": "^0.1.0"
+    "@mojaloop-poc/lib-domain": "^0.1.0",
+    "@mojaloop/central-services-logger": "^10.4.0"
   },
   "devDependencies": {
     "@types/kafka-node": "^3.0.0",

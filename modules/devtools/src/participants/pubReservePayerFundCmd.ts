@@ -15,7 +15,7 @@ const reservePayerFundsCmdPayload: ReservePayerFundsCmdPayload = {
   payeeId: 'fsp-2',
   transferId: uuidv4(),
   currency: CurrencyTypes.USD,
-  amount: 1
+  amount: '1'
 }
 const reservePayerFundsCmd = new ReservePayerFundsCmd(reservePayerFundsCmdPayload)
 

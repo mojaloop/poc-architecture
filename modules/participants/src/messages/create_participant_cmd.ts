@@ -38,27 +38,9 @@
 'use strict'
 
 import { CommandMsg, MessageTypes } from '@mojaloop-poc/lib-domain'
-import { ParticipantsTopics, ParticipantAccountTypes, AccountLimitTypes, CurrencyTypes } from '@mojaloop-poc/lib-public-messages'
+import { ParticipantsTopics, ParticipantAccount, ParticipantEndpoint } from '@mojaloop-poc/lib-public-messages'
 
-export interface ParticipantLimit {
-  type: AccountLimitTypes
-  value: number // TODO: these need to be replaced to support 64bit floating point precission
-}
-
-export interface ParticipantAccount {
-  type: ParticipantAccountTypes
-  currency: CurrencyTypes
-  position: number // TODO: these need to be replaced to support 64bit floating point precission
-  initialPosition: number // TODO: these need to be replaced to support 64bit floating point precission
-  limits: ParticipantLimit[]
-}
-
-export interface ParticipantEndpoint {
-  type: string
-  value: string
-}
-
-export interface CreateParticipantCmdPayload {
+export type CreateParticipantCmdPayload = {
   participant: {
     id: string
     name: string

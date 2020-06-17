@@ -39,12 +39,16 @@
 
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics, CurrencyTypes } from '../enums'
+import { ParticipantEndpoint } from '../types'
 
-export interface PayeeFundsCommittedEvtPayload {
+export type PayeeFundsCommittedEvtPayload = {
   transferId: string
   payeeId: string
   currency: CurrencyTypes
-  currentPosition: number
+  currentPosition: string
+  // TODO: In future these end-points should be emitted to the Notification Handler, and not included as part of this event
+  payerEndPoints: ParticipantEndpoint[]
+  payeeEndPoints: ParticipantEndpoint[]
 }
 
 export class PayeeFundsCommittedEvt extends DomainEventMsg {

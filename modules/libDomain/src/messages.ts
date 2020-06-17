@@ -46,7 +46,7 @@ export enum MessageTypes{
   'COMMAND', // commands
 }
 
-export interface IMessage{
+export type IMessage = {
   msgType: MessageTypes
   msgId: string // unique per message
   msgTimestamp: number
@@ -65,13 +65,13 @@ export interface IMessage{
 
 // domain specific
 
-export interface IDomainMessage extends IMessage{
+export type IDomainMessage = {
   msgName: string // name of the event or command
 
   aggregateName: string // name of the source/target aggregate (source if event, target if command)
   aggregateId: string // id of the source/target aggregate (source if event, target if command)
   // aggregate_version:number; // version of the source/target aggregate (source if event, target if command)
-}
+} & IMessage
 
 // export abstract class BaseDomainMsg implements IDomainMessage {
 //   msgId: string = uuidv4() // unique per message

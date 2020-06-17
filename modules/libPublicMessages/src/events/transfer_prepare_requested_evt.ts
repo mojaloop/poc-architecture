@@ -4,21 +4,25 @@
 'use strict'
 
 import { DomainEventMsg } from '@mojaloop-poc/lib-domain'
-import { TransfersTopics } from '../enums'
+import { MLTopics } from '../enums'
+import { TransferRawPayload } from '../types'
 
-export interface TransferPrepareRequestedEvtPayload {
+export type TransferPrepareRequestedEvtPayload = {
   transferId: string
-  amount: number
+  amount: string
   currency: string
   payerId: string
   payeeId: string
+  expiration: string
+  condition: string
+  prepare: TransferRawPayload
 }
 
 export class TransferPrepareRequestedEvt extends DomainEventMsg {
   aggregateId: string
   aggregateName: string = 'Transfers'
   msgKey: string
-  msgTopic: string = TransfersTopics.DomainEvents
+  msgTopic: string = MLTopics.Events
 
   payload: TransferPrepareRequestedEvtPayload
 

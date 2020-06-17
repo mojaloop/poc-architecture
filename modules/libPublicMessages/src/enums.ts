@@ -36,8 +36,12 @@
 ******/
 
 'use strict'
-
 // TODO: Move to config management in future
+
+export enum MLTopics {
+  'Events' = 'MLIngressEvents',
+}
+
 export enum ParticipantsTopics {
   'Commands' = 'ParticipantCommands',
   'DomainEvents' = 'ParticipantDomainEvents',
