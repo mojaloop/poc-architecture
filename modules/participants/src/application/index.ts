@@ -169,7 +169,7 @@ Program.command('handler')
       }
 
       logger.info('Exit complete!')
-      process.exit(2)
+      process.exit(0)
     }
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     process.on('SIGINT', killProcess)

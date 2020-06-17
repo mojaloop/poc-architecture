@@ -25,7 +25,8 @@
     "test:unit"
   ],
   "scripts": {
-    "start": "tsc && node dist/application/index.js handler --config ../../.env",
+    "start": "npm run transfers",
+    "transfers": "tsc && node dist/application/index.js handler --config ../../.env",
     "build": "tsc",
     "watch": "tsc -w",
     "clean": "rm -Rf dist",
