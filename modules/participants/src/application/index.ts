@@ -37,14 +37,17 @@
 
 'use strict'
 
-import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
+import { MojaLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { iRunHandler, KafkaInfraTypes } from '@mojaloop-poc/lib-infrastructure'
+import { TApiServerOptions, ApiServer, IRunHandler, KafkaInfraTypes } from '@mojaloop-poc/lib-infrastructure'
 import { ParticipantCmdHandler } from './participantCmdHandler'
 import { ParticipantEvtHandler } from './participantEvtHandler'
 import * as dotenv from 'dotenv'
 import { Command } from 'commander'
 import { resolve as Resolve } from 'path'
+
+/* eslint-disable-next-line @typescript-eslint/no-var-requires */
+const pckg = require('../../package.json')
 
 const Program = new Command()
 Program
@@ -54,6 +57,7 @@ Program.command('handler')
   .alias('h')
   .description('Start Participant Handlers') // command description
   .option('-c, --config [configFilePath]', '.env config file')
+  .option('--disableApi', 'Disable API server for health & metrics')
   .option('--participantsEvt', 'Start the Participant Evt Handler')
   .option('--participantsCmd', 'Start the Participant Cmd Handler')
 
@@ -81,32 +85,70 @@ Program.command('handler')
       }
     }
 
-    const logger: ILogger = new ConsoleLogger()
+    // Instantiate logger
+    const logger: ILogger = new MojaLogger()
+
+    // Instantiate metrics factory
+
+    const metricsConfig: TMetricOptionsType = {
+      timeout: 5000, // Set the timeout in ms for the underlying prom-client library. Default is '5000'.
+      prefix: 'poc_part_', // Set prefix for all defined metrics names
+      defaultLabels: { // Set default labels that will be applied to all metrics
+        serviceName: 'participants'
+      }
+    }
+
+    const metrics = new Metrics(metricsConfig)
+    await metrics.init()
 
     logger.debug(`appConfig=${JSON.stringify(appConfig)}`)
 
     // list of all handlers
-    const runHandlerList: iRunHandler[] = []
+    const runHandlerList: IRunHandler[] = []
 
     // start all handlers here
     if (args.participantsEvtHandler == null && args.participantsCmdHandler == null) {
       const participantEvtHandler = new ParticipantEvtHandler()
-      await participantEvtHandler.start(appConfig, logger)
+      await participantEvtHandler.start(appConfig, logger, metrics)
       runHandlerList.push(participantEvtHandler)
 
       const participantCmdHandler = new ParticipantCmdHandler()
-      await participantCmdHandler.start(appConfig, logger)
+      await participantCmdHandler.start(appConfig, logger, metrics)
       runHandlerList.push(participantCmdHandler)
     }
+
+    // start only participantsEvtHandler
     if (args.participantsEvtHandler != null) {
       const participantEvtHandler = new ParticipantEvtHandler()
-      await participantEvtHandler.start(appConfig, logger)
+      await participantEvtHandler.start(appConfig, logger, metrics)
       runHandlerList.push(participantEvtHandler)
     }
+
+    // start only participantsCmdHandler
     if (args.participantsCmdHandler != null) {
       const participantCmdHandler = new ParticipantCmdHandler()
-      await participantCmdHandler.start(appConfig, logger)
+      await participantCmdHandler.start(appConfig, logger, metrics)
       runHandlerList.push(participantCmdHandler)
+    }
+
+    // start only API
+    if (args.disableApi == null) {
+      const apiServerOptions: TApiServerOptions = {
+        host: '0.0.0.0',
+        port: 3003,
+        metricCallback: async () => {
+          return metrics.getMetricsForPrometheus()
+        },
+        healthCallback: async () => {
+          return {
+            status: 'ok',
+            version: pckg.version,
+            name: pckg.name
+          }
+        }
+      }
+      const apiServer: ApiServer = new ApiServer(apiServerOptions, logger)
+      await apiServer.init()
     }
 
     // lets clean up all consumers here
