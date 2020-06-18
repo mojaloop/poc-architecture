@@ -273,7 +273,7 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
   }
 
   protected propagateTraceInfo (sourceMsg: IDomainMessage): void{
-    if (sourceMsg.traceInfo != null) return
+    if (sourceMsg.traceInfo == null) return
 
     this._uncommittedEvents.forEach(msg => msg.passTraceInfo(sourceMsg))
   }
