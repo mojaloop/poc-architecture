@@ -1,6 +1,6 @@
 {{- $kafkaHost := ( .Values.config.kafka_host | replace "$release_name" .Release.Name ) -}}
 {{- $redisHost := ( .Values.config.redis_host | replace "$release_name" .Release.Name ) -}}
-{{- $simulatorHost := ( .Values.config.simulator_hostx | replace "$release_name" .Release.Name ) -}}
+{{- $simulatorHost := ( .Values.config.simulator_host | replace "$release_name" .Release.Name ) -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
