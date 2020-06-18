@@ -690,7 +690,7 @@ participants:
   replicaCount: 1
   image:
     repository: mojaloop/poc-architecture
-    tag: v0.2
+    tag: v0.3
     command: "cd modules/participants && node dist/application/index.js handler --config ../../.env"
     # command: "sleep 300"
     # repository: solsson/kafka
@@ -702,6 +702,9 @@ participants:
     # this can be set if the dependency chart for kafka is disabled. If 'kafka_host' is commented out, then the name of the dependency chart will be used.
     kafka_host: '$release_name-kafka'
     kafka_port: 9092
+    kafka_autocommit: false
+    simulator_host: '$release_name-simulator'
+    uv_threadpool_size: 7
     redis_host: 'redis://$release_name-redis-master:6379'
     log_level: debug
 
@@ -751,7 +754,7 @@ transfers:
   replicaCount: 1
   image:
     repository: mojaloop/poc-architecture
-    tag: v0.2
+    tag: v0.3
     command: "cd modules/transfers && node dist/application/index.js handler --config ../../.env"
     # command: "sleep 300"
     # repository: solsson/kafka
@@ -763,6 +766,9 @@ transfers:
     # this can be set if the dependency chart for kafka is disabled. If 'kafka_host' is commented out, then the name of the dependency chart will be used.
     kafka_host: '$release_name-kafka'
     kafka_port: 9092
+    kafka_autocommit: false
+    simulator_host: '$release_name-simulator'
+    uv_threadpool_size: 7
     redis_host: 'redis://$release_name-redis-master:6379'
     log_level: debug
 
@@ -812,12 +818,15 @@ simulator-dev-tool:
   replicaCount: 1
   image:
     repository: mojaloop/poc-architecture
-    tag: v0.2
+    tag: v0.3
     command: "cd modules/devtools && node dist/simulator/index.js handler"
   config:
     # this can be set if the dependency chart for kafka is disabled. If 'kafka_host' is commented out, then the name of the dependency chart will be used.
     kafka_host: '$release_name-kafka'
     kafka_port: 9092
+    kafka_autocommit: false
+    simulator_host: '$release_name-simulator'
+    uv_threadpool_size: 7
     redis_host: 'redis://$release_name-redis-master:6379'
     log_level: debug
 
@@ -868,7 +877,7 @@ ml-api-adapter:
     replicaCount: 1
     image:
       repository: mojaloop/poc-architecture
-      tag: v0.2
+      tag: v0.3
       command: "cd modules/ml-api-adapter && node src/api/index.js"
     ## Optionally specify an array of imagePullSecrets.
     ## Secrets must be manually created in the namespace.
@@ -932,6 +941,7 @@ ml-api-adapter:
       # this can be set if the dependency chart for kafka is disabled. If 'kafka_host' is commented out, then the name of the dependency chart will be used.
       kafka_host: '$release_name-kafka'
       kafka_port: 9092
+      uv_threadpool_size: 7
       central_services_host: '$release_name-centralledger-service'
       central_services_port: 80
       security:
@@ -993,14 +1003,14 @@ ml-api-adapter:
       #  memory: 128Mi
 
   ml-api-adapter-handler-notification:
-    enabled: false
+    enabled: true
     # Default values for ml-api-adapter.
     # This is a YAML-formatted file.
     # Declare variables to be passed into your templates.
     replicaCount: 1
     image:
       repository: mojaloop/poc-architecture
-      tag: v0.1
+      tag: v0.3
       command: '["cd", "modules/ml-api-adapter", "&&", "node", "src/handlers/index.js", "handler", "--notification"'
     ## Optionally specify an array of imagePullSecrets.
     ## Secrets must be manually created in the namespace.
@@ -1053,6 +1063,7 @@ ml-api-adapter:
       kafka_port: 9092
       central_services_host: '$release_name-centralledger-service'
       central_services_port: 80
+      uv_threadpool_size: 7
       security:
         callback:
           rejectUnauthorized: true

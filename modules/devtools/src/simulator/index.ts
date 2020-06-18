@@ -76,7 +76,7 @@ Program.command('handler')
         host: process.env.KAFKA_HOST,
         consumer: (process.env.KAFKA_CONSUMER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_CONSUMER,
         producer: (process.env.KAFKA_PRODUCER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_PRODUCER,
-        autocommit: (process.env.KAFKA_AUTO_COMIT === 'true')
+        autocommit: (process.env.KAFKA_AUTO_COMMIT === 'true')
       }
     }
 

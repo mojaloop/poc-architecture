@@ -1,5 +1,6 @@
 {{- $kafkaHost := ( .Values.config.kafka_host | replace "$release_name" .Release.Name ) -}}
 {{- $redisHost := ( .Values.config.redis_host | replace "$release_name" .Release.Name ) -}}
+{{- $simulatorHost := ( .Values.config.simulator_hostx | replace "$release_name" .Release.Name ) -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -102,6 +103,13 @@ spec:
               value: "{{ $kafkaHost }}:{{ .Values.config.kafka_port }}"
             - name: REDIS_HOST
               value: {{ $redisHost }}
+            - name: SIMULATOR_HOST
+              value: {{ $simulatorHost }}
+            - name: KAFKA_AUTO_COMMIT
+              value: {{ .Values.config.kafka_autocommit }}
+            - name: UV_THREADPOOL_SIZE
+              value: {{ .Values.config.uv_threadpool_size }}
+
       # volumes:
       #   - name: {{ template "poc-participants-service.fullname" . }}-config-volume
       #     configMap:
