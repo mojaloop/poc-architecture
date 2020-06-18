@@ -79,7 +79,7 @@ Program.command('handler')
         host: process.env.KAFKA_HOST,
         consumer: (process.env.KAFKA_CONSUMER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_CONSUMER,
         producer: (process.env.KAFKA_PRODUCER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_PRODUCER,
-        autocommit: (process.env.KAFKA_AUTO_COMIT === "true") ? true : false
+        autocommit: (process.env.KAFKA_AUTO_COMIT === 'true')
       },
       redis: {
         host: process.env.REDIS_HOST

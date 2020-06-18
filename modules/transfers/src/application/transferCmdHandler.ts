@@ -73,7 +73,7 @@ export class TransferCmdHandler implements IRunHandler {
           client: {
             kafka: {
               kafkaHost: appConfig.kafka.host,
-              clientId: `transferCmdHandler-${Crypto.randomBytes(8)}`,
+              clientId: `transferCmdHandler-${Crypto.randomBytes(8)}`
             }
           }
         }
