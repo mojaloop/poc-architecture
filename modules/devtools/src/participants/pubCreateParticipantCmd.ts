@@ -1,5 +1,5 @@
 // import { logger } from '../application'
-import { publishMessage } from '../utilities/publisher'
+import { appConfig, publishMessage } from '../utilities/publisher'
 // import { CreateParticipantCmdPayload, CreateParticipantCmd } from '../messages/create_participant_cmd'
 // # HACK-ALERT: Importing directly from the node_modules folder as Commands are not publically accessible until some additional re-factoring can be done. Note that this "tool" module is only for development purposes.
 import { CreateParticipantCmdPayload, CreateParticipantCmd } from '../../node_modules/@mojaloop-poc/participants/dist/messages/create_participant_cmd'
@@ -32,15 +32,15 @@ const createParticipantCmdPayloadFSP1: CreateParticipantCmdPayload = {
     endpoints: [
       {
         type: 'FSPIOP_CALLBACK_URL_TRANSFER_POST',
-        value: 'http://simulator:8444/payeefsp/transfers'
+        value: `http://${appConfig.simulator.host}/payeefsp/transfers`
       },
       {
         type: 'FSPIOP_CALLBACK_URL_TRANSFER_PUT',
-        value: 'http://simulator:8444/payeefsp/transfers/{{transferId}}'
+        value: `http://${appConfig.simulator.host}/payeefsp/transfers/{{transferId}}`
       },
       {
         type: 'FSPIOP_CALLBACK_URL_TRANSFER_ERROR',
-        value: 'http://simulator:8444/payeefsp/transfers/{{transferId}}/error'
+        value: `http://${appConfig.simulator.host}/payeefsp/transfers/{{transferId}}/error`
       },
       {
         type: 'SETTLEMENT_TRANSFER_POSITION_CHANGE_EMAIL',
@@ -71,15 +71,15 @@ const createParticipantCmdPayloadFSP2: CreateParticipantCmdPayload = {
     endpoints: [
       {
         type: 'FSPIOP_CALLBACK_URL_TRANSFER_POST',
-        value: 'http://simulator:8444/payeefsp/transfers'
+        value: `http://${appConfig.simulator.host}/payeefsp/transfers`
       },
       {
         type: 'FSPIOP_CALLBACK_URL_TRANSFER_PUT',
-        value: 'http://simulator:8444/payeefsp/transfers/{{transferId}}'
+        value: `http://${appConfig.simulator.host}/payeefsp/transfers/{{transferId}}`
       },
       {
         type: 'FSPIOP_CALLBACK_URL_TRANSFER_ERROR',
-        value: 'http://simulator:8444/payeefsp/transfers/{{transferId}}/error'
+        value: `http://${appConfig.simulator.host}/payeefsp/transfers/{{transferId}}/error`
       },
       {
         type: 'SETTLEMENT_TRANSFER_POSITION_CHANGE_EMAIL',
@@ -110,15 +110,15 @@ const createParticipantCmdPayloadFSP3: CreateParticipantCmdPayload = {
     endpoints: [
       {
         type: 'FSPIOP_CALLBACK_URL_TRANSFER_POST',
-        value: 'http://simulator:8444/payeefsp/transfers'
+        value: `http://${appConfig.simulator.host}/payeefsp/transfers`
       },
       {
         type: 'FSPIOP_CALLBACK_URL_TRANSFER_PUT',
-        value: 'http://simulator:8444/payeefsp/transfers/{{transferId}}'
+        value: `http://${appConfig.simulator.host}/payeefsp/transfers/{{transferId}}`
       },
       {
         type: 'FSPIOP_CALLBACK_URL_TRANSFER_ERROR',
-        value: 'http://simulator:8444/payeefsp/transfers/{{transferId}}/error'
+        value: `http://${appConfig.simulator.host}/payeefsp/transfers/{{transferId}}/error`
       },
       {
         type: 'SETTLEMENT_TRANSFER_POSITION_CHANGE_EMAIL',
@@ -149,15 +149,15 @@ const createParticipantCmdPayloadFSP4: CreateParticipantCmdPayload = {
     endpoints: [
       {
         type: 'FSPIOP_CALLBACK_URL_TRANSFER_POST',
-        value: 'http://simulator:8444/payeefsp/transfers'
+        value: `http://${appConfig.simulator.host}/payeefsp/transfers`
       },
       {
         type: 'FSPIOP_CALLBACK_URL_TRANSFER_PUT',
-        value: 'http://simulator:8444/payeefsp/transfers/{{transferId}}'
+        value: `http://${appConfig.simulator.host}/payeefsp/transfers/{{transferId}}`
       },
       {
         type: 'FSPIOP_CALLBACK_URL_TRANSFER_ERROR',
-        value: 'http://simulator:8444/payeefsp/transfers/{{transferId}}/error'
+        value: `http://${appConfig.simulator.host}/payeefsp/transfers/{{transferId}}/error`
       },
       {
         type: 'SETTLEMENT_TRANSFER_POSITION_CHANGE_EMAIL',

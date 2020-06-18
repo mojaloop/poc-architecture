@@ -73,7 +73,7 @@ export class TransferEvtHandler implements IRunHandler {
         break
       }
       case (KafkaInfraTypes.KAFKAJS): {
-        const kafkaJsConsumerOptions: KafkaJsProducerOptions = {
+        const kafkaJsProducerOptions: KafkaJsProducerOptions = {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: ['localhost:9092'],
@@ -87,7 +87,7 @@ export class TransferEvtHandler implements IRunHandler {
           }
         }
         kafkaMsgPublisher = new KafkajsMessagePublisher(
-          kafkaJsConsumerOptions,
+          kafkaJsProducerOptions,
           logger
         )
         break
@@ -182,7 +182,8 @@ export class TransferEvtHandler implements IRunHandler {
             kafkaHost: appConfig.kafka.host,
             id: `transferEvtConsumer-${Crypto.randomBytes(8)}`,
             groupId: 'transferEvtGroup',
-            fromOffset: EnumOffset.LATEST
+            fromOffset: EnumOffset.LATEST,
+            autoCommit: appConfig.kafka.autocommit
           },
           topics: [MLTopics.Events, ParticipantsTopics.DomainEvents]
         }
@@ -198,6 +199,9 @@ export class TransferEvtHandler implements IRunHandler {
             },
             consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
               groupId: 'transferEvtGroup'
+            },
+            consumerRunConfig: {
+              autoCommit: appConfig.kafka.autocommit
             }
           },
           topics: [MLTopics.Events, ParticipantsTopics.DomainEvents]
