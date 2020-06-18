@@ -14,7 +14,7 @@ ml-api-adapter-service:
   image:
     repository: mojaloop/ml-api-adapter
     tag: v10.3.1
-    command: '["node", "src/api/index.js"]'
+    command: "cd modules/ml-api-adapter && node src/api/index.js"
   ## Optionally specify an array of imagePullSecrets.
   ## Secrets must be manually created in the namespace.
   ## ref: https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
@@ -168,7 +168,7 @@ ml-api-adapter-handler-notification:
   image:
     repository: mojaloop/ml-api-adapter
     tag: v10.3.1
-    command: '["node", "src/handlers/index.js", "handler", "--notification"]'
+    command: "cd modules/ml-api-adapter && node src/handlers/index.js handler --notification"
   ## Optionally specify an array of imagePullSecrets.
   ## Secrets must be manually created in the namespace.
   ## ref: https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod

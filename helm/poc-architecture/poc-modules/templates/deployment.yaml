@@ -102,14 +102,13 @@ spec:
             - name: KAFKA_HOST
               value: "{{ $kafkaHost }}:{{ .Values.config.kafka_port }}"
             - name: REDIS_HOST
-              value: {{ $redisHost }}
+              value: {{ $redisHost | quote }}
             - name: SIMULATOR_HOST
-              value: {{ $simulatorHost }}
+              value: {{ $simulatorHost | quote }}
             - name: KAFKA_AUTO_COMMIT
-              value: {{ .Values.config.kafka_autocommit }}
+              value: {{ .Values.config.kafka_autocommit | quote }}
             - name: UV_THREADPOOL_SIZE
-              value: {{ .Values.config.uv_threadpool_size }}
-
+              value: {{ .Values.config.uv_threadpool_size | quote }}
       # volumes:
       #   - name: {{ template "poc-participants-service.fullname" . }}-config-volume
       #     configMap:
