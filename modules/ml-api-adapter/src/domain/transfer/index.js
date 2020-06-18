@@ -70,7 +70,7 @@ const prepare = async (headers, dataUri, payload, span) => {
     //   topicName: topicConfig.topicName,
     //   clientId: kafkaConfig.rdkafkaConf['client.id']
     // })
-    messageProtocol = await span.injectContextToMessage(messageProtocol)
+    // messageProtocol = await span.injectContextToMessage(messageProtocol)
 
     // Generate http trace w3c context
     const httpHeadersTraceContext = await span.injectContextToHttpRequest({ headers: {} })
@@ -88,10 +88,12 @@ const prepare = async (headers, dataUri, payload, span) => {
         payload: messageProtocol.content.payload
       }
     }
+    
     const traceInfo = {
       traceParent: httpHeadersTraceContext.headers.traceparent,
       traceState: httpHeadersTraceContext.headers.tracestate
     }
+
     const transferPrepareRequestedEvt = new TransferPrepareRequestedEvt(transferPrepareRequestedEvtPayload)
     transferPrepareRequestedEvt.addTraceInfo(traceInfo)
 
@@ -142,7 +144,10 @@ const fulfil = async (headers, dataUri, payload, params, span) => {
     // Logger.isDebugEnabled && Logger.debug(`domain::transfer::fulfil::topicConfig - ${topicConfig}`)
     Logger.isDebugEnabled && Logger.debug(`domain::transfer::fulfil::kafkaConfig - ${kafkaConfig}`)
 
-    messageProtocol = await span.injectContextToMessage(messageProtocol)
+    // messageProtocol = await span.injectContextToMessage(messageProtocol)
+
+    // Generate http trace w3c context
+    const httpHeadersTraceContext = await span.injectContextToHttpRequest({ headers: {} })
 
     const transferFulfilRequestedEvtPayload = {
       transferId: messageProtocol.id,
@@ -156,8 +161,14 @@ const fulfil = async (headers, dataUri, payload, params, span) => {
         payload: messageProtocol.content.payload
       }
     }
+    const traceInfo = {
+      traceParent: httpHeadersTraceContext.headers.traceparent,
+      traceState: httpHeadersTraceContext.headers.tracestate
+    }
+    
 
     const transferFulfilRequestedEvt = new TransferFulfilRequestedEvt(transferFulfilRequestedEvtPayload)
+    transferFulfilRequestedEvt.addTraceInfo(traceInfo)    
 
     const topicConfig = {
       // topicName: 'topic-transfer-fulfil',
