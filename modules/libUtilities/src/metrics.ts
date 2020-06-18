@@ -30,7 +30,7 @@
 
 import client = require('prom-client')
 
-export type IMetricsFactory = {
+export interface IMetricsFactory {
   getHistogram: (name: string, help?: string, labelNames?: string[], buckets?: number[]) => client.Histogram<string>
   getSummary: (name: string, help?: string, labelNames?: string[], percentiles?: number[], maxAgeSeconds?: number, ageBuckets?: number) => client.Summary<string>
   getMetricsForPrometheus: () => string
