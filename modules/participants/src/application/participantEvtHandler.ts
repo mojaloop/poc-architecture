@@ -119,6 +119,7 @@ export class ParticipantEvtHandler implements IRunHandler {
             if (participantEvt == null) throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - ${TransferPrepareAcceptedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
             const reservePayerFundsCmdPayload: ReservePayerFundsCmdPayload = participantEvt.payload
             participantCmd = new ReservePayerFundsCmd(reservePayerFundsCmdPayload)
+            participantCmd.passTraceInfo(participantEvt)
             break
           }
           case TransferFulfilAcceptedEvt.name: {
@@ -126,6 +127,7 @@ export class ParticipantEvtHandler implements IRunHandler {
             if (participantEvt == null) throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - ${TransferFulfilAcceptedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
             const commitPayeeFundsCmdPayload: CommitPayeeFundsCmdPayload = participantEvt.payload
             participantCmd = new CommitPayeeFundsCmd(commitPayeeFundsCmdPayload)
+            participantCmd.passTraceInfo(participantEvt)
             break
           }
           default: {
