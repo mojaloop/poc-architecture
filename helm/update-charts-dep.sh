@@ -12,10 +12,15 @@ function checkCommandResult () {
 
 echo "Removing old charts..."
 find ./ -name "charts"| xargs rm -Rf
+find ./ -name "tmpcharts"| xargs rm -Rf
 
 # echo "Updating ML API Adapter..."
 # helm package -u -d ./repo ./ml-api-adapter
 # checkCommandResult
+
+echo "Updating ML-API-Adapter..."
+helm dep up ./ml-api-adapter
+checkCommandResult
 
 echo "Updating POC Architecture..."
 helm dep up ./poc-architecture

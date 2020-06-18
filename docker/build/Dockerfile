@@ -9,7 +9,7 @@ RUN apk add --no-cache -t build-dependencies git make gcc g++ python libtool aut
 COPY package.json package-lock.json* tsconfig.json lerna.json /opt/poc/
 COPY modules /opt/poc/modules
 
-RUN npm install && npm run build
+RUN npm ci && npm run build
 
 FROM node:12.16.1-alpine
 WORKDIR /opt/poc

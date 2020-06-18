@@ -1,10 +1,10 @@
 # requirements.yaml
 dependencies:
 # Mojaloop API Adapter Handlers
-# - name: ml-api-adapter
-#   version: 10.2.0
-#   repository: "file://../ml-api-adapter"
-#   condition: ml-api-adapter-handler-notification.enabled
+- name: ml-api-adapter
+  version: 10.3.0
+  repository: "file://../ml-api-adapter"
+  condition: ml-api-adapter.enabled
 # Transfers Handlers
 - name: participants
   alias: transfers
@@ -17,10 +17,11 @@ dependencies:
   repository: "file://./participants"
   condition: participants.enabled
 # Devtools (simulators, publishers, etc)
-- name: simulators
+- name: participants
+  alias: simulator-dev-tool
   version: 0.1.0
-  repository: "file://./simulators"
-  condition: simulators.enabled
+  repository: "file://./participants"
+  condition: simulatorDevTools.enabled
 - name: publishers
   version: 0.1.0
   repository: "file://./publishers"
