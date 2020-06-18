@@ -51,33 +51,34 @@ const Mustache = require('mustache')
 let notificationConsumer = {}
 let autoCommitEnabled = true
 
-const recordTxMetrics = (timeApiPrepare, timeApiFulfil, success) => {
-  const endTime = Date.now()
-  if (timeApiPrepare && !timeApiFulfil) {
-    const histTracePrepareTimerEnd = Metrics.getHistogram(
-      'tx_transfer_prepare',
-      'Tranxaction metrics for Transfers - Prepare Flow',
-      ['success']
-    )
-    histTracePrepareTimerEnd.observe({ success }, (endTime - timeApiPrepare) / 1000)
-  }
-  if (timeApiFulfil) {
-    const histTraceFulfilTimerEnd = Metrics.getHistogram(
-      'tx_transfer_fulfil',
-      'Tranxaction metrics for Transfers - Fulfil Flow',
-      ['success']
-    )
-    histTraceFulfilTimerEnd.observe({ success }, (endTime - timeApiFulfil) / 1000)
-  }
-  if (timeApiPrepare && timeApiFulfil) {
-    const histTraceEnd2EndTimerEnd = Metrics.getHistogram(
-      'tx_transfer',
-      'Tranxaction metrics for Transfers - End-to-end Flow',
-      ['success']
-    )
-    histTraceEnd2EndTimerEnd.observe({ success }, (endTime - timeApiPrepare) / 1000)
-  }
-}
+/// / ## Commented out for PoC Arch until we have included the trace metadata information in the message payloads
+// const recordTxMetrics = (timeApiPrepare, timeApiFulfil, success) => {
+//   const endTime = Date.now()
+//   if (timeApiPrepare && !timeApiFulfil) {
+//     const histTracePrepareTimerEnd = Metrics.getHistogram(
+//       'tx_transfer_prepare',
+//       'Tranxaction metrics for Transfers - Prepare Flow',
+//       ['success']
+//     )
+//     histTracePrepareTimerEnd.observe({ success }, (endTime - timeApiPrepare) / 1000)
+//   }
+//   if (timeApiFulfil) {
+//     const histTraceFulfilTimerEnd = Metrics.getHistogram(
+//       'tx_transfer_fulfil',
+//       'Tranxaction metrics for Transfers - Fulfil Flow',
+//       ['success']
+//     )
+//     histTraceFulfilTimerEnd.observe({ success }, (endTime - timeApiFulfil) / 1000)
+//   }
+//   if (timeApiPrepare && timeApiFulfil) {
+//     const histTraceEnd2EndTimerEnd = Metrics.getHistogram(
+//       'tx_transfer',
+//       'Tranxaction metrics for Transfers - End-to-end Flow',
+//       ['success']
+//     )
+//     histTraceEnd2EndTimerEnd.observe({ success }, (endTime - timeApiPrepare) / 1000)
+//   }
+// }
 
 // # Added PoC Arch recordPoCTxMetrics to cater for specific events!
 const recordPoCTxMetrics = (timeApiPrepare, timeApiFulfil, success, eventType) => {
