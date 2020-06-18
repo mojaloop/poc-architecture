@@ -8,6 +8,7 @@ TBD
 
 ## Setup
 
+### Pre-requisites
 Ensure you have the following Pre-requisite tools installed:
 - [Docker](https://docs.docker.com/get-docker/)
 - [kafkacat](https://github.com/edenhill/kafkacat#install)
@@ -15,6 +16,7 @@ Ensure you have the following Pre-requisite tools installed:
 - Nvm
 - Npm
 
+### Install
 If you are running on MacOS, you may need to [export the following environmental variables to build node-rdkafka](https://github.com/Blizzard/node-rdkafka#mac-os-high-sierra--mojave) (required by ml-api-adapter & central-services-stream):
 
 ```bash
@@ -24,17 +26,25 @@ export LDFLAGS=-L/usr/local/opt/openssl/lib
 
 This project uses [Lerna](https://lerna.js.org/) to manage packages and their respective dependencies. All individual modules (i.e. packages in Lerna speak) are their own respective micro-service/library which uses standard NPM for management, lerna will inject the dependencies when running NPM install at the root-level of the project.
 
+**Note:** Lerna will manage project dependencies and build order based on each package's `package.json`.
+
 ```sh
 npm install
 ```
 
+### Build
 You can build all the packages by running
 
 ```sh
 npm run build
 ```
 
-**Note:** Lerna will manage project dependencies and build order based on each package's `package.json`.
+### Local DNS for local test/development
+
+Add the following line to your `/etc/hosts` file:
+
+`127.0.0.1  simulator`
+
 
 ## Running
 
@@ -97,10 +107,11 @@ npm run start:transfers
 3. Tracing Support - [#1417](https://github.com/mojaloop/project/issues/1417)
 4. Helm charts for deployment [#1434](https://github.com/mojaloop/project/issues/1434)
 5. Add support for currency specific ISO precision validations (validation as part of transfer handler or perhaps commands/events?)
-6. Non-inflight Long-term Persistant Storage for Reporting (contains full history of transfers, transfer-state-changes, position-state-changes, participants, etc)
+6. Non-inflight Long-term Persistent Storage for Reporting (contains full history of transfers, transfer-state-changes, position-state-changes, participants, etc)
 7. Assign completed transfers to a Settlement Window
-8. ...
-
+8. Make sure all interfaces start with an 'I' and types start with 'T'
+9. Maybe?? Move the aggregate load logic to the base class (not throwing), so the higher level implementation can start by verifying if the rootEntity exists and checking for consistency
+10. Implement log guards on methods, to avoid parameter expansion (that respects LOG_LEVEL)
 
 ## Known Issues
 

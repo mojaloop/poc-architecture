@@ -1,4 +1,3 @@
-
 /*****
  License
  --------------
@@ -39,9 +38,56 @@
 'use strict'
 
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 
-export interface IRunHandler {
-  start: (appConfig: any, logger: ILogger, metrics: IMetricsFactory) => Promise<void>
-  destroy: () => Promise<void>
+/* eslint-disable no-console */
+export class ConsoleLogger implements ILogger {
+  // trace(...anything) {
+  //  console.trace.apply(this, anything);
+  // }
+  private readonly _logger: any
+
+  isDebugEnabled (): boolean {
+    return true
+  }
+
+  isInfoEnabled (): boolean {
+    return true
+  }
+
+  isWarnEnabled (): boolean {
+    return true
+  }
+
+  isErrorEnabled (): boolean {
+    return true
+  }
+
+  isFatalEnabled (): boolean {
+    return true
+  }
+
+  debug (message?: any, ...optional: any[]): void {
+    // @ts-expect-error
+    console.log.apply(this, arguments)
+  }
+
+  info (message?: any, ...optionalParams: any[]): void {
+    // @ts-expect-error
+    console.info.apply(this, arguments)
+  }
+
+  warn (message?: any, ...optional: any[]): void {
+    // @ts-expect-error
+    console.warn.apply(this, arguments)
+  }
+
+  error (message?: any, ...optional: any[]): void {
+    // @ts-expect-error
+    console.error.apply(this, arguments)
+  }
+
+  fatal (message?: any, ...optional: any[]): void {
+    // @ts-expect-error
+    console.error.apply(this, arguments)
+  }
 }

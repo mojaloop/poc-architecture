@@ -58,7 +58,7 @@ const prepare = async (headers, dataUri, payload, span) => {
     const state = StreamingProtocol.createEventState(generalEnum.Events.EventStatus.SUCCESS.status, generalEnum.Events.EventStatus.SUCCESS.code, generalEnum.Events.EventStatus.SUCCESS.description)
     const event = StreamingProtocol.createEventMetadata(generalEnum.Events.Event.Type.PREPARE, generalEnum.Events.Event.Type.PREPARE, state)
     const metadata = StreamingProtocol.createMetadata(payload.transferId, event)
-    let messageProtocol = StreamingProtocol.createMessageFromRequest(payload.transferId, { headers, dataUri, params: { id: payload.transferId } }, payload.payeeFsp, payload.payerFsp, metadata)
+    const messageProtocol = StreamingProtocol.createMessageFromRequest(payload.transferId, { headers, dataUri, params: { id: payload.transferId } }, payload.payeeFsp, payload.payerFsp, metadata)
     // const topicConfig = KafkaUtil.createGeneralTopicConf(Config.KAFKA_CONFIG.TOPIC_TEMPLATES.GENERAL_TOPIC_TEMPLATE.TEMPLATE, generalEnum.Events.Event.Action.TRANSFER, generalEnum.Events.Event.Action.PREPARE)
     const kafkaConfig = KafkaUtil.getKafkaConfig(Config.KAFKA_CONFIG, generalEnum.Kafka.Config.PRODUCER, generalEnum.Events.Event.Action.TRANSFER.toUpperCase(), generalEnum.Events.Event.Action.PREPARE.toUpperCase())
     Logger.isDebugEnabled && Logger.debug(`domain::transfer::prepare::messageProtocol - ${messageProtocol}`)
@@ -70,7 +70,10 @@ const prepare = async (headers, dataUri, payload, span) => {
     //   topicName: topicConfig.topicName,
     //   clientId: kafkaConfig.rdkafkaConf['client.id']
     // })
-    messageProtocol = await span.injectContextToMessage(messageProtocol)
+    // messageProtocol = await span.injectContextToMessage(messageProtocol)
+
+    // Generate http trace w3c context
+    const httpHeadersTraceContext = await span.injectContextToHttpRequest({ headers: {} })
 
     const transferPrepareRequestedEvtPayload = {
       transferId: payload.transferId,
@@ -86,7 +89,13 @@ const prepare = async (headers, dataUri, payload, span) => {
       }
     }
 
+    const traceInfo = {
+      traceParent: httpHeadersTraceContext.headers.traceparent,
+      traceState: httpHeadersTraceContext.headers.tracestate
+    }
+
     const transferPrepareRequestedEvt = new TransferPrepareRequestedEvt(transferPrepareRequestedEvtPayload)
+    transferPrepareRequestedEvt.addTraceInfo(traceInfo)
 
     const topicConfig = {
       // topicName: 'topic-transfer-prepare',
@@ -128,14 +137,17 @@ const fulfil = async (headers, dataUri, payload, params, span) => {
     const state = StreamingProtocol.createEventState(generalEnum.Events.EventStatus.SUCCESS.status, generalEnum.Events.EventStatus.SUCCESS.code, generalEnum.Events.EventStatus.SUCCESS.description)
     const event = StreamingProtocol.createEventMetadata(generalEnum.Events.Event.Type.FULFIL, action, state)
     const metadata = StreamingProtocol.createMetadata(params.id, event)
-    let messageProtocol = StreamingProtocol.createMessageFromRequest(params.id, { headers, dataUri, params }, headers[generalEnum.Http.Headers.FSPIOP.DESTINATION], headers[generalEnum.Http.Headers.FSPIOP.SOURCE], metadata)
+    const messageProtocol = StreamingProtocol.createMessageFromRequest(params.id, { headers, dataUri, params }, headers[generalEnum.Http.Headers.FSPIOP.DESTINATION], headers[generalEnum.Http.Headers.FSPIOP.SOURCE], metadata)
     // const topicConfig = KafkaUtil.createGeneralTopicConf(Config.KAFKA_CONFIG.TOPIC_TEMPLATES.GENERAL_TOPIC_TEMPLATE.TEMPLATE, generalEnum.Events.Event.Action.TRANSFER, generalEnum.Events.Event.Action.FULFIL)
     const kafkaConfig = KafkaUtil.getKafkaConfig(Config.KAFKA_CONFIG, generalEnum.Kafka.Config.PRODUCER, generalEnum.Events.Event.Action.TRANSFER.toUpperCase(), generalEnum.Events.Event.Action.FULFIL.toUpperCase())
     Logger.isDebugEnabled && Logger.debug(`domain::transfer::fulfil::messageProtocol - ${messageProtocol}`)
     // Logger.isDebugEnabled && Logger.debug(`domain::transfer::fulfil::topicConfig - ${topicConfig}`)
     Logger.isDebugEnabled && Logger.debug(`domain::transfer::fulfil::kafkaConfig - ${kafkaConfig}`)
 
-    messageProtocol = await span.injectContextToMessage(messageProtocol)
+    // messageProtocol = await span.injectContextToMessage(messageProtocol)
+
+    // Generate http trace w3c context
+    const httpHeadersTraceContext = await span.injectContextToHttpRequest({ headers: {} })
 
     const transferFulfilRequestedEvtPayload = {
       transferId: messageProtocol.id,
@@ -149,8 +161,13 @@ const fulfil = async (headers, dataUri, payload, params, span) => {
         payload: messageProtocol.content.payload
       }
     }
+    const traceInfo = {
+      traceParent: httpHeadersTraceContext.headers.traceparent,
+      traceState: httpHeadersTraceContext.headers.tracestate
+    }
 
     const transferFulfilRequestedEvt = new TransferFulfilRequestedEvt(transferFulfilRequestedEvtPayload)
+    transferFulfilRequestedEvt.addTraceInfo(traceInfo)
 
     const topicConfig = {
       // topicName: 'topic-transfer-fulfil',

@@ -39,7 +39,7 @@
 // import { v4 as uuidv4 } from 'uuid'
 // import {InMemorytransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { CommandMsg, IDomainMessage, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
-import { iRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { IRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
 // import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
 // import { TransferState } from '../domain/transfer_entity'
 import { TransfersTopics } from '@mojaloop-poc/lib-public-messages'
@@ -50,14 +50,14 @@ import { RedisTransferStateRepo } from '../infrastructure/redis_participant_repo
 import { ITransfersRepo } from '../domain/transfers_repo'
 import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
 import { AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
-import { Crypto } from '@mojaloop-poc/lib-utilities'
+import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 
-export class TransferCmdHandler implements iRunHandler {
+export class TransferCmdHandler implements IRunHandler {
   private _consumer: MessageConsumer
   private _publisher: IMessagePublisher
   private _repo: ITransfersRepo
 
-  async start (appConfig: any, logger: ILogger): Promise<void> {
+  async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     // const repo: IEntityStateRepository<TransferState> = new InMemoryTransferStateRepo()
     const repo: ITransfersRepo = new RedisTransferStateRepo(appConfig.redis.host, logger)
     this._repo = repo
@@ -84,7 +84,7 @@ export class TransferCmdHandler implements iRunHandler {
         break
       }
       case (KafkaInfraTypes.KAFKAJS): {
-        const kafkaJsConsumerOptions: KafkaJsProducerOptions = {
+        const kafkaJsProducerOptions: KafkaJsProducerOptions = {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: ['localhost:9092'],
@@ -98,7 +98,7 @@ export class TransferCmdHandler implements iRunHandler {
           }
         }
         kafkaMsgPublisher = new KafkajsMessagePublisher(
-          kafkaJsConsumerOptions,
+          kafkaJsProducerOptions,
           logger
         )
         break
@@ -114,8 +114,15 @@ export class TransferCmdHandler implements iRunHandler {
 
     const agg: TransfersAgg = new TransfersAgg(repo, kafkaMsgPublisher, logger)
 
+    const histoTransferCmdHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+      'transferCmdHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+      'Instrumentation for transferCmdHandler', // Description of metric
+      ['success', 'error'] // Define a custom label 'success'
+    )
+
     // ## Setup transferCmdConsumer
     const transferCmdHandler = async (message: IDomainMessage): Promise<void> => {
+      const histTimer = histoTransferCmdHandlerMetric.startTimer()
       try {
         logger.info(`transferCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
         let transferCmd: CommandMsg | undefined
@@ -138,9 +145,8 @@ export class TransferCmdHandler implements iRunHandler {
             break
           }
           default: {
-            const err = new Error(`COMMAND:Type - Unknown - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
-            logger.error(err)
-            throw err
+            logger.warn(`transferCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+            break
           }
         }
         let processCommandResult: boolean = false
@@ -150,8 +156,10 @@ export class TransferCmdHandler implements iRunHandler {
           logger.warn('transferCmdHandler is Unable to process command')
         }
         logger.info(`transferCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
+        histTimer({ success: 'true' })
       } catch (err) {
         logger.error(err)
+        histTimer({ success: 'false', error: err.message })
       }
     }
 
@@ -166,7 +174,8 @@ export class TransferCmdHandler implements iRunHandler {
             kafkaHost: appConfig.kafka.host,
             id: `transferCmdConsumer-${Crypto.randomBytes(8)}`,
             groupId: 'transferCmdGroup',
-            fromOffset: EnumOffset.LATEST
+            fromOffset: EnumOffset.LATEST,
+            autoCommit: appConfig.kafka.autocommit
           },
           topics: [TransfersTopics.Commands]
         }
@@ -182,6 +191,9 @@ export class TransferCmdHandler implements iRunHandler {
             },
             consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
               groupId: 'transferCmdGroup'
+            },
+            consumerRunConfig: {
+              autoCommit: appConfig.kafka.autocommit
             }
           },
           topics: [TransfersTopics.Commands]
