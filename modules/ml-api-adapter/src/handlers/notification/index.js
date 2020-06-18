@@ -79,6 +79,35 @@ const recordTxMetrics = (timeApiPrepare, timeApiFulfil, success) => {
   }
 }
 
+// # Added PoC Arch recordPoCTxMetrics to cater for specific events!
+const recordPoCTxMetrics = (timeApiPrepare, timeApiFulfil, success, eventType) => {
+  const endTime = Date.now()
+  if ((timeApiPrepare && !timeApiFulfil) && eventType === TransferPreparedEvt.name) {
+    const histTracePrepareTimerEnd = Metrics.getHistogram(
+      'tx_transfer_prepare',
+      'Tranxaction metrics for Transfers - Prepare Flow',
+      ['success']
+    )
+    histTracePrepareTimerEnd.observe({ success }, (endTime - timeApiPrepare) / 1000)
+  }
+  if (timeApiFulfil && eventType === TransferFulfilledEvt.name) {
+    const histTraceFulfilTimerEnd = Metrics.getHistogram(
+      'tx_transfer_fulfil',
+      'Tranxaction metrics for Transfers - Fulfil Flow',
+      ['success']
+    )
+    histTraceFulfilTimerEnd.observe({ success }, (endTime - timeApiFulfil) / 1000)
+  }
+  if (timeApiPrepare && timeApiFulfil && eventType === TransferFulfilledEvt.name) {
+    const histTraceEnd2EndTimerEnd = Metrics.getHistogram(
+      'tx_transfer',
+      'Tranxaction metrics for Transfers - End-to-end Flow',
+      ['success']
+    )
+    histTraceEnd2EndTimerEnd.observe({ success }, (endTime - timeApiPrepare) / 1000)
+  }
+}
+
 /**
  * @module src/handlers/notification
  */
@@ -137,6 +166,7 @@ const consumeMessage = async (error, message) => {
   ).startTimer()
   let timeApiPrepare
   let timeApiFulfil
+  let eventType
   try {
     if (error) {
       const fspiopError = ErrorHandler.Factory.createInternalServerFSPIOPError(`Error while reading message from kafka ${error}`, error)
@@ -149,13 +179,33 @@ const consumeMessage = async (error, message) => {
     let combinedResult = true
     for (const msg of message) {
       Logger.isInfoEnabled && Logger.info('Notification::consumeMessage::processMessage')
+
       // ## Commented out for PoC Arch until we have included the trace metadata information in the message payloads
       // const contextFromMessage = EventSdk.Tracer.extractContextFromMessage(msg.value)
       // const span = EventSdk.Tracer.createChildSpanFromContext('ml_notification_event', contextFromMessage)
       // const traceTags = span.getTracestateTags()
       // if (traceTags.timeApiPrepare && parseInt(traceTags.timeApiPrepare)) timeApiPrepare = parseInt(traceTags.timeApiPrepare)
       // if (traceTags.timeApiFulfil && parseInt(traceTags.timeApiFulfil)) timeApiFulfil = parseInt(traceTags.timeApiFulfil)
-      const span = null
+      // const span = null
+
+      let span = null
+      let traceTags = null
+      if (msg.value && msg.value.traceInfo) {
+        const request = {
+          headers: {
+            traceparent: msg.value.traceInfo.traceParent,
+            tracestate: msg.value.traceInfo.traceState
+          }
+        }
+        const contextFromMessage = EventSdk.Tracer.extractContextFromHttpRequest(request)
+        span = EventSdk.Tracer.createChildSpanFromContext('ml_notification_event', contextFromMessage)
+        traceTags = span.getTracestateTags()
+        eventType = msg.value.msgName
+      }
+
+      if (traceTags && traceTags.timeApiPrepare && parseInt(traceTags.timeApiPrepare)) timeApiPrepare = parseInt(traceTags.timeApiPrepare)
+      if (traceTags && traceTags.timeApiFulfil && parseInt(traceTags.timeApiFulfil)) timeApiFulfil = parseInt(traceTags.timeApiFulfil)
+
       try {
         // ## Commented out for PoC Arch until we have included the trace metadata information in the message payloads
         // await span.audit(msg, EventSdk.AuditEventAction.start)
@@ -191,13 +241,13 @@ const consumeMessage = async (error, message) => {
     }
     // TODO: calculate end times - report end-to-time
     // ## Commented out for PoC Arch until we have included the trace metadata information in the message payloads
-    // recordTxMetrics(timeApiPrepare, timeApiFulfil, true)
+    recordPoCTxMetrics(timeApiPrepare, timeApiFulfil, true, eventType)
     histTimerEnd({ success: true })
     return combinedResult
   } catch (err) {
     const fspiopError = ErrorHandler.Factory.reformatFSPIOPError(err)
     Logger.error(fspiopError)
-    recordTxMetrics(timeApiPrepare, timeApiFulfil, false)
+    recordPoCTxMetrics(timeApiPrepare, timeApiFulfil, false, eventType)
 
     const getRecursiveCause = (error) => {
       if (error.cause instanceof ErrorHandler.Factory.FSPIOPError) {
@@ -327,7 +377,8 @@ const processPoCMessage = async (msg, span) => {
           payeeEndPointPostTransfers.value,
           ENUM.Http.RestMethods.POST,
           ENUM.EndPoints.FspEndpointTemplates.TRANSFERS_POST,
-          false
+          false,
+          span
         )
         Logger.isInfoEnabled && Logger.info(`TransferEvtHandler send request - ${TransferPreparedEvt.name} - ${message.msgName}:${message.msgId} - result.status=${result.status}`)
         break
@@ -359,7 +410,8 @@ const processPoCMessage = async (msg, span) => {
           payerEndPointPostTransfers.value,
           ENUM.Http.RestMethods.PUT,
           ENUM.EndPoints.FspEndpointTemplates.TRANSFERS_PUT,
-          false
+          false,
+          span
         )
         Logger.isInfoEnabled && Logger.info(`TransferEvtHandler send request I - ${TransferFulfilledEvt.name} - ${message.msgName}:${message.msgId} - result.status=${result.status}`)
 
@@ -378,7 +430,8 @@ const processPoCMessage = async (msg, span) => {
             payeeEndPointPostTransfers.value,
             ENUM.Http.RestMethods.PUT,
             ENUM.EndPoints.FspEndpointTemplates.TRANSFERS_PUT,
-            true
+            true,
+            span
           )
           Logger.isInfoEnabled && Logger.info(`TransferEvtHandler send request II - ${TransferFulfilledEvt.name} - ${message.msgName}:${message.msgId} - result.status=${result.status}`)
         }
