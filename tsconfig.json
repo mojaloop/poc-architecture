@@ -36,11 +36,7 @@
       "*": [
         "src/*",
         "node_modules/*"
-      ],
-      "@mojaloop-poc/lib-domain": ["modules/libDomain/src/index.ts"],
-      "@mojaloop-poc/lib-utilities": ["modules/libUtilities/src/index.ts"],
-      "@mojaloop-poc/lib-public-messages": ["modules/libPublicMessages/src/index.ts"],
-      "@mojaloop-poc/lib-infrastructure": ["modules/libInfrastructure/src/index.ts"]
+      ]
     },
     "esModuleInterop": true
   }
