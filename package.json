@@ -24,6 +24,7 @@
     "start:participants": "npm run build --scope='@mojaloop-poc/participants' && npx lerna run --no-progress --stream --scope='@mojaloop-poc/participants' start",
     "start:transfers": "npm run build --scope='@mojaloop-poc/transfers' && npx lerna run --no-progress --stream --scope='@mojaloop-poc/transfers' start",
     "start:ml": "npx lerna run --no-progress --stream --scope='@mojaloop-poc/ml-api-adapter' start",
+    "start:sim": "npx lerna run --no-progress --stream --scope='@mojaloop-poc/dev-tools' simulator",
     "build": "npx lerna run --stream build",
     "watch": "npx lerna run --no-progress --stream --parallel watch",
     "clean": "npm run clean:dist && npm run clean:npm",
