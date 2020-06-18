@@ -28,10 +28,11 @@ dependencies:
   repository: "file://./publishers"
   condition: publishers.enabled
 # We will pull simulator from the official mojaloop helm repo
-# - name: legacy-simulator
-#   version: 0.1.0
-#   repository: "http://mojaloop.io/helm/repo/"
-#   condition: legacy-simulator.enabled
+- name: simulator
+  alias: legacy-simulator
+  version: 9.5.0
+  repository: "http://mojaloop.io/helm/repo/"
+  condition: legacy-simulator.enabled
 # This is used for testing ml-api-adapter deployments
 - name: kafka
   version: 0.13.11

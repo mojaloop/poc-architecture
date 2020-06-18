@@ -14,11 +14,14 @@ dependencies:
 - name: publishers
   repository: file://./publishers
   version: 0.1.0
+- name: simulator
+  repository: http://mojaloop.io/helm/repo/
+  version: 9.5.0
 - name: kafka
   repository: http://storage.googleapis.com/kubernetes-charts-incubator
   version: 0.13.11
 - name: redis
   repository: https://charts.bitnami.com/bitnami
   version: 10.7.1
-digest: sha256:a7cfa154ad2a455c515df0703aee1bb567a1dedd34bc4bc88a6ea9c04c9e7714
-generated: "2020-06-18T17:39:17.425335268+01:00"
+digest: sha256:bea902f8ecd6ce9ad62e69791d0e00b026bef6a36d1e0078eef71d38570bf339
+generated: "2020-06-18T18:51:30.597777+02:00"
