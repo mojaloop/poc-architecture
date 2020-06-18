@@ -1011,7 +1011,7 @@ ml-api-adapter:
     image:
       repository: mojaloop/poc-architecture
       tag: v0.3
-      command: '["cd", "modules/ml-api-adapter", "&&", "node", "src/handlers/index.js", "handler", "--notification"'
+      command: "cd modules/ml-api-adapter && node src/handlers/index.js handler --notification"
     ## Optionally specify an array of imagePullSecrets.
     ## Secrets must be manually created in the namespace.
     ## ref: https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
