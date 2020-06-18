@@ -10,11 +10,16 @@ dotenv.config({ path: '../../.env' })
 const logger: ILogger = new ConsoleLogger()
 
 // # setup application config
-const appConfig = {
+export const appConfig = {
   kafka: {
     host: process.env.KAFKA_HOST
+  },
+  simulator: {
+    host: process.env.SIMULATOR_HOST
   }
 }
+
+logger.info(`appConfig=${JSON.stringify(appConfig)}`)
 
 const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
   client: {

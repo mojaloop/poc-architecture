@@ -71,7 +71,7 @@ export class SimulatorEvtHandler implements IRunHandler {
         break
       }
       case (KafkaInfraTypes.KAFKAJS): {
-        const kafkaJsConsumerOptions: KafkaJsProducerOptions = {
+        const kafkaJsProducerOptions: KafkaJsProducerOptions = {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: ['localhost:9092'],
@@ -85,7 +85,7 @@ export class SimulatorEvtHandler implements IRunHandler {
           }
         }
         kafkaMsgPublisher = new KafkajsMessagePublisher(
-          kafkaJsConsumerOptions,
+          kafkaJsProducerOptions,
           logger
         )
         break
@@ -200,7 +200,8 @@ export class SimulatorEvtHandler implements IRunHandler {
             kafkaHost: appConfig.kafka.host,
             id: `simulatorEvtConsumer-${Crypto.randomBytes(8)}`,
             groupId: 'simulatorEvtGroup',
-            fromOffset: EnumOffset.LATEST
+            fromOffset: EnumOffset.LATEST,
+            autoCommit: appConfig.kafka.autocommit
           },
           topics: [TransfersTopics.DomainEvents]
         }
@@ -216,6 +217,9 @@ export class SimulatorEvtHandler implements IRunHandler {
             },
             consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
               groupId: 'simulatorEvtGroup'
+            },
+            consumerRunConfig: {
+              autoCommit: appConfig.kafka.autocommit
             }
           },
           topics: [TransfersTopics.DomainEvents]

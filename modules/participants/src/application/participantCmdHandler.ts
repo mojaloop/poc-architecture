@@ -81,7 +81,7 @@ export class ParticipantCmdHandler implements IRunHandler {
         break
       }
       case (KafkaInfraTypes.KAFKAJS): {
-        const kafkaJsConsumerOptions: KafkaJsProducerOptions = {
+        const kafkaJsProducerOptions: KafkaJsProducerOptions = {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: ['localhost:9092'],
@@ -95,7 +95,7 @@ export class ParticipantCmdHandler implements IRunHandler {
           }
         }
         kafkaMsgPublisher = new KafkajsMessagePublisher(
-          kafkaJsConsumerOptions,
+          kafkaJsProducerOptions,
           logger
         )
         break
@@ -190,7 +190,8 @@ export class ParticipantCmdHandler implements IRunHandler {
             kafkaHost: appConfig.kafka.host,
             id: `participantCmdConsumer-${Crypto.randomBytes(8)}`,
             groupId: 'participantCmdGroup',
-            fromOffset: EnumOffset.LATEST
+            fromOffset: EnumOffset.LATEST,
+            autoCommit: appConfig.kafka.autocommit
           },
           topics: [ParticipantsTopics.Commands]
         }
@@ -206,6 +207,9 @@ export class ParticipantCmdHandler implements IRunHandler {
             },
             consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
               groupId: 'participantCmdGroup'
+            },
+            consumerRunConfig: {
+              autoCommit: appConfig.kafka.autocommit
             }
           },
           topics: [ParticipantsTopics.Commands]
