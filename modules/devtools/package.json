@@ -25,6 +25,7 @@
     "lint"
   ],
   "scripts": {
+    "start": "npm run simulator",
     "simulator": "tsc && node ./dist/simulator/index.js handler --config ../../.env",
     "perfMeasure": "tsc && node ./dist/utilities/perfMeasure.js",
     "pubCommitPayeeFundCmd": "tsc && node ./dist/participants/pubCommitPayeeFundCmd.js",

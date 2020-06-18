@@ -26,7 +26,8 @@
     "test:unit"
   ],
   "scripts": {
-    "start": "tsc && node dist/application/index.js handler --config ../../.env",
+    "start": "npm run participants",
+    "participants": "tsc && node dist/application/index.js handler --config ../../.env",
     "build": "tsc",
     "watch": "tsc -w",
     "clean": "rm -Rf dist",

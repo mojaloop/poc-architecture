@@ -137,4 +137,8 @@ export class ApiServer {
     //   this._logger.info(`server listening on ${address}`)
     // })
   }
+
+  async destroy (): Promise<void> {
+    await this._server.close()
+  }
 }

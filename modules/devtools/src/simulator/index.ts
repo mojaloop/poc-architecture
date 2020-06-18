@@ -106,6 +106,7 @@ Program.command('handler')
     runHandlerList.push(simulatorEvtHandler)
 
     // start only API
+    let apiServer: ApiServer | undefined
     if (args.disableApi == null) {
       const apiServerOptions: TApiServerOptions = {
         host: '0.0.0.0',
@@ -121,7 +122,7 @@ Program.command('handler')
           }
         }
       }
-      const apiServer: ApiServer = new ApiServer(apiServerOptions, logger)
+      apiServer = new ApiServer(apiServerOptions, logger)
       await apiServer.init()
     }
 
@@ -135,8 +136,14 @@ Program.command('handler')
         logger.info(`\tDestroying handler...${handler.constructor.name}`)
         await handler.destroy()
       })
+
+      if (apiServer != null) {
+        logger.info('Destroying API server...')
+        await apiServer.destroy()
+      }
+
       logger.info('Exit complete!')
-      process.exit(2)
+      process.exit(0)
     }
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     process.on('SIGINT', killProcess)

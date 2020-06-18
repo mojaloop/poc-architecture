@@ -132,8 +132,8 @@ export class ParticipantCmdHandler implements IRunHandler {
     // await agg.processCommand(reserveCmd)
 
     const histoParticipantCmdHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
-      'participantEvtHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
-      'Instrumentation for participantEvtHandler', // Description of metric
+      'participantCmdHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+      'Instrumentation for participantCmdHandler', // Description of metric
       ['success', 'error'] // Define a custom label 'success'
     )
 
