@@ -64,7 +64,10 @@ spec:
           imagePullSecrets:
           {{ toYaml .Values.image.imagePullSecrets | indent 10 }}
           {{- end }}
-          command: {{ .Values.image.command }}
+          command:
+            - sh
+            - "-c"
+            - {{ .Values.image.command | quote }}
           ports:
             - containerPort: {{ .Values.service.internalPort }}
           {{- if .Values.readinessProbe.enabled }}
