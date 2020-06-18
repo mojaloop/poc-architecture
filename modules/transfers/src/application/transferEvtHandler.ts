@@ -120,6 +120,7 @@ export class TransferEvtHandler implements IRunHandler {
             if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${PayerFundsReservedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
             const ackPayerFundsReservedCmdPayload: AckPayerFundsReservedCmdPayload = transferEvt.payload
             transferCmd = new AckPayerFundsReservedCmd(ackPayerFundsReservedCmdPayload)
+            transferCmd.passTraceInfo(transferEvt)
             break
           }
           case PayeeFundsCommittedEvt.name: {
@@ -127,6 +128,7 @@ export class TransferEvtHandler implements IRunHandler {
             if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${PayeeFundsCommittedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
             const ackPayeeFundsCommittedCmdPayload: AckPayeeFundsCommittedCmdPayload = transferEvt.payload
             transferCmd = new AckPayeeFundsCommittedCmd(ackPayeeFundsCommittedCmdPayload)
+            transferCmd.passTraceInfo(transferEvt)
             break
           }
           case TransferPrepareRequestedEvt.name: {
@@ -134,6 +136,7 @@ export class TransferEvtHandler implements IRunHandler {
             if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${TransferPrepareRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
             const prepareTransferCmdPayload: PrepareTransferCmdPayload = transferEvt.payload
             transferCmd = new PrepareTransferCmd(prepareTransferCmdPayload)
+            transferCmd.passTraceInfo(transferEvt)
             break
           }
           case TransferFulfilRequestedEvt.name: {
@@ -141,6 +144,7 @@ export class TransferEvtHandler implements IRunHandler {
             if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${TransferFulfilRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
             const fulfilTransferCmdPayload: FulfilTransferCmdPayload = transferEvt.payload
             transferCmd = new FulfilTransferCmd(fulfilTransferCmdPayload)
+            transferCmd.passTraceInfo(transferEvt)
             break
           }
           case TransferPrepareAcceptedEvt.name: {
