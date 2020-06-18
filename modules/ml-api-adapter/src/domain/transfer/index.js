@@ -72,6 +72,9 @@ const prepare = async (headers, dataUri, payload, span) => {
     // })
     messageProtocol = await span.injectContextToMessage(messageProtocol)
 
+    // Generate http trace w3c context
+    const httpHeadersTraceContext = await span.injectContextToHttpRequest({ headers: {} })
+    
     const transferPrepareRequestedEvtPayload = {
       transferId: payload.transferId,
       payerId: payload.payerFsp,
@@ -85,8 +88,12 @@ const prepare = async (headers, dataUri, payload, span) => {
         payload: messageProtocol.content.payload
       }
     }
-
+    const traceInfo = {
+      traceParent: httpHeadersTraceContext.headers.traceparent,
+      traceState: httpHeadersTraceContext.headers.tracestate
+    }
     const transferPrepareRequestedEvt = new TransferPrepareRequestedEvt(transferPrepareRequestedEvtPayload)
+    transferPrepareRequestedEvt.addTraceInfo(traceInfo)
 
     const topicConfig = {
       // topicName: 'topic-transfer-prepare',
