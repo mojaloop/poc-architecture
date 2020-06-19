@@ -132,3 +132,7 @@ dist/
 **/dist/**/**.js
 **/src/**/**.js.map
 **/src/**/**.d.ts
+
+# helm
+**/charts
+**/*requirements.lock
