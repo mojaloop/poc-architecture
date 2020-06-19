@@ -63,8 +63,8 @@ export class ParticipantCmdHandler implements IRunHandler {
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`Creating ${appConfig.kafka.consumer} participantCmdHandler.kafkaMsgPublisher...`)
-    switch (appConfig.kafka.consumer) {
+    logger.info(`Creating ${appConfig.kafka.producer} participantCmdHandler.kafkaMsgPublisher...`)
+    switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_KAFKA): {
         const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
           client: {
