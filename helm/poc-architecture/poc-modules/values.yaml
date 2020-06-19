@@ -11,6 +11,10 @@ config:
   # this can be set if the dependency chart for kafka is disabled. If 'kafka_host' is commented out, then the name of the dependency chart will be used.
   kafka_host: '$release_name-kafka'
   kafka_port: 9092
+  # Supported consumers: kafkajs, node-kafka
+  kafka_consumer: kafkajs
+  # Supported producers: kafkajs, node-kafka
+  kafka_producer: kafkajs
   kafka_autocommit: false
   simulator_host: '$release_name-legacy-simulator'
   uv_threadpool_size: 7
@@ -31,13 +35,13 @@ readinessProbe:
   enabled: false
   httpGet:
     path: /health
-  initialDelaySeconds: 120
+  initialDelaySeconds: 60
   periodSeconds: 15
 livenessProbe:
   enabled: false
   httpGet:
     path: /health
-  initialDelaySeconds: 90
+  initialDelaySeconds: 30
   periodSeconds: 15
 
 ## metric configuration for prometheus instrumentation

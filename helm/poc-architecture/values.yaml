@@ -3,6 +3,42 @@
 # Declare global configurations
 global: {}
 
+parameters:
+  poc_architecture_image : &poc_architecture_image "mojaloop/poc-architecture"
+  poc_architecture_tag : &poc_architecture_tag "v0.5"
+
+## Jobs
+jobs:
+  postInstall:
+    image:
+      repository: *poc_architecture_image
+      tag: *poc_architecture_tag
+      command: "cd modules/devtools && npm run pubCreateParticipantCmd"
+
+    config:
+      # this can be set if the dependency chart for kafka is disabled. If 'kafka_host' is commented out, then the name of the dependency chart will be used.
+      kafka_host: '$release_name-kafka'
+      kafka_port: 9092
+      # Supported consumers: kafkajs, node-kafka
+      kafka_consumer: kafkajs
+      # Supported producers: kafkajs, node-kafka
+      kafka_producer: kafkajs
+      kafka_autocommit: false
+      simulator_host: '$release_name-legacy-simulator'
+      uv_threadpool_size: 7
+      redis_host: 'redis://$release_name-redis-master:6379'
+      log_level: debug
+
+    init:
+      enabled: true
+      image:
+        name: wait-for-kafka
+        repository: solsson/kafka
+        tag: latest
+        pullPolicy: Always
+        command: "until ./bin/kafka-broker-api-versions.sh --bootstrap-server $kafka_host:$kafka_port; do echo waiting for Kafka; sleep 2; done;"
+        env: {}
+
 kafka:
   enabled: true
   nameOverride: kafka
@@ -17,7 +53,9 @@ kafka:
   image: "confluentinc/cp-kafka"
 
   ## The kafka image tag
-  imageTag: "4.0.1-1"
+  # imageTag: "4.0.1-1"
+  imageTag: "5.0.1"  # Confluent image for Kafka 2.0.0
+
 
   ## Specify a imagePullPolicy
   ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
@@ -224,16 +262,19 @@ kafka:
   prometheus:
     ## Prometheus JMX Exporter: exposes the majority of Kafkas metrics
     jmx:
-      enabled: false
+      enabled: true
 
       ## The image to use for the metrics collector
       image: solsson/kafka-prometheus-jmx-exporter@sha256
-
+      
       ## The image tag to use for the metrics collector
       imageTag: a23062396cd5af1acdf76512632c20ea6be76885dfc20cd9ff40fb23846557e8
 
       ## Interval at which Prometheus scrapes metrics, note: only used by Prometheus Operator
       interval: 10s
+
+      ## Timeout at which Prometheus timeouts scrape run, note: only used by Prometheus Operator
+      scrapeTimeout: 10s
 
       ## Port jmx-exporter exposes Prometheus format metrics to scrape
       port: 5556
@@ -248,16 +289,20 @@ kafka:
 
     ## Prometheus Kafka Exporter: exposes complimentary metrics to JMX Exporter
     kafka:
-      enabled: false
+      enabled: true
 
       ## The image to use for the metrics collector
       image: danielqsj/kafka-exporter
 
       ## The image tag to use for the metrics collector
-      imageTag: v1.0.1
+      # imageTag: v1.0.1
+      imageTag: v1.2.0
 
       ## Interval at which Prometheus scrapes metrics, note: only used by Prometheus Operator
       interval: 10s
+
+      ## Timeout at which Prometheus timeouts scrape run, note: only used by Prometheus Operator
+      scrapeTimeout: 10s
 
       ## Port kafka-exporter exposes for Prometheus to scrape metrics
       port: 9308
@@ -334,7 +379,8 @@ redis:
   image:
     repository: bitnami/redis
     ## ref: https://github.com/bitnami/bitnami-docker-redis#supported-tags-and-respective-dockerfile-links
-    tag: 6.0.5-debian-10-r2
+    # tag: 6.0.5-debian-10-r2
+    tag: 6.0.5-debian-10-r10
     pullPolicy: IfNotPresent
   ## String to partially override redis.fullname template (will maintain the release name)
   ##
@@ -347,6 +393,7 @@ redis:
   ## Cluster settings
   cluster:
     enabled: false
+    slaveCount: 2
 
   ## Specifies the Kubernetes Cluster's Domain Name.
   ##
@@ -567,12 +614,13 @@ redis:
   ## Prometheus Exporter / Metrics
   ##
   metrics:
-    enabled: false
+    enabled: true
 
     image:
       registry: docker.io
       repository: bitnami/redis-exporter
-      tag: 1.6.1-debian-10-r28
+      # tag: 1.6.1-debian-10-r28
+      tag: 1.8.0-debian-10-r1
       pullPolicy: IfNotPresent
       ## Optionally specify an array of imagePullSecrets.
       ## Secrets must be manually created in the namespace.
@@ -733,8 +781,8 @@ participants:
   # Declare variables to be passed into your templates.
   replicaCount: 1
   image:
-    repository: mojaloop/poc-architecture
-    tag: v0.3
+    repository: *poc_architecture_image
+    tag: *poc_architecture_tag
     command: "cd modules/participants && node dist/application/index.js handler --config ../../.env"
     # command: "sleep 300"
     # repository: solsson/kafka
@@ -746,6 +794,10 @@ participants:
     # this can be set if the dependency chart for kafka is disabled. If 'kafka_host' is commented out, then the name of the dependency chart will be used.
     kafka_host: '$release_name-kafka'
     kafka_port: 9092
+    # Supported consumers: kafkajs, node-kafka
+    kafka_consumer: kafkajs
+    # Supported producers: kafkajs, node-kafka
+    kafka_producer: kafkajs
     kafka_autocommit: false
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
@@ -766,13 +818,13 @@ participants:
     enabled: false
     httpGet:
       path: /health
-    initialDelaySeconds: 120
+    initialDelaySeconds: 60
     periodSeconds: 15
   livenessProbe:
     enabled: false
     httpGet:
       path: /health
-    initialDelaySeconds: 90
+    initialDelaySeconds: 30
     periodSeconds: 15
 
   ## metric configuration for prometheus instrumentation
@@ -797,8 +849,8 @@ transfers:
   # Declare variables to be passed into your templates.
   replicaCount: 1
   image:
-    repository: mojaloop/poc-architecture
-    tag: v0.3
+    repository: *poc_architecture_image
+    tag: *poc_architecture_tag
     command: "cd modules/transfers && node dist/application/index.js handler --config ../../.env"
     # command: "sleep 300"
     # repository: solsson/kafka
@@ -810,6 +862,10 @@ transfers:
     # this can be set if the dependency chart for kafka is disabled. If 'kafka_host' is commented out, then the name of the dependency chart will be used.
     kafka_host: '$release_name-kafka'
     kafka_port: 9092
+    # Supported consumers: kafkajs, node-kafka
+    kafka_consumer: kafkajs
+    # Supported producers: kafkajs, node-kafka
+    kafka_producer: kafkajs
     kafka_autocommit: false
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
@@ -830,13 +886,13 @@ transfers:
     enabled: false
     httpGet:
       path: /health
-    initialDelaySeconds: 120
+    initialDelaySeconds: 60
     periodSeconds: 15
   livenessProbe:
     enabled: false
     httpGet:
       path: /health
-    initialDelaySeconds: 90
+    initialDelaySeconds: 30
     periodSeconds: 15
 
   ## metric configuration for prometheus instrumentation
@@ -861,13 +917,17 @@ simulator-dev-tool:
   # Declare variables to be passed into your templates.
   replicaCount: 0
   image:
-    repository: mojaloop/poc-architecture
-    tag: v0.3
+    repository: *poc_architecture_image
+    tag: *poc_architecture_tag
     command: "cd modules/devtools && node dist/simulator/index.js handler"
   config:
     # this can be set if the dependency chart for kafka is disabled. If 'kafka_host' is commented out, then the name of the dependency chart will be used.
     kafka_host: '$release_name-kafka'
     kafka_port: 9092
+    # Supported consumers: kafkajs, node-kafka
+    kafka_consumer: kafkajs
+    # Supported producers: kafkajs, node-kafka
+    kafka_producer: kafkajs
     kafka_autocommit: false
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
@@ -888,13 +948,13 @@ simulator-dev-tool:
     enabled: false
     httpGet:
       path: /health
-    initialDelaySeconds: 120
+    initialDelaySeconds: 60
     periodSeconds: 15
   livenessProbe:
     enabled: false
     httpGet:
       path: /health
-    initialDelaySeconds: 90
+    initialDelaySeconds: 30
     periodSeconds: 15
 
   ## metric configuration for prometheus instrumentation
@@ -920,8 +980,8 @@ ml-api-adapter:
     # Declare variables to be passed into your templates.
     replicaCount: 1
     image:
-      repository: mojaloop/poc-architecture
-      tag: v0.3
+      repository: *poc_architecture_image
+      tag: *poc_architecture_tag
       command: "cd modules/ml-api-adapter && node src/api/index.js"
     ## Optionally specify an array of imagePullSecrets.
     ## Secrets must be manually created in the namespace.
@@ -951,11 +1011,11 @@ ml-api-adapter:
         pullPolicy: Always
       readinessProbe:
         enabled: true
-        initialDelaySeconds: 120
+        initialDelaySeconds: 60
         periodSeconds: 15
       livenessProbe:
         enabled: true
-        initialDelaySeconds: 90
+        initialDelaySeconds: 60
         periodSeconds: 15
       config:
         log_level: info
@@ -995,9 +1055,12 @@ ml-api-adapter:
       max_fulfil_timeout_duration_seconds: 240
 
       ## Log Configuration
-      log_level: info
-      log_filter: 'error, warn, info'
-      log_transport: file
+      # log_level: info
+      # log_filter: 'error, warn, info'
+      # log_transport: file
+      log_level: debug
+      log_filter: 'debug, error, warn, info'
+      log_transport: console
 
       ## Tracing Configuration
       event_trace_vendor: mojaloop
@@ -1053,8 +1116,8 @@ ml-api-adapter:
     # Declare variables to be passed into your templates.
     replicaCount: 1
     image:
-      repository: mojaloop/poc-architecture
-      tag: v0.3
+      repository: *poc_architecture_image
+      tag: *poc_architecture_tag
       command: "cd modules/ml-api-adapter && node src/handlers/index.js handler --notification"
     ## Optionally specify an array of imagePullSecrets.
     ## Secrets must be manually created in the namespace.
@@ -1077,18 +1140,18 @@ ml-api-adapter:
     tolerations: []
 
     sidecar:
-      enabled: true
+      enabled: false
       image:
         repository: mojaloop/event-sidecar
         tag: v9.5.1
         pullPolicy: Always
       readinessProbe:
         enabled: true
-        initialDelaySeconds: 120
+        initialDelaySeconds: 60
         periodSeconds: 15
       livenessProbe:
         enabled: true
-        initialDelaySeconds: 90
+        initialDelaySeconds: 30
         periodSeconds: 15
       config:
         log_level: info
@@ -1119,12 +1182,15 @@ ml-api-adapter:
       endpoint_cache_generateTimeoutMs: 30000
 
       ## Send callback confirmation to PayeeFSP in addition to the Mojaloop v1.0 Spec Callback to PayerFSP
-      send_transfer_confirmation_to_payee: true
+      send_transfer_confirmation_to_payee: false
 
       ## Log Configuration
-      log_level: info
-      log_filter: 'error, warn, info'
-      log_transport: file
+      # log_level: info
+      # log_filter: 'error, warn, info'
+      # log_transport: file
+      log_level: debug
+      log_filter: 'debug, error, warn, info'
+      log_transport: console
 
       ## Tracing Configuration
       event_trace_vendor: mojaloop

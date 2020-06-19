@@ -1,0 +1,80 @@
+{{- $kafkaHost := ( .Values.jobs.postInstall.config.kafka_host | replace "$release_name" .Release.Name ) -}}
+{{- $redisHost := ( .Values.jobs.postInstall.config.redis_host | replace "$release_name" .Release.Name ) -}}
+{{- $simulatorHost := ( .Values.jobs.postInstall.config.simulator_host | replace "$release_name" .Release.Name ) -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ .Release.Name }}-{{ .Chart.Name }}-job-post-install"
+  labels:
+    app.kubernetes.io/name: {{ include "poc-architecture.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+  annotations:
+    # This is what defines this resource as a hook. Without this line, the
+    # job is considered part of the release.
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      name: "{{ .Release.Name }}-{{ .Chart.Name }}-job-post-install"
+      labels:
+        app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+        app.kubernetes.io/instance: {{ .Release.Name | quote }}
+        helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    spec:
+      restartPolicy: Never
+      {{- if .Values.jobs.postInstall.init.enabled }}
+      initContainers:
+        - name: {{ .Values.jobs.postInstall.init.image.name }}
+          image: {{ .Values.jobs.postInstall.init.image.repository }}:{{ .Values.jobs.postInstall.init.image.tag }}
+          imagePullPolicy: {{ .Values.jobs.postInstall.init.image.pullPolicy }}
+          command:
+            - sh
+            - "-c"
+            - {{ (.Values.jobs.postInstall.init.image.command | replace "$kafka_host" $kafkaHost | replace "$kafka_port" (printf "%.0f" .Values.jobs.postInstall.config.kafka_port) ) | quote }}
+          env:
+          {{- range $envItem := .Values.jobs.postInstall.init.image.env }}
+          - name: {{ $envItem.name }}
+            value: {{ $envItem.value }}
+          {{- end }}
+      {{- end }}
+      containers:
+        - name: "job-post-install"
+          image: "{{ .Values.jobs.postInstall.image.repository }}:{{ .Values.jobs.postInstall.image.tag }}"
+          {{- if .Values.jobs.postInstall.image.pullPolicy }}
+          imagePullPolicy: {{ .Values.jobs.postInstall.image.pullPolicy }}
+          {{- end }}
+          {{- if .Values.jobs.postInstall.image.imagePullSecrets }}
+          imagePullSecrets:
+          {{ toYaml .Values.jobs.postInstall.image.imagePullSecrets | indent 10 }}
+          {{- end }}
+          command:
+            - sh
+            - "-c"
+            - {{ .Values.jobs.postInstall.image.command | quote }}
+          env:
+            - name: LOG_LEVEL
+              value: {{ .Values.jobs.postInstall.config.log_level | quote}}
+            - name: LOG_FILTER
+              value: {{ .Values.jobs.postInstall.config.log_filter | quote}}
+            - name: CSL_LOG_TRANSPORT
+              value: {{ .Values.jobs.postInstall.config.log_transport | quote}}
+            - name: KAFKA_HOST
+              value: "{{ $kafkaHost }}:{{ .Values.jobs.postInstall.config.kafka_port }}"
+            - name: REDIS_HOST
+              value: {{ $redisHost | quote }}
+            - name: SIMULATOR_HOST
+              value: {{ $simulatorHost | quote }}
+            - name: KAFKA_CONSUMER
+              value: {{ .Values.jobs.postInstall.config.kafka_consumer | quote }}
+            - name: KAFKA_PRODUCER
+              value: {{ .Values.jobs.postInstall.config.kafka_producer | quote }}
+            - name: KAFKA_AUTO_COMMIT
+              value: {{ .Values.jobs.postInstall.config.kafka_autocommit | quote }}
+            - name: UV_THREADPOOL_SIZE
+              value: {{ .Values.jobs.postInstall.config.uv_threadpool_size | quote }}

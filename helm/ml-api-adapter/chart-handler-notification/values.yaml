@@ -39,13 +39,13 @@ sidecar:
     enabled: true
     httpGet:
       path: /health
-    initialDelaySeconds: 120
+    initialDelaySeconds: 60
     periodSeconds: 15
   livenessProbe:
     enabled: true
     httpGet:
       path: /health
-    initialDelaySeconds: 90
+    initialDelaySeconds: 30
     periodSeconds: 15
   config:
     event_log_grpc_host: localhost
@@ -75,13 +75,13 @@ readinessProbe:
   enabled: true
   httpGet:
     path: /health
-  initialDelaySeconds: 120
+  initialDelaySeconds: 60
   periodSeconds: 15
 livenessProbe:
   enabled: true
   httpGet:
     path: /health
-  initialDelaySeconds: 90
+  initialDelaySeconds: 30
   periodSeconds: 15
 
 ## metric configuration for prometheus instrumentation
