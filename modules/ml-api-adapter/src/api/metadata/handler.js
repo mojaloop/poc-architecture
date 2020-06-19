@@ -36,7 +36,8 @@ const Config = require('../../lib/config')
 
 const {
   getSubServiceHealthBroker,
-  getSubServiceHealthCentralLedger
+  // // ## Commented out for PoC Arch until we have included the trace metadata information in the message payloads
+  // getSubServiceHealthCentralLedger
 } = require('../../lib/healthCheck/subServiceHealth.js')
 
 let healthCheck
@@ -44,7 +45,8 @@ let healthCheck
 if (!Config.HANDLERS_DISABLED) {
   healthCheck = new HealthCheck(packageJson, [
     getSubServiceHealthBroker,
-    getSubServiceHealthCentralLedger
+    // // ## Commented out for PoC Arch until we have included the trace metadata information in the message payloads
+    // getSubServiceHealthCentralLedger
   ])
 } else {
   // TODO: Include getSubServiceHealthBroker once 'getMetadata' enhancement has been added to the central-services-stream Producer

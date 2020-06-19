@@ -88,10 +88,10 @@ spec:
           {{- end }}
           volumeMounts:
             - name: {{ template "ml-api-adapter-handler-notification.fullname" . }}-config-volume
-              mountPath: /opt/ml-api-adapter/config
+              mountPath: /opt/poc/modules/ml-api-adapter/config
             {{- if .Values.config.endpointSecurity.jwsSign }}
             - name: jws-signing-key
-              mountPath: /opt/ml-api-adapter/secrets
+              mountPath: /opt/poc/modules/ml-api-adapter/secrets
             {{- end }}
           env:
             - name: LOG_LEVEL
