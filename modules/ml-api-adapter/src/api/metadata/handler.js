@@ -36,7 +36,7 @@ const Config = require('../../lib/config')
 
 const {
   getSubServiceHealthBroker,
-  // // ## Commented out for PoC Arch until we have included the trace metadata information in the message payloads
+  // // ## Commented out for PoC Arch
   // getSubServiceHealthCentralLedger
 } = require('../../lib/healthCheck/subServiceHealth.js')
 
@@ -45,7 +45,7 @@ let healthCheck
 if (!Config.HANDLERS_DISABLED) {
   healthCheck = new HealthCheck(packageJson, [
     getSubServiceHealthBroker,
-    // // ## Commented out for PoC Arch until we have included the trace metadata information in the message payloads
+    // // ## Commented out for PoC Arch
     // getSubServiceHealthCentralLedger
   ])
 } else {
