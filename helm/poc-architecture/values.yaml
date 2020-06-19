@@ -1326,7 +1326,7 @@ legacy-simulator:
       # kubernetes.io/tls-acme: "true"
     path: /
     hosts:
-      - perf1-simulator.mojaloop.live
+      - poc1-simulator.mojaloop.live
     tls: []
       #  - secretName: chart-example-tls
       #    hosts:
