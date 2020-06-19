@@ -266,7 +266,7 @@ kafka:
 
       ## The image to use for the metrics collector
       image: solsson/kafka-prometheus-jmx-exporter@sha256
-      
+
       ## The image tag to use for the metrics collector
       imageTag: a23062396cd5af1acdf76512632c20ea6be76885dfc20cd9ff40fb23846557e8
 
@@ -373,7 +373,7 @@ kafka:
     #       labelSelector:
     #         matchLabels:
     #           release: zookeeper
-    
+
 redis:
   enabled: true
   image:
@@ -982,7 +982,7 @@ ml-api-adapter:
     image:
       repository: *poc_architecture_image
       tag: *poc_architecture_tag
-      command: "cd modules/ml-api-adapter && node src/api/index.js"
+      command: "node modules/ml-api-adapter/src/api/index.js"
     ## Optionally specify an array of imagePullSecrets.
     ## Secrets must be manually created in the namespace.
     ## ref: https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
@@ -1055,12 +1055,9 @@ ml-api-adapter:
       max_fulfil_timeout_duration_seconds: 240
 
       ## Log Configuration
-      # log_level: info
-      # log_filter: 'error, warn, info'
-      # log_transport: file
       log_level: info
-      log_filter: 'debug, error, warn, info'
-      log_transport: console
+      log_filter: 'error, warn, info, debug'
+      log_transport: file
 
       ## Tracing Configuration
       event_trace_vendor: mojaloop
@@ -1118,7 +1115,7 @@ ml-api-adapter:
     image:
       repository: *poc_architecture_image
       tag: *poc_architecture_tag
-      command: "cd modules/ml-api-adapter && node src/handlers/index.js handler --notification"
+      command: "node modules/ml-api-adapter/src/handlers/index.js handler --notification"
     ## Optionally specify an array of imagePullSecrets.
     ## Secrets must be manually created in the namespace.
     ## ref: https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
@@ -1185,12 +1182,9 @@ ml-api-adapter:
       send_transfer_confirmation_to_payee: false
 
       ## Log Configuration
-      # log_level: info
-      # log_filter: 'error, warn, info'
-      # log_transport: file
       log_level: info
       log_filter: 'debug, error, warn, info'
-      log_transport: console
+      log_transport: file
 
       ## Tracing Configuration
       event_trace_vendor: mojaloop
