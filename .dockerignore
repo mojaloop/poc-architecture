@@ -6,3 +6,4 @@ docker
 .vscode
 .git
 **/.git
+**/dist

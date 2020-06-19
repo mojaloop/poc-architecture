@@ -87,7 +87,7 @@ export class TransferCmdHandler implements IRunHandler {
         const kafkaJsProducerOptions: KafkaJsProducerOptions = {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
-              brokers: ['localhost:9092'],
+              brokers: [ appConfig.kafka.host ],
               clientId: `transferCmdHandler-${Crypto.randomBytes(8)}`
             },
             producer: { // https://kafka.js.org/docs/producing#options
@@ -186,7 +186,7 @@ export class TransferCmdHandler implements IRunHandler {
         const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
-              brokers: ['localhost:9092'],
+              brokers: [ appConfig.kafka.host ],
               clientId: `transferCmdConsumer-${Crypto.randomBytes(8)}`
             },
             consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options

@@ -4,9 +4,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "poc-participants-service.fullname" . }}
+  name: {{ template "poc-modules.fullname" . }}
   labels:
-    app.kubernetes.io/name: {{ include "poc-participants-service.name" . }}
+    app.kubernetes.io/name: {{ include "poc-modules.name" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/version: {{ .Chart.AppVersion }}
     app.kubernetes.io/managed-by: {{ .Release.Service }}
@@ -15,12 +15,12 @@ spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ include "poc-participants-service.name" . }}
+      app.kubernetes.io/name: {{ include "poc-modules.name" . }}
       app.kubernetes.io/instance: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: {{ include "poc-participants-service.name" . }}
+        app.kubernetes.io/name: {{ include "poc-modules.name" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/version: {{ .Chart.AppVersion }}
         app.kubernetes.io/managed-by: {{ .Release.Service }}
@@ -90,7 +90,7 @@ spec:
             periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
           {{- end }}
           # volumeMounts:
-          #   - name: {{ template "poc-participants-service.fullname" . }}-config-volume
+          #   - name: {{ template "poc-modules.fullname" . }}-config-volume
           #     mountPath: /opt/poc-participants/config
           env:
             - name: LOG_LEVEL
@@ -110,9 +110,9 @@ spec:
             - name: UV_THREADPOOL_SIZE
               value: {{ .Values.config.uv_threadpool_size | quote }}
       # volumes:
-      #   - name: {{ template "poc-participants-service.fullname" . }}-config-volume
+      #   - name: {{ template "poc-modules.fullname" . }}-config-volume
       #     configMap:
-      #       name: {{ template "poc-participants-service.fullname" . }}-config
+      #       name: {{ template "poc-modules.fullname" . }}-config
       #       items:
       #       - key: default.json
       #         path: default.json

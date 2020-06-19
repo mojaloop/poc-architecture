@@ -76,7 +76,7 @@ export class TransferEvtHandler implements IRunHandler {
         const kafkaJsProducerOptions: KafkaJsProducerOptions = {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
-              brokers: ['localhost:9092'],
+              brokers: [ appConfig.kafka.host ],
               clientId: `transferEvtHandler-${Crypto.randomBytes(8)}`
             },
             producer: { // https://kafka.js.org/docs/producing#options
@@ -194,7 +194,7 @@ export class TransferEvtHandler implements IRunHandler {
         const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
-              brokers: ['localhost:9092'],
+              brokers: [ appConfig.kafka.host ],
               clientId: `transferEvtConsumer-${Crypto.randomBytes(8)}`
             },
             consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
