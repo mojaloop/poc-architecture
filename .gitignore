@@ -136,3 +136,4 @@ dist/
 # helm
 **/charts
 **/*requirements.lock
+**/helm/.*
