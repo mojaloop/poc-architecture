@@ -19,7 +19,7 @@ config:
   simulator_host: '$release_name-legacy-simulator'
   uv_threadpool_size: 7
   redis_host: 'redis://$release_name-redis-master:6379'
-  log_level: debug
+  log_level: info
 
 init:
   enabled: true

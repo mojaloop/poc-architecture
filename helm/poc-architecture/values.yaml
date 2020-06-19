@@ -27,7 +27,7 @@ jobs:
       simulator_host: '$release_name-legacy-simulator'
       uv_threadpool_size: 7
       redis_host: 'redis://$release_name-redis-master:6379'
-      log_level: debug
+      log_level: info
 
     init:
       enabled: true
@@ -802,7 +802,7 @@ participants:
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
     redis_host: 'redis://$release_name-redis-master:6379'
-    log_level: debug
+    log_level: info
 
   init:
     enabled: true
@@ -870,7 +870,7 @@ transfers:
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
     redis_host: 'redis://$release_name-redis-master:6379'
-    log_level: debug
+    log_level: info
 
   init:
     enabled: true
@@ -932,7 +932,7 @@ simulator-dev-tool:
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
     redis_host: 'redis://$release_name-redis-master:6379'
-    log_level: debug
+    log_level: info
 
   init:
     enabled: true
@@ -1058,7 +1058,7 @@ ml-api-adapter:
       # log_level: info
       # log_filter: 'error, warn, info'
       # log_transport: file
-      log_level: debug
+      log_level: info
       log_filter: 'debug, error, warn, info'
       log_transport: console
 
@@ -1188,7 +1188,7 @@ ml-api-adapter:
       # log_level: info
       # log_filter: 'error, warn, info'
       # log_transport: file
-      log_level: debug
+      log_level: info
       log_filter: 'debug, error, warn, info'
       log_transport: console
 
