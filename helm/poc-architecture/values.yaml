@@ -5,7 +5,7 @@ global: {}
 
 parameters:
   poc_architecture_image : &poc_architecture_image "mojaloop/poc-architecture"
-  poc_architecture_tag : &poc_architecture_tag "v0.5"
+  poc_architecture_tag : &poc_architecture_tag "v0.6"
 
 ## Jobs
 jobs:
@@ -13,7 +13,7 @@ jobs:
     image:
       repository: *poc_architecture_image
       tag: *poc_architecture_tag
-      command: "cd modules/devtools && npm run pubCreateParticipantCmd"
+      command: "cd modules/devtools && npm run pubCreateParticipantCmd && npm run pubCreateParticipantCmdForPerf1"
 
     config:
       # this can be set if the dependency chart for kafka is disabled. If 'kafka_host' is commented out, then the name of the dependency chart will be used.

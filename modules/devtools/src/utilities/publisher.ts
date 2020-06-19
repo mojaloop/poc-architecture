@@ -1,13 +1,13 @@
 import { IMessagePublisher, IMessage, ILogger } from '@mojaloop-poc/lib-domain'
 import { KafkaMessagePublisher, KafkaGenericProducerOptions, KafkaInfraTypes, KafkajsMessagePublisher, KafkaJsProducerOptions } from '@mojaloop-poc/lib-infrastructure'
-import { ConsoleLogger, Crypto } from '@mojaloop-poc/lib-utilities'
+import { MojaLogger, Crypto } from '@mojaloop-poc/lib-utilities'
 
 import * as dotenv from 'dotenv'
 
 // TODO: Figure a better way to handle env config here
 dotenv.config({ path: '../../.env' })
 
-const logger: ILogger = new ConsoleLogger()
+const logger: ILogger = new MojaLogger()
 const isInit: boolean = false
 
 // # setup application config

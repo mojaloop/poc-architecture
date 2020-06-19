@@ -30,6 +30,7 @@
     "perfMeasure": "tsc && node ./dist/utilities/perfMeasure.js",
     "pubCommitPayeeFundCmd": "tsc && node ./dist/participants/pubCommitPayeeFundCmd.js",
     "pubCreateParticipantCmd": "tsc && node ./dist/participants/pubCreateParticipantCmd.js",
+    "pubCreateParticipantCmdForPerf1": "tsc && node ./dist/participants/pubCreateParticipantCmdForPerf1.js",
     "pubReservePayerFundCmd": "tsc && node ./dist/participants/pubReservePayerFundCmd.js",
     "pubPrepareTransferCmd": "tsc && node ./dist/transfers/pubPrepareTransferCmd.js",
     "pubTransferPrepareRequestedEvt": "tsc && node ./dist/transfers/pubTransferPrepareRequestedEvt.js",
