@@ -10,6 +10,7 @@ parameters:
 ## Jobs
 jobs:
   postInstall:
+    enabled: true
     image:
       repository: *poc_architecture_image
       tag: *poc_architecture_tag

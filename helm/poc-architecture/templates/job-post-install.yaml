@@ -1,6 +1,7 @@
 {{- $kafkaHost := ( .Values.jobs.postInstall.config.kafka_host | replace "$release_name" .Release.Name ) -}}
 {{- $redisHost := ( .Values.jobs.postInstall.config.redis_host | replace "$release_name" .Release.Name ) -}}
 {{- $simulatorHost := ( .Values.jobs.postInstall.config.simulator_host | replace "$release_name" .Release.Name ) -}}
+{{- if .Values.jobs.postInstall.enabled }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -78,3 +79,4 @@ spec:
               value: {{ .Values.jobs.postInstall.config.kafka_autocommit | quote }}
             - name: UV_THREADPOOL_SIZE
               value: {{ .Values.jobs.postInstall.config.uv_threadpool_size | quote }}
+{{- end }}
