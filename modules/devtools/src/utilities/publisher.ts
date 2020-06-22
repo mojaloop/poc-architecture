@@ -8,7 +8,7 @@ import * as dotenv from 'dotenv'
 dotenv.config({ path: '../../.env' })
 
 let logger: ILogger
-const isInit: boolean = false
+let isInit: boolean = false
 
 let kafkaMsgPublisher: IMessagePublisher | undefined
 export let appConfig: any | undefined
@@ -74,6 +74,7 @@ export const init = async (): Promise<void> => {
       }
     }
     await kafkaMsgPublisher.init()
+    isInit = true
   } else {
     logger.debug('initPublisher - publisher already initiated')
   }
