@@ -40,17 +40,17 @@
 // import {InMemoryParticipantStateRepo} from "../infrastructure/inmemory_participant_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransferPrepareAcceptedEvt, TransferFulfilAcceptedEvt, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
-import { iRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { IRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { ReservePayerFundsCmd, ReservePayerFundsCmdPayload } from '../messages/reserve_payer_funds_cmd'
 import { CommitPayeeFundsCmd, CommitPayeeFundsCmdPayload } from '../messages/commit_payee_funds_cmd'
 import { InvalidParticipantEvtError } from './errors'
-import { Crypto } from '@mojaloop-poc/lib-utilities'
+import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 
-export class ParticipantEvtHandler implements iRunHandler {
+export class ParticipantEvtHandler implements IRunHandler {
   private _consumer: MessageConsumer
   private _publisher: IMessagePublisher
 
-  async start (appConfig: any, logger: ILogger): Promise<void> {
+  async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
@@ -72,7 +72,7 @@ export class ParticipantEvtHandler implements iRunHandler {
         break
       }
       case (KafkaInfraTypes.KAFKAJS): {
-        const kafkaJsConsumerOptions: KafkaJsProducerOptions = {
+        const kafkaJsProducerOptions: KafkaJsProducerOptions = {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: ['localhost:9092'],
@@ -86,7 +86,7 @@ export class ParticipantEvtHandler implements iRunHandler {
           }
         }
         kafkaMsgPublisher = new KafkajsMessagePublisher(
-          kafkaJsConsumerOptions,
+          kafkaJsProducerOptions,
           logger
         )
         break
@@ -100,7 +100,14 @@ export class ParticipantEvtHandler implements iRunHandler {
     this._publisher = kafkaMsgPublisher
     await kafkaMsgPublisher.init()
 
+    const histoParticipantEvtHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+      'participantEvtHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+      'Instrumentation for participantEvtHandler', // Description of metric
+      ['success', 'error'] // Define a custom label 'success'
+    )
+
     const participantEvtHandler = async (message: IDomainMessage): Promise<void> => {
+      const histTimer = histoParticipantEvtHandlerMetric.startTimer()
       try {
         logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
         let participantEvt: DomainEventMsg | undefined
@@ -112,6 +119,7 @@ export class ParticipantEvtHandler implements iRunHandler {
             if (participantEvt == null) throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - ${TransferPrepareAcceptedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
             const reservePayerFundsCmdPayload: ReservePayerFundsCmdPayload = participantEvt.payload
             participantCmd = new ReservePayerFundsCmd(reservePayerFundsCmdPayload)
+            participantCmd.passTraceInfo(participantEvt)
             break
           }
           case TransferFulfilAcceptedEvt.name: {
@@ -119,10 +127,12 @@ export class ParticipantEvtHandler implements iRunHandler {
             if (participantEvt == null) throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - ${TransferFulfilAcceptedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
             const commitPayeeFundsCmdPayload: CommitPayeeFundsCmdPayload = participantEvt.payload
             participantCmd = new CommitPayeeFundsCmd(commitPayeeFundsCmdPayload)
+            participantCmd.passTraceInfo(participantEvt)
             break
           }
           default: {
             logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+            histTimer({ success: 'true' })
             return
           }
         }
@@ -135,10 +145,12 @@ export class ParticipantEvtHandler implements iRunHandler {
         }
 
         logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: true`)
+        histTimer({ success: 'true' })
       } catch (err) {
         const errMsg: string = err?.message?.toString()
         logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
         logger.error(err)
+        histTimer({ success: 'false', error: err.message })
       }
     }
 
@@ -153,7 +165,8 @@ export class ParticipantEvtHandler implements iRunHandler {
             kafkaHost: appConfig.kafka.host,
             id: `participantEvtConsumer-${Crypto.randomBytes(8)}`,
             groupId: 'participantEvtGroup',
-            fromOffset: EnumOffset.LATEST
+            fromOffset: EnumOffset.LATEST,
+            autoCommit: appConfig.kafka.autocommit
           },
           topics: [TransfersTopics.DomainEvents]
         }
@@ -169,6 +182,9 @@ export class ParticipantEvtHandler implements iRunHandler {
             },
             consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
               groupId: 'participantEvtGroup'
+            },
+            consumerRunConfig: {
+              autoCommit: appConfig.kafka.autocommit
             }
           },
           topics: [TransfersTopics.DomainEvents]

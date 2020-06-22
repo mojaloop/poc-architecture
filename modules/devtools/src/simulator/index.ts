@@ -37,13 +37,16 @@
 
 'use strict'
 
-import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
+import { MojaLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { iRunHandler, KafkaInfraTypes } from '@mojaloop-poc/lib-infrastructure'
+import { TApiServerOptions, ApiServer, IRunHandler, KafkaInfraTypes } from '@mojaloop-poc/lib-infrastructure'
 import { SimulatorEvtHandler } from './simulatorEvtHandler'
 import * as dotenv from 'dotenv'
 import { Command } from 'commander'
 import { resolve as Resolve } from 'path'
+
+/* eslint-disable-next-line @typescript-eslint/no-var-requires */
+const pckg = require('../../package.json')
 
 const Program = new Command()
 Program
@@ -52,6 +55,7 @@ Program
 Program.command('handler')
   .alias('h')
   .description('Start Simulator Handlers') // command description
+  .option('--disableApi', 'Disable API server for health & metrics')
   .option('-c, --config [configFilePath]', '.env config file')
 
   // function to execute when command is uses
@@ -71,21 +75,57 @@ Program.command('handler')
       kafka: {
         host: process.env.KAFKA_HOST,
         consumer: (process.env.KAFKA_CONSUMER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_CONSUMER,
-        producer: (process.env.KAFKA_PRODUCER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_PRODUCER
+        producer: (process.env.KAFKA_PRODUCER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_PRODUCER,
+        autocommit: (process.env.KAFKA_AUTO_COMIT === 'true')
       }
     }
 
-    const logger: ILogger = new ConsoleLogger()
+    // Instantiate logger
+    const logger: ILogger = new MojaLogger()
+
+    // Instantiate metrics factory
+
+    const metricsConfig: TMetricOptionsType = {
+      timeout: 5000, // Set the timeout in ms for the underlying prom-client library. Default is '5000'.
+      prefix: 'poc_sim_', // Set prefix for all defined metrics names
+      defaultLabels: { // Set default labels that will be applied to all metrics
+        serviceName: 'simulator'
+      }
+    }
+
+    const metrics = new Metrics(metricsConfig)
+    await metrics.init()
 
     logger.debug(`appConfig=${JSON.stringify(appConfig)}`)
 
     // list of all handlers
-    const runHandlerList: iRunHandler[] = []
+    const runHandlerList: IRunHandler[] = []
 
     // start all handlers here
     const simulatorEvtHandler = new SimulatorEvtHandler()
-    await simulatorEvtHandler.start(appConfig, logger)
+    await simulatorEvtHandler.start(appConfig, logger, metrics)
     runHandlerList.push(simulatorEvtHandler)
+
+    // start only API
+    let apiServer: ApiServer | undefined
+    if (args.disableApi == null) {
+      const apiServerOptions: TApiServerOptions = {
+        host: '0.0.0.0',
+        port: 4000,
+        metricCallback: async () => {
+          return metrics.getMetricsForPrometheus()
+        },
+        healthCallback: async () => {
+          return {
+            status: 'ok',
+            version: pckg.version,
+            name: pckg.name
+          }
+        }
+      }
+      apiServer = new ApiServer(apiServerOptions, logger)
+      await apiServer.init()
+    }
 
     // lets clean up all consumers here
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
@@ -97,8 +137,14 @@ Program.command('handler')
         logger.info(`\tDestroying handler...${handler.constructor.name}`)
         await handler.destroy()
       })
+
+      if (apiServer != null) {
+        logger.info('Destroying API server...')
+        await apiServer.destroy()
+      }
+
       logger.info('Exit complete!')
-      process.exit(2)
+      process.exit(0)
     }
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     process.on('SIGINT', killProcess)

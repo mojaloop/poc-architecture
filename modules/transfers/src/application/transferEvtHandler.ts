@@ -39,19 +39,19 @@
 // import {InMemoryTransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { MLTopics, ParticipantsTopics, PayerFundsReservedEvt, TransferPrepareRequestedEvt, TransferPrepareAcceptedEvt, TransferFulfilRequestedEvt, PayeeFundsCommittedEvt } from '@mojaloop-poc/lib-public-messages'
-import { iRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { IRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { AckPayerFundsReservedCmdPayload, AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { AckPayeeFundsCommittedCmdPayload, AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
 import { InvalidTransferEvtError } from './errors'
 import { PrepareTransferCmdPayload, PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
 import { FulfilTransferCmd, FulfilTransferCmdPayload } from '../messages/fulfil_transfer_cmd'
-import { Crypto } from '@mojaloop-poc/lib-utilities'
+import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 
-export class TransferEvtHandler implements iRunHandler {
+export class TransferEvtHandler implements IRunHandler {
   private _consumer: MessageConsumer
   private _publisher: IMessagePublisher
 
-  async start (appConfig: any, logger: ILogger): Promise<void> {
+  async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
@@ -73,7 +73,7 @@ export class TransferEvtHandler implements iRunHandler {
         break
       }
       case (KafkaInfraTypes.KAFKAJS): {
-        const kafkaJsConsumerOptions: KafkaJsProducerOptions = {
+        const kafkaJsProducerOptions: KafkaJsProducerOptions = {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: ['localhost:9092'],
@@ -87,7 +87,7 @@ export class TransferEvtHandler implements iRunHandler {
           }
         }
         kafkaMsgPublisher = new KafkajsMessagePublisher(
-          kafkaJsConsumerOptions,
+          kafkaJsProducerOptions,
           logger
         )
         break
@@ -101,7 +101,14 @@ export class TransferEvtHandler implements iRunHandler {
     this._publisher = kafkaMsgPublisher
     await kafkaMsgPublisher.init()
 
+    const histoTransferEvtHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+      'transferEvtHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+      'Instrumentation for transferEvtHandler', // Description of metric
+      ['success', 'error'] // Define a custom label 'success'
+    )
+
     const transferEvtHandler = async (message: IDomainMessage): Promise<void> => {
+      const histTimer = histoTransferEvtHandlerMetric.startTimer()
       try {
         logger.info(`transferEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
         let transferEvt: DomainEventMsg | undefined
@@ -113,6 +120,7 @@ export class TransferEvtHandler implements iRunHandler {
             if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${PayerFundsReservedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
             const ackPayerFundsReservedCmdPayload: AckPayerFundsReservedCmdPayload = transferEvt.payload
             transferCmd = new AckPayerFundsReservedCmd(ackPayerFundsReservedCmdPayload)
+            transferCmd.passTraceInfo(transferEvt)
             break
           }
           case PayeeFundsCommittedEvt.name: {
@@ -120,6 +128,7 @@ export class TransferEvtHandler implements iRunHandler {
             if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${PayeeFundsCommittedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
             const ackPayeeFundsCommittedCmdPayload: AckPayeeFundsCommittedCmdPayload = transferEvt.payload
             transferCmd = new AckPayeeFundsCommittedCmd(ackPayeeFundsCommittedCmdPayload)
+            transferCmd.passTraceInfo(transferEvt)
             break
           }
           case TransferPrepareRequestedEvt.name: {
@@ -127,6 +136,7 @@ export class TransferEvtHandler implements iRunHandler {
             if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${TransferPrepareRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
             const prepareTransferCmdPayload: PrepareTransferCmdPayload = transferEvt.payload
             transferCmd = new PrepareTransferCmd(prepareTransferCmdPayload)
+            transferCmd.passTraceInfo(transferEvt)
             break
           }
           case TransferFulfilRequestedEvt.name: {
@@ -134,6 +144,7 @@ export class TransferEvtHandler implements iRunHandler {
             if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${TransferFulfilRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
             const fulfilTransferCmdPayload: FulfilTransferCmdPayload = transferEvt.payload
             transferCmd = new FulfilTransferCmd(fulfilTransferCmdPayload)
+            transferCmd.passTraceInfo(transferEvt)
             break
           }
           case TransferPrepareAcceptedEvt.name: {
@@ -142,6 +153,7 @@ export class TransferEvtHandler implements iRunHandler {
           }
           default: {
             logger.debug(`TransferEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+            return
           }
         }
 
@@ -150,10 +162,12 @@ export class TransferEvtHandler implements iRunHandler {
           await kafkaMsgPublisher!.publish(transferCmd)
           logger.info(`transferEvtHandler publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
         }
+        histTimer({ success: 'true' })
       } catch (err) {
         const errMsg: string = err?.message?.toString()
         logger.warn(`transferEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
         logger.error(err)
+        histTimer({ success: 'false', error: err.message })
       }
     }
 
@@ -168,7 +182,8 @@ export class TransferEvtHandler implements iRunHandler {
             kafkaHost: appConfig.kafka.host,
             id: `transferEvtConsumer-${Crypto.randomBytes(8)}`,
             groupId: 'transferEvtGroup',
-            fromOffset: EnumOffset.LATEST
+            fromOffset: EnumOffset.LATEST,
+            autoCommit: appConfig.kafka.autocommit
           },
           topics: [MLTopics.Events, ParticipantsTopics.DomainEvents]
         }
@@ -184,6 +199,9 @@ export class TransferEvtHandler implements iRunHandler {
             },
             consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
               groupId: 'transferEvtGroup'
+            },
+            consumerRunConfig: {
+              autoCommit: appConfig.kafka.autocommit
             }
           },
           topics: [MLTopics.Events, ParticipantsTopics.DomainEvents]
