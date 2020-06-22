@@ -1,17 +1,18 @@
-import { publishMessageMultiple, publishMessageMultipleInit, publishMessageMultipleDestroy } from '../utilities/publisher'
+import * as Publisher from '../utilities/publisher'
 import {
   CurrencyTypes,
   TransferPrepareRequestedEvt
 } from '@mojaloop-poc/lib-public-messages'
 import { v4 as uuidv4 } from 'uuid'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
+import { MojaLogger } from '@mojaloop-poc/lib-utilities'
 
 /* eslint-disable @typescript-eslint/no-var-requires */
 const encodePayload = require('@mojaloop/central-services-shared').Util.StreamingProtocol.encodePayload
 
-const logger: ILogger = new ConsoleLogger()
-const INJECTED_PER_SECOND = 50
+const logger: ILogger = new MojaLogger()
+const STR_INJECTED_PER_SECOND = process.env?.INJECTED_PER_SECOND ?? '50'
+const INJECTED_PER_SECOND = Number.parseInt(STR_INJECTED_PER_SECOND)
 const contentType = 'application/vnd.interoperability.transfers+json;version=1'
 
 const timeout = async (ms: number): Promise<void> => {
@@ -83,22 +84,32 @@ const send = async (): Promise<void> => {
     }
     ))
   }
-  await publishMessageMultiple(evts)
+  await Publisher.publishMessageMultiple(evts)
   await timeout(1000)
 }
 
 /* eslint-disable-next-line @typescript-eslint/explicit-function-return-type */
 const start = async () => {
-  await publishMessageMultipleInit()
-
+  logger.info('Starting pubPrepareMultipleTransferEvt publisher!')
+  await Publisher.init()
+  await Publisher.publishMessageMultipleInit()
   while (true) {
     await send()
   }
-
-  // eslint-disable-next-line no-unreachable
-  await publishMessageMultipleDestroy()
-  // process.exit(0)
 }
+
+// lets clean up all consumers here
+/* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+const killProcess = async (): Promise<void> => {
+  logger.info('Exiting process...')
+  logger.info('Destroying handlers...')
+  await Publisher.publishMessageMultipleDestroy()
+
+  logger.info('Exit complete!')
+  process.exit(0)
+}
+/* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+process.on('SIGINT', killProcess)
 
 start().catch((err) => {
   logger.error(err)

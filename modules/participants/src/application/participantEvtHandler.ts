@@ -75,7 +75,7 @@ export class ParticipantEvtHandler implements IRunHandler {
         const kafkaJsProducerOptions: KafkaJsProducerOptions = {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
-              brokers: [ appConfig.kafka.host ],
+              brokers: [appConfig.kafka.host],
               clientId: `participantEvtHandler-${Crypto.randomBytes(8)}`
             },
             producer: { // https://kafka.js.org/docs/producing#options
@@ -103,11 +103,12 @@ export class ParticipantEvtHandler implements IRunHandler {
     const histoParticipantEvtHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
       'participantEvtHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
       'Instrumentation for participantEvtHandler', // Description of metric
-      ['success', 'error'] // Define a custom label 'success'
+      ['success', 'error', 'evtname'] // Define a custom label 'success'
     )
 
     const participantEvtHandler = async (message: IDomainMessage): Promise<void> => {
       const histTimer = histoParticipantEvtHandlerMetric.startTimer()
+      const evtname = message.msgName ?? 'unknown'
       try {
         logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
         let participantEvt: DomainEventMsg | undefined
@@ -132,7 +133,7 @@ export class ParticipantEvtHandler implements IRunHandler {
           }
           default: {
             logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
-            histTimer({ success: 'true' })
+            histTimer({ success: 'true', evtname })
             return
           }
         }
@@ -145,12 +146,12 @@ export class ParticipantEvtHandler implements IRunHandler {
         }
 
         logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: true`)
-        histTimer({ success: 'true' })
+        histTimer({ success: 'true', evtname })
       } catch (err) {
         const errMsg: string = err?.message?.toString()
         logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
         logger.error(err)
-        histTimer({ success: 'false', error: err.message })
+        histTimer({ success: 'false', error: err.message, evtname })
       }
     }
 
@@ -177,7 +178,7 @@ export class ParticipantEvtHandler implements IRunHandler {
         const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
-              brokers: [ appConfig.kafka.host ],
+              brokers: [appConfig.kafka.host],
               clientId: `participantEvtConsumer-${Crypto.randomBytes(8)}`
             },
             consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options

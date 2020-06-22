@@ -84,7 +84,7 @@ export class ParticipantCmdHandler implements IRunHandler {
         const kafkaJsProducerOptions: KafkaJsProducerOptions = {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
-              brokers: [ appConfig.kafka.host ],
+              brokers: [appConfig.kafka.host],
               clientId: `participantCmdHandler-${Crypto.randomBytes(8)}`
             },
             producer: { // https://kafka.js.org/docs/producing#options
@@ -134,12 +134,13 @@ export class ParticipantCmdHandler implements IRunHandler {
     const histoParticipantCmdHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
       'participantCmdHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
       'Instrumentation for participantCmdHandler', // Description of metric
-      ['success', 'error'] // Define a custom label 'success'
+      ['success', 'error', 'evtname'] // Define a custom label 'success'
     )
 
     // ## Setup participantCmdConsumer
     const participantCmdHandler = async (message: IDomainMessage): Promise<void> => {
       const histTimer = histoParticipantCmdHandlerMetric.startTimer()
+      const evtname = message.msgName ?? 'unknown'
       try {
         logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
         let participantCmd: CommandMsg | undefined
@@ -169,12 +170,12 @@ export class ParticipantCmdHandler implements IRunHandler {
           logger.warn(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
         }
         logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
-        histTimer({ success: 'true' })
+        histTimer({ success: 'true', evtname })
       } catch (err) {
         const errMsg: string = err?.message?.toString()
         logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
         logger.error(err)
-        histTimer({ success: 'false', error: err.message })
+        histTimer({ success: 'false', error: err.message, evtname })
       }
     }
 
@@ -202,7 +203,7 @@ export class ParticipantCmdHandler implements IRunHandler {
         const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
-              brokers: [ appConfig.kafka.host ],
+              brokers: [appConfig.kafka.host],
               clientId: `participantCmdConsumer-${Crypto.randomBytes(8)}`
             },
             consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options

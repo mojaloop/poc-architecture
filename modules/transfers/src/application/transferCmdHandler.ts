@@ -87,7 +87,7 @@ export class TransferCmdHandler implements IRunHandler {
         const kafkaJsProducerOptions: KafkaJsProducerOptions = {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
-              brokers: [ appConfig.kafka.host ],
+              brokers: [appConfig.kafka.host],
               clientId: `transferCmdHandler-${Crypto.randomBytes(8)}`
             },
             producer: { // https://kafka.js.org/docs/producing#options
@@ -117,12 +117,13 @@ export class TransferCmdHandler implements IRunHandler {
     const histoTransferCmdHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
       'transferCmdHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
       'Instrumentation for transferCmdHandler', // Description of metric
-      ['success', 'error'] // Define a custom label 'success'
+      ['success', 'error', 'evtname'] // Define a custom label 'success'
     )
 
     // ## Setup transferCmdConsumer
     const transferCmdHandler = async (message: IDomainMessage): Promise<void> => {
       const histTimer = histoTransferCmdHandlerMetric.startTimer()
+      const evtname = message.msgName ?? 'unknown'
       try {
         logger.info(`transferCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
         let transferCmd: CommandMsg | undefined
@@ -156,10 +157,10 @@ export class TransferCmdHandler implements IRunHandler {
           logger.warn('transferCmdHandler is Unable to process command')
         }
         logger.info(`transferCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
-        histTimer({ success: 'true' })
+        histTimer({ success: 'true', evtname })
       } catch (err) {
         logger.error(err)
-        histTimer({ success: 'false', error: err.message })
+        histTimer({ success: 'false', error: err.message, evtname })
       }
     }
 
@@ -186,7 +187,7 @@ export class TransferCmdHandler implements IRunHandler {
         const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
-              brokers: [ appConfig.kafka.host ],
+              brokers: [appConfig.kafka.host],
               clientId: `transferCmdConsumer-${Crypto.randomBytes(8)}`
             },
             consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options

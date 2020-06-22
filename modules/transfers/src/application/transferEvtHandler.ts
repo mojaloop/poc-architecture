@@ -76,7 +76,7 @@ export class TransferEvtHandler implements IRunHandler {
         const kafkaJsProducerOptions: KafkaJsProducerOptions = {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
-              brokers: [ appConfig.kafka.host ],
+              brokers: [appConfig.kafka.host],
               clientId: `transferEvtHandler-${Crypto.randomBytes(8)}`
             },
             producer: { // https://kafka.js.org/docs/producing#options
@@ -104,11 +104,12 @@ export class TransferEvtHandler implements IRunHandler {
     const histoTransferEvtHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
       'transferEvtHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
       'Instrumentation for transferEvtHandler', // Description of metric
-      ['success', 'error'] // Define a custom label 'success'
+      ['success', 'error', 'evtname'] // Define a custom label 'success'
     )
 
     const transferEvtHandler = async (message: IDomainMessage): Promise<void> => {
       const histTimer = histoTransferEvtHandlerMetric.startTimer()
+      const evtname = message.msgName ?? 'unknown'
       try {
         logger.info(`transferEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
         let transferEvt: DomainEventMsg | undefined
@@ -153,6 +154,7 @@ export class TransferEvtHandler implements IRunHandler {
           }
           default: {
             logger.debug(`TransferEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+            histTimer({ success: 'true', evtname })
             return
           }
         }
@@ -162,12 +164,12 @@ export class TransferEvtHandler implements IRunHandler {
           await kafkaMsgPublisher!.publish(transferCmd)
           logger.info(`transferEvtHandler publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
         }
-        histTimer({ success: 'true' })
+        histTimer({ success: 'true', evtname })
       } catch (err) {
         const errMsg: string = err?.message?.toString()
         logger.warn(`transferEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
         logger.error(err)
-        histTimer({ success: 'false', error: err.message })
+        histTimer({ success: 'false', error: err.message, evtname })
       }
     }
 
@@ -194,7 +196,7 @@ export class TransferEvtHandler implements IRunHandler {
         const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
-              brokers: [ appConfig.kafka.host ],
+              brokers: [appConfig.kafka.host],
               clientId: `transferEvtConsumer-${Crypto.randomBytes(8)}`
             },
             consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options

@@ -37,6 +37,8 @@
     "pubPrepareMultipleTransferEvt": "tsc && node ./dist/transfers/pubPrepareMultipleTransferEvt.js",
     "pubTransferFulfilAcceptedEvt": "tsc && node ./dist/transfers/pubTransferFulfilAcceptedEvt.js",
     "pubTransferPrepareAcceptedEvt": "tsc && node ./dist/transfers/pubTransferPrepareAcceptedEvt.js",
+    "pubTransferBothLegs": "tsc && node ./dist/transfers/pubTransferBothLegs.js",
+    "pubTransferFulfilRequestedEvt": "tsc && node ./dist/transfers/pubTransferFulfilRequestedEvt.js",
     "conParticipantCommands": "kafkacat -b localhost -t ParticipantCommands -C",
     "conParticipantDomainEvents": "kafkacat -b localhost -t ParticipantDomainEvents -C",
     "conTransferCommands": "kafkacat -b localhost -t TransferCommands -C",
