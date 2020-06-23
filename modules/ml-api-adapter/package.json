@@ -44,7 +44,7 @@
     "test:int": "tape 'test/integration/**/*.test.js'",
     "test:all": "run-s test test:integration test:functional test:spec",
     "test:xunit": "tape 'test/unit/**/*.test.js' | tap-xunit",
-    "test:coverage": "nyc --reporter=lcov --reporter=text-summary tapes -- 'test/unit/**/**.test.js'",
+    "test:coverage": "",
     "test:coverage-check": "npm run test:coverage && nyc check-coverage",
     "test:integration": "sh ./test/integration-runner.sh ./test/integration-runner.env",
     "test:integration:server": "node test/integration/server/index.js",

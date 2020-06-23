@@ -47,7 +47,10 @@ describe('Kafkajs Consumer and Publisher', () => {
       msgTimestamp: 0,
       msgTopic: 'kafkajstest1',
       msgType: MessageTypes.COMMAND,
-      payload: {}
+      payload: {},
+      traceInfo: null,
+      addTraceInfo: (trace) => {},
+      passTraceInfo: (message) => {}
     }
     
     await publisher.send(message)
@@ -71,7 +74,10 @@ describe('Kafkajs Consumer and Publisher', () => {
         msgTimestamp: 0,
         msgTopic: 'kafkajstest2',
         msgType: MessageTypes.COMMAND,
-        payload: {}
+        payload: {},
+        traceInfo: null,
+        addTraceInfo: (trace) => {},
+        passTraceInfo: (message) => {}
       },
       {
         msgId: '124',
@@ -79,7 +85,10 @@ describe('Kafkajs Consumer and Publisher', () => {
         msgTimestamp: 1,
         msgTopic: 'kafkajstest2',
         msgType: MessageTypes.COMMAND,
-        payload: {}
+        payload: {},
+        traceInfo: null,
+        addTraceInfo: (trace) => {},
+        passTraceInfo: (message) => {}
       }
     ]
     const consumeOptions: KafkaJsConsumerOptions = {

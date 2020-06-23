@@ -24,7 +24,10 @@ describe('Kafka Message Publisher', () => {
       msgTimestamp: 0,
       msgTopic: 'test',
       msgType: MessageTypes.COMMAND,
-      payload: {}
+      payload: {},
+      traceInfo: null,
+      addTraceInfo: (trace) => {},
+      passTraceInfo: (message) => {}
     };    
     (publisher as any)._producer.send = jest.fn().mockResolvedValue(undefined)
 
@@ -41,7 +44,10 @@ describe('Kafka Message Publisher', () => {
         msgTimestamp: 0,
         msgTopic: 'test',
         msgType: MessageTypes.COMMAND,
-        payload: {}
+        payload: {},
+        traceInfo: null,
+        addTraceInfo: (trace) => {},
+        passTraceInfo: (message) => {}
       },
       {
         msgId: '124',
@@ -49,7 +55,10 @@ describe('Kafka Message Publisher', () => {
         msgTimestamp: 1,
         msgTopic: 'test',
         msgType: MessageTypes.COMMAND,
-        payload: {}
+        payload: {},
+        traceInfo: null,
+        addTraceInfo: (trace) => {},
+        passTraceInfo: (message) => {}
       }
     ];
     (publisher as any)._producer.send = jest.fn().mockResolvedValue(undefined)

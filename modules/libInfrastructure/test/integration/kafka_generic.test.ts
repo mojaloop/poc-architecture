@@ -33,7 +33,10 @@ describe('Kafka Generic Producer and Consumer', () => {
       msgTimestamp: 0,
       msgTopic: 'test',
       msgType: MessageTypes.COMMAND,
-      payload: {}
+      payload: {},
+      traceInfo: null,
+      addTraceInfo: (trace) => {},
+      passTraceInfo: (message) => {}
     }
     const consumerOptions: KafkaGenericConsumerOptions = {
       client: {
@@ -66,7 +69,10 @@ describe('Kafka Generic Producer and Consumer', () => {
         msgTimestamp: 0,
         msgTopic: 'test2',
         msgType: MessageTypes.COMMAND,
-        payload: {}
+        payload: {},
+        traceInfo: null,
+        addTraceInfo: (trace) => {},
+        passTraceInfo: (message) => {}
       },
       {
         msgId: '124',
@@ -74,7 +80,10 @@ describe('Kafka Generic Producer and Consumer', () => {
         msgTimestamp: 1,
         msgTopic: 'test2',
         msgType: MessageTypes.COMMAND,
-        payload: {}
+        payload: {},
+        traceInfo: null,
+        addTraceInfo: (trace) => {},
+        passTraceInfo: (message) => {}
       }
     ]
     const consumerOptions: KafkaGenericConsumerOptions = {

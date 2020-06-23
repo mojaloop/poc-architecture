@@ -34,7 +34,7 @@
     "lint": "npm run build && npx eslint ./src",
     "lint:fix": "npm run build && npx eslint ./src --fix",
     "test:unit": "jest --passWithNoTests --testMatch '**/test/unit/**/*.test.ts'",
-    "test:coverage": "jest --coverage --coverageThreshold='{}' --testMatch '**/test/unit/**/*.test.ts'",
+    "test:coverage": "jest --passWithNoTests --coverage --coverageThreshold='{}' --testMatch '**/test/unit/**/*.test.ts'",
     "test:coverage-check": "jest --coverage --testMatch '**/test/unit/**/*.test.ts'",
     "audit:resolve": "SHELL=sh resolve-audit",
     "audit:check": "SHELL=sh check-audit",

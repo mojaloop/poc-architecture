@@ -107,7 +107,10 @@ describe('libDomain entities', () => {
         limit: 2,
         'name': 'name',
         'position': 100
-      }
+      },
+      traceInfo: null,
+      addTraceInfo: (trace) => {},
+      passTraceInfo: (message) => {}
     }) as CreateTestCommand
 
     const ret = idm.specialMethod()
