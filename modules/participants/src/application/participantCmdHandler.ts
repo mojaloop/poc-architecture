@@ -40,21 +40,21 @@
 // import {InMemoryParticipantStateRepo} from "../infrastructure/inmemory_participant_repo";
 import { CommandMsg, IDomainMessage, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
-import { iRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { IRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { ParticpantsAgg } from '../domain/participants_agg'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 import { CreateParticipantCmd } from '../messages/create_participant_cmd'
 import { CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'
 import { RedisParticipantStateRepo } from '../infrastructure/redis_participant_repo'
 import { IParticipantRepo } from '../domain/participant_repo'
-import { Crypto } from '@mojaloop-poc/lib-utilities'
+import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 
-export class ParticipantCmdHandler implements iRunHandler {
+export class ParticipantCmdHandler implements IRunHandler {
   private _consumer: MessageConsumer
   private _publisher: IMessagePublisher
   private _repo: IParticipantRepo
 
-  async start (appConfig: any, logger: ILogger): Promise<void> {
+  async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     // const repo: IEntityStateRepository<ParticipantState> = new InMemoryParticipantStateRepo();
     const repo: IParticipantRepo = new RedisParticipantStateRepo(appConfig.redis.host, logger)
     this._repo = repo
@@ -81,7 +81,7 @@ export class ParticipantCmdHandler implements iRunHandler {
         break
       }
       case (KafkaInfraTypes.KAFKAJS): {
-        const kafkaJsConsumerOptions: KafkaJsProducerOptions = {
+        const kafkaJsProducerOptions: KafkaJsProducerOptions = {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: ['localhost:9092'],
@@ -95,7 +95,7 @@ export class ParticipantCmdHandler implements iRunHandler {
           }
         }
         kafkaMsgPublisher = new KafkajsMessagePublisher(
-          kafkaJsConsumerOptions,
+          kafkaJsProducerOptions,
           logger
         )
         break
@@ -131,8 +131,15 @@ export class ParticipantCmdHandler implements iRunHandler {
     // })
     // await agg.processCommand(reserveCmd)
 
+    const histoParticipantCmdHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+      'participantCmdHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+      'Instrumentation for participantCmdHandler', // Description of metric
+      ['success', 'error'] // Define a custom label 'success'
+    )
+
     // ## Setup participantCmdConsumer
     const participantCmdHandler = async (message: IDomainMessage): Promise<void> => {
+      const histTimer = histoParticipantCmdHandlerMetric.startTimer()
       try {
         logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
         let participantCmd: CommandMsg | undefined
@@ -162,10 +169,12 @@ export class ParticipantCmdHandler implements iRunHandler {
           logger.warn(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
         }
         logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
+        histTimer({ success: 'true' })
       } catch (err) {
         const errMsg: string = err?.message?.toString()
         logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
         logger.error(err)
+        histTimer({ success: 'false', error: err.message })
       }
     }
 
@@ -181,7 +190,8 @@ export class ParticipantCmdHandler implements iRunHandler {
             kafkaHost: appConfig.kafka.host,
             id: `participantCmdConsumer-${Crypto.randomBytes(8)}`,
             groupId: 'participantCmdGroup',
-            fromOffset: EnumOffset.LATEST
+            fromOffset: EnumOffset.LATEST,
+            autoCommit: appConfig.kafka.autocommit
           },
           topics: [ParticipantsTopics.Commands]
         }
@@ -197,6 +207,9 @@ export class ParticipantCmdHandler implements iRunHandler {
             },
             consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
               groupId: 'participantCmdGroup'
+            },
+            consumerRunConfig: {
+              autoCommit: appConfig.kafka.autocommit
             }
           },
           topics: [ParticipantsTopics.Commands]

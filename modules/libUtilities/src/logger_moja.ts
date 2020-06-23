@@ -40,7 +40,7 @@
 import { ILogger } from '@mojaloop-poc/lib-domain'
 
 /* eslint-disable no-console */
-export class ConsoleLogger implements ILogger {
+export class MojaLogger implements ILogger {
   // trace(...anything) {
   //  console.trace.apply(this, anything);
   // }

@@ -46,13 +46,17 @@ export enum MessageTypes{
   'COMMAND', // commands
 }
 
-export type IMessage = {
+export type TTraceInfo = {
+  traceParent: string
+  traceState: string
+}
+
+export interface IMessage{
   msgType: MessageTypes
   msgId: string // unique per message
   msgTimestamp: number
   msgKey: string // usually the id of the aggregate (used for partitioning)
   msgTopic: string
-
   // TODO: for later
 
   // source_system_name:string // source system name
@@ -60,18 +64,23 @@ export type IMessage = {
   //
   // correlation_id:string // transaction id, gets passed to other systems
 
+  traceInfo: TTraceInfo | null
+
   payload: any
+
+  addTraceInfo: (traceInfo: TTraceInfo) => void
+  passTraceInfo: (origMsg: IMessage) => void
 }
 
 // domain specific
 
-export type IDomainMessage = {
+export interface IDomainMessage extends IMessage{
   msgName: string // name of the event or command
 
   aggregateName: string // name of the source/target aggregate (source if event, target if command)
   aggregateId: string // id of the source/target aggregate (source if event, target if command)
   // aggregate_version:number; // version of the source/target aggregate (source if event, target if command)
-} & IMessage
+}
 
 // export abstract class BaseDomainMsg implements IDomainMessage {
 //   msgId: string = uuidv4() // unique per message
@@ -129,6 +138,7 @@ export abstract class DomainMsg implements IDomainMessage {
   msgId: string = uuidv4() // unique per message
   msgTimestamp: number = Date.now()
   msgName: string = (this as any).constructor.name
+  traceInfo: TTraceInfo | null = null
 
   abstract msgType: MessageTypes
   abstract msgKey: string
@@ -149,6 +159,14 @@ export abstract class DomainMsg implements IDomainMessage {
     obj.validatePayload()
 
     return obj
+  }
+
+  addTraceInfo (traceInfo: TTraceInfo): void{
+    this.traceInfo = traceInfo
+  }
+
+  passTraceInfo (origMsg: IMessage): void {
+    this.traceInfo = origMsg.traceInfo
   }
 
   abstract validatePayload(): void
