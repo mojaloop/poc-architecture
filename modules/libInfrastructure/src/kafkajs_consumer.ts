@@ -56,9 +56,7 @@ export class KafkaJsConsumer extends MessageConsumer {
       return topicName
     })
 
-    if (logger != null) {
-      this._logger = new ConsoleLogger()
-    }
+    this._logger = logger ?? new ConsoleLogger()
 
     this._logger.info('instance created')
   }

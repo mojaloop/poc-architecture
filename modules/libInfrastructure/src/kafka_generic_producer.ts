@@ -81,9 +81,7 @@ export class KafkaGenericProducer extends MessageProducer {
     // make a copy of the options
     this._options = { ...options }
 
-    if (logger != null) {
-      this._logger = new ConsoleLogger()
-    }
+    this._logger = logger ?? new ConsoleLogger()
 
     this._logger.info('KafkaGenericProducer instance created')
   }
