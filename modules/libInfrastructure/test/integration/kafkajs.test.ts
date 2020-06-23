@@ -63,7 +63,14 @@ describe('Kafkajs Consumer and Publisher', () => {
     })
 
     await consumer.destroy()
-    expect(result).toMatchObject(message)
+    expect(result).toMatchObject({
+      msgId: '123',
+      msgKey: '321',
+      msgTimestamp: 0,
+      msgTopic: 'kafkajstest1',
+      msgType: MessageTypes.COMMAND,
+      payload: {}
+    })
   })
 
   test('can produce an array of messages', async () => {
@@ -119,6 +126,23 @@ describe('Kafkajs Consumer and Publisher', () => {
     })
 
     await consumer.destroy()
-    expect(result).toMatchObject(messages)
+    expect(result).toMatchObject([
+      {
+        msgId: '123',
+        msgKey: '321',
+        msgTimestamp: 0,
+        msgTopic: 'kafkajstest2',
+        msgType: MessageTypes.COMMAND,
+        payload: {}
+      },
+      {
+        msgId: '124',
+        msgKey: '322',
+        msgTimestamp: 1,
+        msgTopic: 'kafkajstest2',
+        msgType: MessageTypes.COMMAND,
+        payload: {}
+      }
+    ])
   }, 10000)
 })

@@ -58,7 +58,14 @@ describe('Kafka Generic Producer and Consumer', () => {
     })
 
     await consumer.destroy(false)
-    expect(result).toMatchObject(message)
+    expect(result).toMatchObject({
+      msgId: '123',
+      msgKey: '321',
+      msgTimestamp: 0,
+      msgTopic: 'test',
+      msgType: MessageTypes.COMMAND,
+      payload: {}
+    })
   })
 
   test('can produce an array of messages', async () => {
@@ -110,7 +117,24 @@ describe('Kafka Generic Producer and Consumer', () => {
     })
 
     await consumer.destroy(false)
-    expect(result).toMatchObject(messages)
+    expect(result).toMatchObject([
+      {
+        msgId: '123',
+        msgKey: '321',
+        msgTimestamp: 0,
+        msgTopic: 'test2',
+        msgType: MessageTypes.COMMAND,
+        payload: {}
+      },
+      {
+        msgId: '124',
+        msgKey: '322',
+        msgTimestamp: 1,
+        msgTopic: 'test2',
+        msgType: MessageTypes.COMMAND,
+        payload: {}
+      }
+    ])
   })
 
 })
