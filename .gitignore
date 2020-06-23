@@ -137,3 +137,6 @@ dist/
 **/charts
 **/*requirements.lock
 **/helm/.*
+
+# clinic
+**/.clinic
