@@ -82,6 +82,58 @@ export interface IDomainMessage extends IMessage{
   // aggregate_version:number; // version of the source/target aggregate (source if event, target if command)
 }
 
+// export abstract class BaseDomainMsg implements IDomainMessage {
+//   msgId: string = uuidv4() // unique per message
+//   msgTimestamp: number = Date.now()
+//   msg_name: string = (this as any).constructor.name
+//
+//   abstract msgType: MessageTypes
+//   abstract msgKey: string // usually the id of the aggregate (used for partitioning)
+//   abstract msgTopic: string
+//
+//   abstract aggregateId: string
+//   abstract aggregate_name: string
+//   // abstract aggregate_version: number;
+//
+//   abstract payload: any
+// }
+
+// export class DomainMsg implements IDomainMessage{
+//   msgId: string = uuidv4() // unique per message
+//   msgTimestamp: number = Date.now()
+//   msg_name: string = (this as any).constructor.name
+//
+//   msgType!: MessageTypes
+//   msgKey!: string
+//   msgTopic!: string
+//
+//   aggregateId!: string
+//   aggregate_name!: string
+//   // abstract aggregate_version: number;
+//
+//   payload: any
+//
+//   static fromIDomainMessage (msg:IDomainMessage):DomainMsg{
+//     // parse the headers
+//     const obj = new DomainMsg()
+//     obj.msg_name = msg.msg_name;
+//     obj.msgId = msg.msgId;
+//     obj.msgKey = msg.msgKey;
+//     obj.msgTimestamp = msg.msgTimestamp;
+//     obj.msgTopic = msg.msgTopic;
+//     obj.msgType = msg.msgType;
+//
+//     obj.aggregate_name = msg.aggregate_name;
+//     obj.aggregateId = msg.aggregateId;
+//
+//     return obj.fromDomainMsg();
+//   }
+//
+//   protected fromDomainMsg<T extends DomainMsg>():T{
+//     throw new Error('should be override by implementation')
+//   }
+// }
+
 export abstract class DomainMsg implements IDomainMessage {
   msgId: string = uuidv4() // unique per message
   msgTimestamp: number = Date.now()
@@ -89,7 +141,7 @@ export abstract class DomainMsg implements IDomainMessage {
   traceInfo: TTraceInfo | null = null
 
   abstract msgType: MessageTypes
-  abstract msgKey: string // usually the id of the aggregate (used for partitioning)
+  abstract msgKey: string
   abstract msgTopic: string
 
   abstract aggregateId: string
