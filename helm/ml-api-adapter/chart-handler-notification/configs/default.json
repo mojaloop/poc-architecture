@@ -86,12 +86,14 @@
                             "messageCharset": "utf8",
                             "messageAsJSON": true,
                             "sync": true,
-                            "consumeTimeout": 1000
+                            "consumeTimeout": {{ .Values.config.kafka_consume_timeout }}
                         },
                         "rdkafkaConf": {
                             "client.id": "ml-con-notification-event",
                             "group.id": "ml-group-notification-event",
                             "metadata.broker.list": "{{ $kafkaHost }}:{{ .Values.config.kafka_port }}",
+                            "auto.commit.interval.ms": "{{ .Values.config.kafka_autocommit_interval_ms }}",
+                            "enable.auto.commit": {{ .Values.config.kafka_autocommit_enabled }},
                             "socket.keepalive.enable": true
                         },
                         "topicConf": {
