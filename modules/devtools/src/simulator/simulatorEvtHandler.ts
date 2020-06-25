@@ -219,7 +219,9 @@ export class SimulatorEvtHandler implements IRunHandler {
               groupId: 'simulatorEvtGroup'
             },
             consumerRunConfig: {
-              autoCommit: appConfig.kafka.autocommit
+              autoCommit: appConfig.kafka.autocommit,
+              autoCommitInterval: appConfig.kafka.autoCommitInterval,
+              autoCommitThreshold: appConfig.kafka.autoCommitThreshold
             }
           },
           topics: [TransfersTopics.DomainEvents]

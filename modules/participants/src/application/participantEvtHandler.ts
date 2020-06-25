@@ -185,7 +185,9 @@ export class ParticipantEvtHandler implements IRunHandler {
               groupId: 'participantEvtGroup'
             },
             consumerRunConfig: {
-              autoCommit: appConfig.kafka.autocommit
+              autoCommit: appConfig.kafka.autocommit,
+              autoCommitInterval: appConfig.kafka.autoCommitInterval,
+              autoCommitThreshold: appConfig.kafka.autoCommitThreshold
             }
           },
           topics: [TransfersTopics.DomainEvents]

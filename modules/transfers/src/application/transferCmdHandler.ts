@@ -194,7 +194,9 @@ export class TransferCmdHandler implements IRunHandler {
               groupId: 'transferCmdGroup'
             },
             consumerRunConfig: {
-              autoCommit: appConfig.kafka.autocommit
+              autoCommit: appConfig.kafka.autocommit,
+              autoCommitInterval: appConfig.kafka.autoCommitInterval,
+              autoCommitThreshold: appConfig.kafka.autoCommitThreshold
             }
           },
           topics: [TransfersTopics.Commands]

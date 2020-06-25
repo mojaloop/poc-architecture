@@ -210,7 +210,9 @@ export class ParticipantCmdHandler implements IRunHandler {
               groupId: 'participantCmdGroup'
             },
             consumerRunConfig: {
-              autoCommit: appConfig.kafka.autocommit
+              autoCommit: appConfig.kafka.autocommit,
+              autoCommitInterval: appConfig.kafka.autoCommitInterval,
+              autoCommitThreshold: appConfig.kafka.autoCommitThreshold
             }
           },
           topics: [ParticipantsTopics.Commands]
