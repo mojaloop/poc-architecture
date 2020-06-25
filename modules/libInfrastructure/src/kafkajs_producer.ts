@@ -109,7 +109,7 @@ export class KafkajsProducer extends MessageProducer {
         // retry: null,
         metadataMaxAge: 300000,
         allowAutoTopicCreation: true,
-        idempotent: true, // false is default
+        idempotent: false, // false is default
         // transactionalId?: string // cant find much about this?
         transactionTimeout: 60000
         // maxInFlightRequests: 1 // default is unlimited
