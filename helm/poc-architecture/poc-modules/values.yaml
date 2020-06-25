@@ -16,6 +16,8 @@ config:
   # Supported producers: kafkajs, node-kafka
   kafka_producer: kafkajs
   kafka_autocommit: false
+  kafka_autocommit_interval: 100
+  kafka_autocommit_threshold: 1000
   simulator_host: '$release_name-legacy-simulator'
   uv_threadpool_size: 7
   redis_host: 'redis://$release_name-redis-master:6379'

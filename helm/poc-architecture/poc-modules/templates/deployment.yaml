@@ -111,6 +111,10 @@ spec:
               value: {{ .Values.config.kafka_producer | quote }}
             - name: KAFKA_AUTO_COMMIT
               value: {{ .Values.config.kafka_autocommit | quote }}
+            - name: KAFKA_AUTO_COMMIT_INTERVAL
+              value: {{ .Values.config.kafka_autocommit_interval | quote }}
+            - name: KAFKA_AUTO_COMMIT_THRESHOLD
+              value: {{ .Values.config.kafka_autocommit_threshold | quote }}
             - name: UV_THREADPOOL_SIZE
               value: {{ .Values.config.uv_threadpool_size | quote }}
 
