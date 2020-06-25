@@ -40,7 +40,8 @@
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 import { ILogger, IMessage } from '@mojaloop-poc/lib-domain'
 import { MessageProducer, Options, iMessageProducer } from './imessage_producer'
-import { CompressionTypes, TopicMessages, logLevel, Producer, Partitioners, ProducerConfig, KafkaConfig, Kafka as Kafkajs } from 'kafkajs'
+import { CompressionTypes as _CompressionTypes, TopicMessages, logLevel, Producer, Partitioners, ProducerConfig, KafkaConfig, Kafka as Kafkajs, CompressionTypes } from 'kafkajs'
+export { CompressionTypes } from 'kafkajs'
 
 export enum KafkajsAcks {
   ALL = -1,
@@ -116,7 +117,7 @@ export class KafkajsProducer extends MessageProducer {
       },
       acks: KafkajsAcks.ALL,
       timeout: 30000,
-      compression: CompressionTypes.None
+      compression: _CompressionTypes.None
     }
 
     // copy default config

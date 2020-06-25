@@ -1,5 +1,5 @@
 import { IMessagePublisher, IMessage, ILogger } from '@mojaloop-poc/lib-domain'
-import { KafkaMessagePublisher, KafkaGenericProducerOptions, KafkaInfraTypes, KafkajsMessagePublisher, KafkaJsProducerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { KafkaMessagePublisher, KafkaGenericProducerOptions, KafkaInfraTypes, KafkajsMessagePublisher, KafkaJsProducerOptions, CompressionTypes } from '@mojaloop-poc/lib-infrastructure'
 import { MojaLogger, Crypto } from '@mojaloop-poc/lib-utilities'
 
 import * as dotenv from 'dotenv'
@@ -57,9 +57,9 @@ export const init = async (): Promise<void> => {
             },
             producer: { // https://kafka.js.org/docs/producing#options
               allowAutoTopicCreation: true,
-              idempotent: true, // false is default
               transactionTimeout: 60000
-            }
+            },
+            compression: appConfig.kafka.gzipCompression as boolean ? CompressionTypes.GZIP : CompressionTypes.None
           }
         }
         kafkaMsgPublisher = new KafkajsMessagePublisher(

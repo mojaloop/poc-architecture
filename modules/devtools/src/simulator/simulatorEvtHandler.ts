@@ -39,8 +39,9 @@
 // import {InMemoryTransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransferPrepareRequestedEvt, TransferFulfilRequestedEvt, TransferPreparedEvt, TransferFulfilledEvt, TransferFulfilRequestedEvtPayload, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
-import { IRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { IRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, CompressionTypes } from '@mojaloop-poc/lib-infrastructure'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
+
 /* eslint-disable @typescript-eslint/no-var-requires */
 const encodePayload = require('@mojaloop/central-services-shared').Util.StreamingProtocol.encodePayload
 const contentType = 'application/vnd.interoperability.transfers+json;version=1'
@@ -79,9 +80,9 @@ export class SimulatorEvtHandler implements IRunHandler {
             },
             producer: { // https://kafka.js.org/docs/producing#options
               allowAutoTopicCreation: true,
-              idempotent: true, // false is default
               transactionTimeout: 60000
-            }
+            },
+            compression: appConfig.kafka.gzipCompression as boolean ? CompressionTypes.GZIP : CompressionTypes.None
           }
         }
         kafkaMsgPublisher = new KafkajsMessagePublisher(

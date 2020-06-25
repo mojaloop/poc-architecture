@@ -38,9 +38,23 @@
 'use strict'
 // import { v4 as uuidv4 } from 'uuid'
 // import {InMemoryParticipantStateRepo} from "../infrastructure/inmemory_participant_repo";
-import { CommandMsg, IDomainMessage, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
+import { CommandMsg, IDomainMessage, ILogger, IMessagePublisher } from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
-import { IRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions } from '@mojaloop-poc/lib-infrastructure'
+import {
+  EnumOffset,
+  IRunHandler,
+  KafkaGenericConsumer,
+  KafkaGenericConsumerOptions,
+  KafkaGenericProducerOptions,
+  KafkaInfraTypes,
+  KafkaJsConsumer,
+  KafkaJsConsumerOptions,
+  KafkajsMessagePublisher,
+  KafkaJsProducerOptions,
+  KafkaMessagePublisher,
+  MessageConsumer,
+  CompressionTypes
+} from '@mojaloop-poc/lib-infrastructure'
 import { ParticpantsAgg } from '../domain/participants_agg'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 import { CreateParticipantCmd } from '../messages/create_participant_cmd'
@@ -89,9 +103,9 @@ export class ParticipantCmdHandler implements IRunHandler {
             },
             producer: { // https://kafka.js.org/docs/producing#options
               allowAutoTopicCreation: true,
-              idempotent: true, // false is default
               transactionTimeout: 60000
-            }
+            },
+            compression: appConfig.kafka.gzipCompression === true ? CompressionTypes.GZIP : CompressionTypes.None
           }
         }
         kafkaMsgPublisher = new KafkajsMessagePublisher(
