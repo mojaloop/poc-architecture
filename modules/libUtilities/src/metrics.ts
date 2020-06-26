@@ -33,6 +33,7 @@ import client = require('prom-client')
 export interface IMetricsFactory {
   getHistogram: (name: string, help?: string, labelNames?: string[], buckets?: number[]) => client.Histogram<string>
   getSummary: (name: string, help?: string, labelNames?: string[], percentiles?: number[], maxAgeSeconds?: number, ageBuckets?: number) => client.Summary<string>
+  getGauge: (name: string, help?: string | undefined, labelNames?: string[] | undefined) => client.Gauge<string>
   getMetricsForPrometheus: () => string
   isInitiated: () => boolean
   getDefaultRegister: () => client.Registry
@@ -66,6 +67,7 @@ type normalisedMetricOptionsType = {
 // Required for Prom-Client v11.5.x
 export type histogramsType = { [key: string]: client.Histogram<string> }
 export type summariesType = { [key: string]: client.Summary<string> }
+export type gaugesType = { [key: string]: client.Gauge<string> }
 
 /** Wrapper class for prom-client. */
 export class Metrics implements IMetricsFactory {
@@ -83,6 +85,9 @@ export class Metrics implements IMetricsFactory {
 
   /** Object containing the summaries values */
   private _summaries: summariesType = {}
+
+  /** Object containing the gauges values */
+  private readonly _gauges: gaugesType = {}
 
   constructor (options: TMetricOptionsType) {
     this._options = options
@@ -164,6 +169,26 @@ export class Metrics implements IMetricsFactory {
       return this._summaries[name]
     } catch (e) {
       throw new Error(`Couldn't get summary for ${name}`)
+    }
+  }
+
+  /**
+   * Get the gauge for given name
+   */
+  getGauge = (name: string, help?: string | undefined, labelNames?: string[] | undefined): client.Gauge<string> => {
+    try {
+      if (this._gauges[name] != null) {
+        return this._gauges[name]
+      }
+
+      this._gauges[name] = new client.Gauge<string>({
+        name: `${this.getOptions().prefix}${name}`,
+        help: help ?? `${name}_summary`,
+        labelNames
+      })
+      return this._gauges[name]
+    } catch (e) {
+      throw new Error(`Couldn't get gauge for ${name}`)
     }
   }
 
