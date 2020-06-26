@@ -803,7 +803,7 @@ participants:
     kafka_consumer: kafkajs
     # Supported producers: kafkajs, node-kafka
     kafka_producer: kafkajs
-    kafka_producer_gzip: true
+    kafka_producer_gzip: false
     kafka_autocommit: false
     kafka_autocommit_interval: 100
     kafka_autocommit_threshold: 1000
@@ -874,7 +874,7 @@ transfers:
     kafka_consumer: kafkajs
     # Supported producers: kafkajs, node-kafka
     kafka_producer: kafkajs
-    kafka_producer_gzip: true
+    kafka_producer_gzip: false
     kafka_autocommit: false
     kafka_autocommit_interval: 100
     kafka_autocommit_threshold: 1000
@@ -939,7 +939,7 @@ simulator-dev-tool:
     kafka_consumer: kafkajs
     # Supported producers: kafkajs, node-kafka
     kafka_producer: kafkajs
-    kafka_producer_gzip: true
+    kafka_producer_gzip: false
     kafka_autocommit: false
     kafka_autocommit_interval: 100
     kafka_autocommit_threshold: 1000
