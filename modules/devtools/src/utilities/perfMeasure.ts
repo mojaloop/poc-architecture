@@ -6,13 +6,35 @@
 
 import { IDomainMessage, ILogger } from '@mojaloop-poc/lib-domain'
 import { KafkaGenericConsumer, KafkaGenericConsumerOptions } from '@mojaloop-poc/lib-infrastructure'
-import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
+import { ConsoleLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
 
 import * as dotenv from 'dotenv'
 import { TransfersTopics, MLTopics } from '@mojaloop-poc/lib-public-messages'
 
 // TODO: Figure a better way to handle env config here
 dotenv.config({ path: '../../.env' })
+
+const metricsConfig: TMetricOptionsType = {
+  timeout: 5000, // Set the timeout in ms for the underlying prom-client library. Default is '5000'.
+  prefix: 'poc_tran_', // Set prefix for all defined metrics names
+  defaultLabels: { // Set default labels that will be applied to all metrics
+    serviceName: 'perfMeasure'
+  }
+}
+
+const metrics = new Metrics(metricsConfig)
+
+const perfMetricsHisto = metrics.getHistogram( // Create a new Histogram instrumentation
+  'perfMeasureHist', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+  'Instrumentation for perfMeasure', // Description of metric
+  ['transferId'] // Define a custom label 'success'
+)
+
+const perfMetricsPendingGauge = metrics.getGauge( // Create a new Histogram instrumentation
+  'perfMeasureGauge', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+  'Instrumentation for perfMeasure', // Description of metric
+  ['transferId'] // Define a custom label 'success'
+)
 
 const logger: ILogger = new ConsoleLogger()
 
@@ -26,7 +48,7 @@ const appConfig = {
 const kafkaConsumerOptions: KafkaGenericConsumerOptions = {
   client: {
     kafkaHost: appConfig.kafka.host,
-    groupId: 'perf_measure_consumer',
+    groupId: 'perf_measure_consumer' + Date.now().toString(),
     fromOffset: 'latest'
   },
   topics: [TransfersTopics.DomainEvents]
@@ -38,16 +60,7 @@ const kafkaConsumerOptionsMl: KafkaGenericConsumerOptions = {
 }
 
 const buckets: Map<number, {counter: number, totalTimeMs: number}> = new Map<number, {counter: number, totalTimeMs: number}>()
-
-function recordCompleted (timeMs: number, transferId: string): void {
-  const currentSecond = Math.floor(Date.now() / 1000)
-  const bucketData = buckets.get(currentSecond) ?? { counter: 0, totalTimeMs: 0 }
-  bucketData.counter++
-  bucketData.totalTimeMs += timeMs
-  buckets.set(currentSecond, bucketData)
-
-  evtMap.delete(transferId)
-}
+const evtMap: Map<string, number> = new Map<string, number>()
 
 function logRPS (): void {
   const lastSecond = Math.floor(Date.now() / 1000) - 1
@@ -71,23 +84,34 @@ function logRPS (): void {
   }, 1000)
 }
 
-const evtMap: Map<string, number> = new Map<string, number>()
+function recordCompleted (timeMs: number, transferId: string): void {
+  const currentSecond = Math.floor(Date.now() / 1000)
+  const bucketData = buckets.get(currentSecond) ?? { counter: 0, totalTimeMs: 0 }
+  bucketData.counter++
+  bucketData.totalTimeMs += timeMs
+  buckets.set(currentSecond, bucketData)
 
-const evtHandler = (message: IDomainMessage): void => {
-  // if (message.msgName === 'TransferPreparedEvt') {
+  perfMetricsHisto.labels(transferId).observe(timeMs)
+}
+
+const handlerForFulfilEvt = (message: IDomainMessage): void => {
   if (message.msgName === 'TransferFulfilledEvt') {
     const reqReceivedAt = evtMap.get(message.aggregateId)
     if (reqReceivedAt != null) {
       // console.log(`Prepare leg completed for transfer id: ${message.aggregateId} took: - ${message.msgTimestamp - reqReceivedAt} ms`)
       recordCompleted(message.msgTimestamp - reqReceivedAt, message.aggregateId)
+      evtMap.delete(message.aggregateId)
     }
+
+    // decrease even if we don't have it here in mem
+    perfMetricsPendingGauge.labels(message.aggregateId).dec()
   }
 }
 
-const evtHandlerMl = (message: IDomainMessage): void => {
+const handlerForInitialReqEvt = (message: IDomainMessage): void => {
   if (message.msgName === 'TransferPrepareRequestedEvt') {
     evtMap.set(message.aggregateId, message.msgTimestamp)
-
+    perfMetricsPendingGauge.labels(message.aggregateId).inc()
     // console.log(`Prepare leg started for transfer id: ${message.aggregateId} at: - ${new Date(message.msgTimestamp).toISOString()}`)
   }
 }
@@ -95,13 +119,16 @@ const evtHandlerMl = (message: IDomainMessage): void => {
 /* eslint-disable-next-line @typescript-eslint/explicit-function-return-type */
 const start = async () => {
   logRPS()
+
+  await metrics.init()
+
   const kafkaEvtConsumer = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(kafkaConsumerOptions, logger)
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-  await kafkaEvtConsumer.init(evtHandler)
+  await kafkaEvtConsumer.init(handlerForFulfilEvt)
 
   const kafkaEvtConsumerMl = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(kafkaConsumerOptionsMl, logger)
 
-  await kafkaEvtConsumerMl.init(evtHandlerMl)
+  await kafkaEvtConsumerMl.init(handlerForInitialReqEvt)
 }
 
 start().catch((err) => {

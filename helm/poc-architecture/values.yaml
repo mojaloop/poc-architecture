@@ -5,7 +5,8 @@ global: {}
 
 parameters:
   poc_architecture_image : &poc_architecture_image "mojaloop/poc-architecture"
-  poc_architecture_tag : &poc_architecture_tag "v0.6"
+  poc_architecture_tag : &poc_architecture_tag "v0.11"
+  kafka_autocommit: &kafka_autocommit true
 
 ## Jobs
 jobs:

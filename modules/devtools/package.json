@@ -73,7 +73,7 @@
     "@mojaloop-poc/lib-utilities": "^0.1.0",
     "@mojaloop-poc/participants": "^0.1.0",
     "@mojaloop-poc/transfers": "^0.1.0",
-    "@mojaloop/central-services-shared": "^10.5.1",
+    "@mojaloop/central-services-shared": "^10.5.2",
     "@types/dotenv": "^8.2.0",
     "commander": "^5.1.0",
     "dotenv": "^8.2.0",
