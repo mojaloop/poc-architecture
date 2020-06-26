@@ -27,13 +27,13 @@ const metrics = new Metrics(metricsConfig)
 const perfMetricsHisto = metrics.getHistogram( // Create a new Histogram instrumentation
   'perfMeasureHist', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
   'Instrumentation for perfMeasure', // Description of metric
-  ['transferId'] // Define a custom label 'success'
+  [] // Define a custom label 'success'
 )
 
 const perfMetricsPendingGauge = metrics.getGauge( // Create a new Histogram instrumentation
   'perfMeasureGauge', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
   'Instrumentation for perfMeasure', // Description of metric
-  ['transferId'] // Define a custom label 'success'
+  [] // Define a custom label 'success'
 )
 
 const logger: ILogger = new ConsoleLogger()
@@ -91,7 +91,7 @@ function recordCompleted (timeMs: number, transferId: string): void {
   bucketData.totalTimeMs += timeMs
   buckets.set(currentSecond, bucketData)
 
-  perfMetricsHisto.labels(transferId).observe(timeMs)
+  perfMetricsHisto.observe(timeMs)
 }
 
 const handlerForFulfilEvt = (message: IDomainMessage): void => {
@@ -104,14 +104,14 @@ const handlerForFulfilEvt = (message: IDomainMessage): void => {
     }
 
     // decrease even if we don't have it here in mem
-    perfMetricsPendingGauge.labels(message.aggregateId).dec()
+    perfMetricsPendingGauge.dec()
   }
 }
 
 const handlerForInitialReqEvt = (message: IDomainMessage): void => {
   if (message.msgName === 'TransferPrepareRequestedEvt') {
     evtMap.set(message.aggregateId, message.msgTimestamp)
-    perfMetricsPendingGauge.labels(message.aggregateId).inc()
+    perfMetricsPendingGauge.inc()
     // console.log(`Prepare leg started for transfer id: ${message.aggregateId} at: - ${new Date(message.msgTimestamp).toISOString()}`)
   }
 }
@@ -135,4 +135,17 @@ start().catch((err) => {
   logger.error(err)
 }).finally(() => {
   // process.exit(0)
+})
+
+process.on('SIGINT', function () {
+  // eslint-disable-next-line no-console
+  console.log('Ctrl-C... collecting pending...')
+  const now = Date.now()
+
+  evtMap.forEach((value, key) => {
+    // eslint-disable-next-line no-console
+    console.log(`Pending transfer - ID: ${key} - Timestamp: ${value} - Age: ${now - value} ms`)
+  })
+
+  process.exit(2)
 })
