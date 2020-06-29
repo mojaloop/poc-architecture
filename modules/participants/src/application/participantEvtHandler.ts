@@ -54,7 +54,7 @@ export class ParticipantEvtHandler implements IRunHandler {
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`Creating ${appConfig.kafka.producer} participantEvtHandler.kafkaMsgPublisher...`)
+    logger.info(`ParticipantEvtHandler - Creating ${appConfig.kafka.producer} participantEvtHandler.kafkaMsgPublisher...`)
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
@@ -93,10 +93,12 @@ export class ParticipantEvtHandler implements IRunHandler {
         break
       }
       default: {
-        logger.warn('Unable to find a Kafka Producer implementation!')
+        logger.warn('ParticipantEvtHandler - Unable to find a Kafka Producer implementation!')
         throw new Error('participantEvtHandler.kafkaMsgPublisher was not created!')
       }
     }
+
+    logger.info(`ParticipantEvtHandler - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
 
     this._publisher = kafkaMsgPublisher
     await kafkaMsgPublisher.init()
@@ -111,7 +113,7 @@ export class ParticipantEvtHandler implements IRunHandler {
       const histTimer = histoParticipantEvtHandlerMetric.startTimer()
       const evtname = message.msgName ?? 'unknown'
       try {
-        logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+        logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
         let participantEvt: DomainEventMsg | undefined
         let participantCmd: CommandMsg | undefined
         // # Transform messages into correct Command
@@ -133,24 +135,24 @@ export class ParticipantEvtHandler implements IRunHandler {
             break
           }
           default: {
-            logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+            logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
             histTimer({ success: 'true', evtname })
             return
           }
         }
 
         if (participantCmd != null) {
-          logger.info(`participantEvtHandler publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${participantCmd?.msgName}:${message?.msgKey}:${participantCmd?.msgId}`)
+          logger.info(`ParticipantEvtHandler - publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${participantCmd?.msgName}:${message?.msgKey}:${participantCmd?.msgId}`)
           await kafkaMsgPublisher!.publish(participantCmd)
         } else {
-          logger.warn(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
+          logger.warn(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
         }
 
-        logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: true`)
+        logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: true`)
         histTimer({ success: 'true', evtname })
       } catch (err) {
         const errMsg: string = err?.message?.toString()
-        logger.info(`participantEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+        logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
         logger.error(err)
         histTimer({ success: 'false', error: err.message, evtname })
       }
@@ -159,7 +161,7 @@ export class ParticipantEvtHandler implements IRunHandler {
     let participantEvtConsumer: MessageConsumer | undefined
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`Creating ${appConfig.kafka.consumer} participantEvtConsumer...`)
+    logger.info(`ParticipantEvtHandler - Creating ${appConfig.kafka.consumer} participantEvtConsumer...`)
     switch (appConfig.kafka.consumer) {
       case (KafkaInfraTypes.NODE_KAFKA): {
         const participantEvtConsumerOptions: KafkaGenericConsumerOptions = {
@@ -211,14 +213,16 @@ export class ParticipantEvtHandler implements IRunHandler {
         break
       }
       default: {
-        logger.warn('Unable to find a Kafka consumer implementation!')
+        logger.warn('ParticipantEvtHandler - Unable to find a Kafka consumer implementation!')
         throw new Error('participantEvtConsumer was not created!')
       }
     }
 
-    this._consumer = participantEvtConsumer
-    logger.info('Initializing participantCmdConsumer...')
+    logger.info(`ParticipantEvtHandler - Created kafkaConsumer of type ${participantEvtConsumer.constructor.name}`)
 
+    this._consumer = participantEvtConsumer
+    logger.info('ParticipantEvtHandler - Initializing participantCmdConsumer...')
+    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     await participantEvtConsumer.init(participantEvtHandler)
   }
 

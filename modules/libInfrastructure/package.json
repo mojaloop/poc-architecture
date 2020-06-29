@@ -50,6 +50,7 @@
     "fastify": "^2.15.1",
     "kafka-node": "^5.0.0",
     "kafkajs": "^1.12.0",
+    "node-rdkafka": "^2.9.0",
     "uuid": "^8.2.0"
   },
   "devDependencies": {

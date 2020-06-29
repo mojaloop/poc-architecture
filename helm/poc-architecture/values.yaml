@@ -5,8 +5,17 @@ global: {}
 
 parameters:
   poc_architecture_image : &poc_architecture_image "mojaloop/poc-architecture"
-  poc_architecture_tag : &poc_architecture_tag "v0.11"
+  poc_architecture_tag : &poc_architecture_tag "v0.17"
   kafka_autocommit: &kafka_autocommit true
+  kafka_producer_gzip: &kafka_producer_gzip true
+  kafka_replicas: &kafka_replicas 1
+  # Supported consumers: kafkajs, node-kafka
+  kafka_consumer: &kafka_consumer node-kafka
+  # Supported producers: kafkajs, node-kafka
+  kafka_producer: &kafka_producer node-kafka
+  # Supported repo Types: memory, redis, cachedredis
+  participants_repo_type: &participants_repo_type cachedredis
+
 
 ## Jobs
 jobs:
@@ -22,16 +31,18 @@ jobs:
       kafka_host: '$release_name-kafka'
       kafka_port: 9092
       # Supported consumers: kafkajs, node-kafka
-      kafka_consumer: kafkajs
+      kafka_consumer: *kafka_consumer
       # Supported producers: kafkajs, node-kafka
-      kafka_producer: kafkajs
+      kafka_producer: *kafka_producer
       kafka_producer_gzip: true
-      kafka_autocommit: false
+      kafka_autocommit: *kafka_autocommit
       kafka_autocommit_interval: 100
       kafka_autocommit_threshold: 1000
       simulator_host: '$release_name-legacy-simulator'
       uv_threadpool_size: 7
       redis_host: 'redis://$release_name-redis-master:6379'
+      # Supported repo Types: memory, redis, cachedredis
+      participants_repo_type: *participants_repo_type
       log_level: info
 
     init:
@@ -52,7 +63,7 @@ kafka:
   # ------------------------------------------------------------------------------
 
   ## The StatefulSet installs 3 pods by default
-  replicas: 1
+  replicas: *kafka_replicas
 
   ## The kafka image repository
   image: "confluentinc/cp-kafka"
@@ -346,7 +357,7 @@ kafka:
 
     ## ref: https://github.com/kubernetes/contrib/tree/master/statefulsets/zookeeper#stateful-set
     # Desired quantity of ZooKeeper pods. This should always be (1,3,5, or 7)
-    replicaCount: 1
+    replicaCount: *kafka_replicas
 
     ## Configure Zookeeper resource requests and limits
     ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
@@ -800,16 +811,18 @@ participants:
     kafka_host: '$release_name-kafka'
     kafka_port: 9092
     # Supported consumers: kafkajs, node-kafka
-    kafka_consumer: kafkajs
+    kafka_consumer: *kafka_consumer
     # Supported producers: kafkajs, node-kafka
-    kafka_producer: kafkajs
-    kafka_producer_gzip: false
-    kafka_autocommit: false
+    kafka_producer: *kafka_producer
+    kafka_producer_gzip: *kafka_producer_gzip
+    kafka_autocommit: *kafka_autocommit
     kafka_autocommit_interval: 100
     kafka_autocommit_threshold: 1000
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
     redis_host: 'redis://$release_name-redis-master:6379'
+    # Supported repo Types: memory, redis, cachedredis
+    participants_repo_type: *participants_repo_type
     log_level: info
 
   init:
@@ -871,16 +884,18 @@ transfers:
     kafka_host: '$release_name-kafka'
     kafka_port: 9092
     # Supported consumers: kafkajs, node-kafka
-    kafka_consumer: kafkajs
+    kafka_consumer: *kafka_consumer
     # Supported producers: kafkajs, node-kafka
-    kafka_producer: kafkajs
-    kafka_producer_gzip: false
-    kafka_autocommit: false
+    kafka_producer: *kafka_producer
+    kafka_producer_gzip: *kafka_producer_gzip
+    kafka_autocommit: *kafka_autocommit
     kafka_autocommit_interval: 100
     kafka_autocommit_threshold: 1000
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
     redis_host: 'redis://$release_name-redis-master:6379'
+    # Supported repo Types: memory, redis, cachedredis
+    participants_repo_type: *participants_repo_type
     log_level: info
 
   init:
@@ -936,16 +951,18 @@ simulator-dev-tool:
     kafka_host: '$release_name-kafka'
     kafka_port: 9092
     # Supported consumers: kafkajs, node-kafka
-    kafka_consumer: kafkajs
+    kafka_consumer: *kafka_consumer
     # Supported producers: kafkajs, node-kafka
-    kafka_producer: kafkajs
-    kafka_producer_gzip: false
-    kafka_autocommit: false
+    kafka_producer: *kafka_producer
+    kafka_producer_gzip: *kafka_producer_gzip
+    kafka_autocommit: *kafka_autocommit
     kafka_autocommit_interval: 100
     kafka_autocommit_threshold: 1000
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
     redis_host: 'redis://$release_name-redis-master:6379'
+    # Supported repo Types: memory, redis, cachedredis
+    participants_repo_type: *participants_repo_type
     log_level: info
 
   init:
