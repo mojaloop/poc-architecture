@@ -45,6 +45,7 @@ import { ParticipantEvtHandler } from './participantEvtHandler'
 import * as dotenv from 'dotenv'
 import { Command } from 'commander'
 import { resolve as Resolve } from 'path'
+import { RepoInfraTypes } from '../infrastructure'
 
 /* eslint-disable-next-line @typescript-eslint/no-var-requires */
 const pckg = require('../../package.json')
@@ -75,6 +76,9 @@ Program.command('handler')
 
     // # setup application config
     const appConfig = {
+      repo: {
+        type: (process.env.REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.REPO_TYPE,
+      },
       kafka: {
         host: process.env.KAFKA_HOST,
         consumer: (process.env.KAFKA_CONSUMER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_CONSUMER,

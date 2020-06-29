@@ -105,6 +105,8 @@ spec:
               value: {{ $redisHost | quote }}
             - name: SIMULATOR_HOST
               value: {{ $simulatorHost | quote }}
+            - name: REPO_TYPE
+              value: {{ .Values.config.repo_type | quote }}
             - name: KAFKA_CONSUMER
               value: {{ .Values.config.kafka_consumer | quote }}
             - name: KAFKA_PRODUCER

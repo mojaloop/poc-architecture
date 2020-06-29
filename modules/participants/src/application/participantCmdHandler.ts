@@ -62,6 +62,8 @@ import { CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'
 import { RedisParticipantStateRepo } from '../infrastructure/redis_participant_repo'
 import { IParticipantRepo } from '../domain/participant_repo'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
+import { RepoInfraTypes } from '../infrastructure'
+import { InMemoryParticipantStateRepo } from '../infrastructure/inmemory_participant_repo'
 
 export class ParticipantCmdHandler implements IRunHandler {
   private _consumer: MessageConsumer
@@ -69,15 +71,28 @@ export class ParticipantCmdHandler implements IRunHandler {
   private _repo: IParticipantRepo
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
+    let repo: IParticipantRepo
+
+    logger.info(`ParticipantCmdHandler - Creating repo of type ${appConfig.repo.type}`)
+    switch (appConfig.repo.type) {
+      case RepoInfraTypes.REDIS: {
+        repo = new RedisParticipantStateRepo(appConfig.redis.host, logger)
+        break
+      }
+      default: { // defaulting to In-Memory
+        repo = new InMemoryParticipantStateRepo();
+      }
+    }
     // const repo: IEntityStateRepository<ParticipantState> = new InMemoryParticipantStateRepo();
-    const repo: IParticipantRepo = new RedisParticipantStateRepo(appConfig.redis.host, logger)
+    // const repo: IParticipantRepo = new RedisParticipantStateRepo(appConfig.redis.host, logger)
+    logger.info(`ParticipantCmdHandler - Created repo of type ${repo.constructor.name}`)
     this._repo = repo
     await repo.init()
 
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`Creating ${appConfig.kafka.producer} participantCmdHandler.kafkaMsgPublisher...`)
+    logger.info(`ParticipantCmdHandler - Creating ${appConfig.kafka.producer} participantCmdHandler.kafkaMsgPublisher...`)
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_KAFKA): {
         const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
@@ -115,10 +130,11 @@ export class ParticipantCmdHandler implements IRunHandler {
         break
       }
       default: {
-        logger.warn('Unable to find a Kafka Producer implementation!')
+        logger.warn('ParticipantCmdConsumer - Unable to find a Kafka Producer implementation!')
         throw new Error('participantCmdHandler.kafkaMsgPublisher was not created!')
       }
     }
+    logger.info(`ParticipantCmdHandler - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
 
     await kafkaMsgPublisher.init()
 
@@ -156,7 +172,7 @@ export class ParticipantCmdHandler implements IRunHandler {
       const histTimer = histoParticipantCmdHandlerMetric.startTimer()
       const evtname = message.msgName ?? 'unknown'
       try {
-        logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+        logger.info(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
         let participantCmd: CommandMsg | undefined
         // # Transform messages into correct Command
         switch (message.msgName) {
@@ -173,7 +189,7 @@ export class ParticipantCmdHandler implements IRunHandler {
             break
           }
           default: {
-            logger.warn(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+            logger.warn(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
             break
           }
         }
@@ -181,13 +197,13 @@ export class ParticipantCmdHandler implements IRunHandler {
         if (participantCmd != null) {
           processCommandResult = await agg.processCommand(participantCmd)
         } else {
-          logger.warn(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
+          logger.warn(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
         }
-        logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
+        logger.info(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
         histTimer({ success: 'true', evtname })
       } catch (err) {
         const errMsg: string = err?.message?.toString()
-        logger.info(`participantCmdHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+        logger.info(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
         logger.error(err)
         histTimer({ success: 'false', error: err.message, evtname })
       }
@@ -197,7 +213,7 @@ export class ParticipantCmdHandler implements IRunHandler {
     let participantCmdConsumer: MessageConsumer | undefined
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`Creating ${appConfig.kafka.consumer} participantCmdConsumer...`)
+    logger.info(`ParticipantCmdConsumer - Creating ${appConfig.kafka.consumer} participantCmdConsumer...`)
     switch (appConfig.kafka.consumer) {
       case (KafkaInfraTypes.NODE_KAFKA): {
         const participantCmdConsumerOptions: KafkaGenericConsumerOptions = {
@@ -235,13 +251,15 @@ export class ParticipantCmdHandler implements IRunHandler {
         break
       }
       default: {
-        logger.warn('Unable to find a Kafka consumer implementation!')
+        logger.warn('ParticipantCmdConsumer - Unable to find a Kafka consumer implementation!')
         throw new Error('participantCmdConsumer was not created!')
       }
     }
 
+    logger.info(`ParticipantCmdConsumer - Created kafkaConsumer of type ${participantCmdConsumer.constructor.name}`)
+
     this._consumer = participantCmdConsumer
-    logger.info('Initializing participantCmdConsumer...')
+    logger.info('ParticipantCmdConsumer - Initializing participantCmdConsumer...')
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     await participantCmdConsumer.init(participantCmdHandler)
   }
