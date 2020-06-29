@@ -54,10 +54,18 @@ import { MessageProducer, Options, iMessageProducer } from './imessage_producer'
 //   return _toPositive(murmur2(key, SEED)) % partitions.length
 // }
 
+export enum KafkaNodeCompressionTypes {
+  None = 0,
+  GZIP = 1,
+  Snappy = 2
+}
+
 export type KafkaOptions = {
   kafka?: kafka.KafkaClientOptions
   producer?: kafka.ProducerOptions
+  compression?: KafkaNodeCompressionTypes
 }
+
 export type KafkaGenericProducerOptions = Options<KafkaOptions>
 
 enum PartitionerType {

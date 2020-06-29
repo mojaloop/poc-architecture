@@ -39,7 +39,23 @@
 // import { v4 as uuidv4 } from 'uuid'
 // import {InMemorytransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { CommandMsg, IDomainMessage, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
-import { IRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, CompressionTypes, KafkaStreamConsumer } from '@mojaloop-poc/lib-infrastructure'
+import {
+  IRunHandler,
+  KafkaInfraTypes,
+  KafkaJsProducerOptions,
+  KafkajsMessagePublisher,
+  KafkaJsConsumer,
+  KafkaJsConsumerOptions,
+  MessageConsumer,
+  KafkaMessagePublisher,
+  KafkaGenericConsumer,
+  EnumOffset,
+  KafkaGenericConsumerOptions,
+  KafkaGenericProducerOptions,
+  KafkaJsCompressionTypes,
+  KafkaStreamConsumer,
+  KafkaNodeCompressionTypes
+} from '@mojaloop-poc/lib-infrastructure'
 // import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
 // import { TransferState } from '../domain/transfer_entity'
 import { TransfersTopics } from '@mojaloop-poc/lib-public-messages'
@@ -75,7 +91,8 @@ export class TransferCmdHandler implements IRunHandler {
             kafka: {
               kafkaHost: appConfig.kafka.host,
               clientId: `transferCmdHandler-${Crypto.randomBytes(8)}`
-            }
+            },
+            compression: appConfig.kafka.gzipCompression === true ? KafkaNodeCompressionTypes.GZIP : KafkaNodeCompressionTypes.None
           }
         }
         kafkaMsgPublisher = new KafkaMessagePublisher(
@@ -95,7 +112,7 @@ export class TransferCmdHandler implements IRunHandler {
               allowAutoTopicCreation: true,
               transactionTimeout: 60000
             },
-            compression: appConfig.kafka.gzipCompression as boolean ? CompressionTypes.GZIP : CompressionTypes.None
+            compression: appConfig.kafka.gzipCompression as boolean ? KafkaJsCompressionTypes.GZIP : KafkaJsCompressionTypes.None
           }
         }
         kafkaMsgPublisher = new KafkajsMessagePublisher(

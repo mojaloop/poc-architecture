@@ -281,6 +281,14 @@ export class KafkaStreamConsumer extends MessageConsumer {
           }
           this._processing = false
         })
+      } else {
+        if (!this._pauseForRebalanceRequested) {
+          this._consumerGroup.resume()
+        } else {
+          // eslint-disable-next-line no-debugger
+          debugger
+        }
+        this._processing = false
       }
     })
   }

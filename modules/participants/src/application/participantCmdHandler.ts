@@ -52,7 +52,7 @@ import {
   KafkaJsProducerOptions,
   KafkaMessagePublisher,
   MessageConsumer,
-  CompressionTypes, KafkaStreamConsumerOptions, KafkaStreamConsumer
+  KafkaJsCompressionTypes, KafkaStreamConsumerOptions, KafkaStreamConsumer, KafkaNodeCompressionTypes
 } from '@mojaloop-poc/lib-infrastructure'
 import { ParticpantsAgg } from '../domain/participants_agg'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
@@ -106,7 +106,8 @@ export class ParticipantCmdHandler implements IRunHandler {
             kafka: {
               kafkaHost: appConfig.kafka.host,
               clientId: `participantCmdHandler-${Crypto.randomBytes(8)}`
-            }
+            },
+            compression: appConfig.kafka.gzipCompression === true ? KafkaNodeCompressionTypes.GZIP : KafkaNodeCompressionTypes.None
           }
         }
         kafkaMsgPublisher = new KafkaMessagePublisher(
@@ -126,7 +127,7 @@ export class ParticipantCmdHandler implements IRunHandler {
               allowAutoTopicCreation: true,
               transactionTimeout: 60000
             },
-            compression: appConfig.kafka.gzipCompression === true ? CompressionTypes.GZIP : CompressionTypes.None
+            compression: appConfig.kafka.gzipCompression === true ? KafkaJsCompressionTypes.GZIP : KafkaJsCompressionTypes.None
           }
         }
         kafkaMsgPublisher = new KafkajsMessagePublisher(

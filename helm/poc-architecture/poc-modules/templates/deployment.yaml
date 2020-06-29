@@ -111,7 +111,7 @@ spec:
               value: {{ .Values.config.kafka_consumer | quote }}
             - name: KAFKA_PRODUCER
               value: {{ .Values.config.kafka_producer | quote }}
-            - name: KAFKAJS_PRODUCER_GZIP
+            - name: KAFKA_PRODUCER_GZIP
               value: {{ .Values.config.kafka_producer_gzip | quote }}
             - name: KAFKA_AUTO_COMMIT
               value: {{ .Values.config.kafka_autocommit | quote }}

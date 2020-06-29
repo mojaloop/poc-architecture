@@ -44,7 +44,7 @@ import { IParticipantRepo } from '../domain/participant_repo'
 import { ParticipantAccountTypes, ParticipantEndpoint } from '@mojaloop-poc/lib-public-messages'
 
 /***
- * TODO: 
+ * TODO:
 * - Store currently only stores ParticipantState if it was not found in the `_inMemorylist`. /
 *   This should be fixed in future to ensure that there consistency between the in-memory cache and redis. /
 *   However this is easier said than done, and needs some thinking. This is however not a concern at this /

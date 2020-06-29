@@ -1,5 +1,13 @@
 import { IMessagePublisher, IMessage, ILogger } from '@mojaloop-poc/lib-domain'
-import { KafkaMessagePublisher, KafkaGenericProducerOptions, KafkaInfraTypes, KafkajsMessagePublisher, KafkaJsProducerOptions, CompressionTypes } from '@mojaloop-poc/lib-infrastructure'
+import {
+  KafkaMessagePublisher,
+  KafkaGenericProducerOptions,
+  KafkaInfraTypes,
+  KafkajsMessagePublisher,
+  KafkaJsProducerOptions,
+  KafkaJsCompressionTypes,
+  KafkaNodeCompressionTypes
+} from '@mojaloop-poc/lib-infrastructure'
 import { MojaLogger, Crypto } from '@mojaloop-poc/lib-utilities'
 
 import * as dotenv from 'dotenv'
@@ -25,7 +33,7 @@ export const init = async (): Promise<void> => {
         autocommit: (process.env.KAFKA_AUTO_COMMIT === 'true'),
         autoCommitInterval: (process.env.KAFKA_AUTO_COMMIT_INTERVAL != null && !isNaN(Number(process.env.KAFKA_AUTO_COMMIT_INTERVAL)) && process.env.KAFKA_AUTO_COMMIT_INTERVAL?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_AUTO_COMMIT_INTERVAL) : null,
         autoCommitThreshold: (process.env.KAFKA_AUTO_COMMIT_THRESHOLD != null && !isNaN(Number(process.env.KAFKA_AUTO_COMMIT_THRESHOLD)) && process.env.KAFKA_AUTO_COMMIT_THRESHOLD?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_AUTO_COMMIT_THRESHOLD) : null,
-        gzipCompression: (process.env.KAFKAJS_PRODUCER_GZIP === 'true')
+        gzipCompression: (process.env.KAFKA_PRODUCER_GZIP === 'true')
       },
       simulator: {
         host: process.env.SIMULATOR_HOST
@@ -44,7 +52,8 @@ export const init = async (): Promise<void> => {
             kafka: {
               kafkaHost: appConfig.kafka.host,
               clientId: `kafkaMsgPublisher-${Crypto.randomBytes(8)}`
-            }
+            },
+            compression: appConfig.kafka.gzipCompression === true ? KafkaNodeCompressionTypes.GZIP : KafkaNodeCompressionTypes.None
           }
         }
         kafkaMsgPublisher = new KafkaMessagePublisher(
@@ -64,7 +73,7 @@ export const init = async (): Promise<void> => {
               allowAutoTopicCreation: true,
               transactionTimeout: 60000
             },
-            compression: appConfig.kafka.gzipCompression as boolean ? CompressionTypes.GZIP : CompressionTypes.None
+            compression: appConfig.kafka.gzipCompression as boolean ? KafkaJsCompressionTypes.GZIP : KafkaJsCompressionTypes.None
           }
         }
         kafkaMsgPublisher = new KafkajsMessagePublisher(

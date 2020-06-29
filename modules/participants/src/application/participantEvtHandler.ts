@@ -40,7 +40,24 @@
 // import {InMemoryParticipantStateRepo} from "../infrastructure/inmemory_participant_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransferPrepareAcceptedEvt, TransferFulfilAcceptedEvt, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
-import { IRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, CompressionTypes, KafkaStreamConsumerOptions, KafkaStreamConsumer } from '@mojaloop-poc/lib-infrastructure'
+import {
+  IRunHandler,
+  KafkaInfraTypes,
+  KafkaJsProducerOptions,
+  KafkajsMessagePublisher,
+  KafkaJsConsumer,
+  KafkaJsConsumerOptions,
+  MessageConsumer,
+  KafkaMessagePublisher,
+  KafkaGenericConsumer,
+  EnumOffset,
+  KafkaGenericConsumerOptions,
+  KafkaGenericProducerOptions,
+  KafkaJsCompressionTypes,
+  KafkaStreamConsumerOptions,
+  KafkaStreamConsumer,
+  KafkaNodeCompressionTypes
+} from '@mojaloop-poc/lib-infrastructure'
 import { ReservePayerFundsCmd, ReservePayerFundsCmdPayload } from '../messages/reserve_payer_funds_cmd'
 import { CommitPayeeFundsCmd, CommitPayeeFundsCmdPayload } from '../messages/commit_payee_funds_cmd'
 import { InvalidParticipantEvtError } from './errors'
@@ -63,7 +80,8 @@ export class ParticipantEvtHandler implements IRunHandler {
             kafka: {
               kafkaHost: appConfig.kafka.host,
               clientId: `participantEvtHandler-${Crypto.randomBytes(8)}`
-            }
+            },
+            compression: appConfig.kafka.gzipCompression === true ? KafkaNodeCompressionTypes.GZIP : KafkaNodeCompressionTypes.None
           }
         }
         kafkaMsgPublisher = new KafkaMessagePublisher(
@@ -83,7 +101,7 @@ export class ParticipantEvtHandler implements IRunHandler {
               allowAutoTopicCreation: true,
               transactionTimeout: 60000
             },
-            compression: appConfig.kafka.gzipCompression as boolean ? CompressionTypes.GZIP : CompressionTypes.None
+            compression: appConfig.kafka.gzipCompression as boolean ? KafkaJsCompressionTypes.GZIP : KafkaJsCompressionTypes.None
           }
         }
         kafkaMsgPublisher = new KafkajsMessagePublisher(

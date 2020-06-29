@@ -39,7 +39,23 @@
 // import {InMemoryTransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransferPrepareRequestedEvt, TransferFulfilRequestedEvt, TransferPreparedEvt, TransferFulfilledEvt, TransferFulfilRequestedEvtPayload, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
-import { IRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, CompressionTypes, KafkaStreamConsumer } from '@mojaloop-poc/lib-infrastructure'
+import {
+  IRunHandler,
+  KafkaInfraTypes,
+  KafkaJsProducerOptions,
+  KafkajsMessagePublisher,
+  KafkaJsConsumer,
+  KafkaJsConsumerOptions,
+  MessageConsumer,
+  KafkaMessagePublisher,
+  KafkaGenericConsumer,
+  EnumOffset,
+  KafkaGenericConsumerOptions,
+  KafkaGenericProducerOptions,
+  KafkaJsCompressionTypes,
+  KafkaStreamConsumer,
+  KafkaNodeCompressionTypes
+} from '@mojaloop-poc/lib-infrastructure'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 
 /* eslint-disable @typescript-eslint/no-var-requires */
@@ -63,7 +79,8 @@ export class SimulatorEvtHandler implements IRunHandler {
             kafka: {
               kafkaHost: appConfig.kafka.host,
               clientId: `simulatorEvtHandler-${Crypto.randomBytes(8)}`
-            }
+            },
+            compression: appConfig.kafka.gzipCompression === true ? KafkaNodeCompressionTypes.GZIP : KafkaNodeCompressionTypes.None
           }
         }
         kafkaMsgPublisher = new KafkaMessagePublisher(
@@ -83,7 +100,7 @@ export class SimulatorEvtHandler implements IRunHandler {
               allowAutoTopicCreation: true,
               transactionTimeout: 60000
             },
-            compression: appConfig.kafka.gzipCompression as boolean ? CompressionTypes.GZIP : CompressionTypes.None
+            compression: appConfig.kafka.gzipCompression as boolean ? KafkaJsCompressionTypes.GZIP : KafkaJsCompressionTypes.None
           }
         }
         kafkaMsgPublisher = new KafkajsMessagePublisher(
