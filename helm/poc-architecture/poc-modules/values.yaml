@@ -4,7 +4,7 @@
 replicaCount: 1
 image:
   repository: mojaloop/poc-architecture
-  tag: v0.1
+  tag: v0.17
   command: '["node", "src/api/index.js"]'
 
 config:
