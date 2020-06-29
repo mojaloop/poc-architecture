@@ -35,6 +35,7 @@
     "pubPrepareTransferCmd": "tsc && node ./dist/transfers/pubPrepareTransferCmd.js",
     "pubTransferPrepareRequestedEvt": "tsc && node ./dist/transfers/pubTransferPrepareRequestedEvt.js",
     "pubPrepareMultipleTransferEvt": "tsc && node ./dist/transfers/pubPrepareMultipleTransferEvt.js",
+    "pubPrepareMultipleTransferEvtPerf1": "tsc && node ./dist/transfers/pubPrepareMultipleTransferEvtPerf1.js",
     "pubTransferFulfilAcceptedEvt": "tsc && node ./dist/transfers/pubTransferFulfilAcceptedEvt.js",
     "pubTransferPrepareAcceptedEvt": "tsc && node ./dist/transfers/pubTransferPrepareAcceptedEvt.js",
     "pubTransferBothLegs": "tsc && node ./dist/transfers/pubTransferBothLegs.js",
