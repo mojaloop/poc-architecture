@@ -77,7 +77,7 @@ Program.command('handler')
     // # setup application config
     const appConfig = {
       repo: {
-        type: (process.env.REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.REPO_TYPE,
+        type: (process.env.PARTICIPANTS_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.PARTICIPANTS_REPO_TYPE,
       },
       kafka: {
         host: process.env.KAFKA_HOST,

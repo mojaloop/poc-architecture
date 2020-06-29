@@ -7,3 +7,4 @@ docker
 .git
 **/.git
 **/dist
+**/.clinic
