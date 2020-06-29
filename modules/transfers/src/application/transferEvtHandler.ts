@@ -93,10 +93,12 @@ export class TransferEvtHandler implements IRunHandler {
         break
       }
       default: {
-        logger.warn('Unable to find a Kafka Producer implementation!')
+        logger.warn('TransferEvtConsumer - Unable to find a Kafka Producer implementation!')
         throw new Error('transferEvtHandler.kafkaMsgPublisher was not created!')
       }
     }
+
+    logger.info(`TransferEvtConsumer - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
 
     this._publisher = kafkaMsgPublisher
     await kafkaMsgPublisher.init()
@@ -111,7 +113,7 @@ export class TransferEvtHandler implements IRunHandler {
       const histTimer = histoTransferEvtHandlerMetric.startTimer()
       const evtname = message.msgName ?? 'unknown'
       try {
-        logger.info(`transferEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+        logger.info(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
         let transferEvt: DomainEventMsg | undefined
         let transferCmd: CommandMsg | null = null
         // # Transform messages into correct Command
@@ -153,21 +155,21 @@ export class TransferEvtHandler implements IRunHandler {
             break
           }
           default: {
-            logger.debug(`TransferEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+            logger.debug(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
             histTimer({ success: 'true', evtname })
             return
           }
         }
 
         if (transferCmd != null) {
-          logger.info(`transferEvtHandler publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${transferCmd?.msgName}:${transferCmd?.msgId}`)
+          logger.info(`TransferEvtConsumer - publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${transferCmd?.msgName}:${transferCmd?.msgId}`)
           await kafkaMsgPublisher!.publish(transferCmd)
-          logger.info(`transferEvtHandler publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+          logger.info(`TransferEvtConsumer - publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
         }
         histTimer({ success: 'true', evtname })
       } catch (err) {
         const errMsg: string = err?.message?.toString()
-        logger.warn(`transferEvtHandler processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+        logger.warn(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
         logger.error(err)
         histTimer({ success: 'false', error: err.message, evtname })
       }
@@ -176,7 +178,7 @@ export class TransferEvtHandler implements IRunHandler {
     let transferEvtConsumer: MessageConsumer | undefined
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`Creating ${appConfig.kafka.consumer} transferEvtConsumer...`)
+    logger.info(`TransferEvtConsumer - Creating ${appConfig.kafka.consumer} transferEvtConsumer...`)
     switch (appConfig.kafka.consumer) {
       case (KafkaInfraTypes.NODE_KAFKA): {
         const transferEvtConsumerOptions: KafkaGenericConsumerOptions = {
@@ -214,13 +216,15 @@ export class TransferEvtHandler implements IRunHandler {
         break
       }
       default: {
-        logger.warn('Unable to find a Kafka consumer implementation!')
-        throw new Error('transferCmdConsumer was not created!')
+        logger.warn('TransferEvtConsumer - Unable to find a Kafka consumer implementation!')
+        throw new Error('transferEvtConsumer was not created!')
       }
+    
     }
+    logger.info(`TransferEvtConsumer - Created kafkaConsumer of type ${transferEvtConsumer.constructor.name}`)
 
     this._consumer = transferEvtConsumer
-    logger.info('Initializing transferCmdConsumer...')
+    logger.info('TransferEvtConsumer - Initializing transferCmdConsumer...')
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     await transferEvtConsumer.init(transferEvtHandler)
   }
