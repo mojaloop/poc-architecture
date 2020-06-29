@@ -39,7 +39,7 @@
 // import {InMemoryTransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransferPrepareRequestedEvt, TransferFulfilRequestedEvt, TransferPreparedEvt, TransferFulfilledEvt, TransferFulfilRequestedEvtPayload, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
-import { IRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, CompressionTypes } from '@mojaloop-poc/lib-infrastructure'
+import { IRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, CompressionTypes, KafkaStreamConsumer } from '@mojaloop-poc/lib-infrastructure'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 
 /* eslint-disable @typescript-eslint/no-var-requires */
@@ -56,6 +56,7 @@ export class SimulatorEvtHandler implements IRunHandler {
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
     logger.info(`Creating ${appConfig.kafka.producer} simulatorEvtHandler.kafkaMsgPublisher...`)
     switch (appConfig.kafka.producer) {
+      case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
         const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
           client: {
@@ -207,6 +208,20 @@ export class SimulatorEvtHandler implements IRunHandler {
           topics: [TransfersTopics.DomainEvents]
         }
         simulatorEvtConsumer = new KafkaGenericConsumer(simulatorEvtConsumerOptions, logger)
+        break
+      }
+      case (KafkaInfraTypes.NODE_KAFKA_STREAM): {
+        const simulatorEvtConsumerOptions: KafkaGenericConsumerOptions = {
+          client: {
+            kafkaHost: appConfig.kafka.host,
+            id: `simulatorEvtConsumer-${Crypto.randomBytes(8)}`,
+            groupId: 'simulatorEvtGroup',
+            fromOffset: EnumOffset.LATEST,
+            autoCommit: appConfig.kafka.autocommit
+          },
+          topics: [TransfersTopics.DomainEvents]
+        }
+        simulatorEvtConsumer = new KafkaStreamConsumer(simulatorEvtConsumerOptions, logger)
         break
       }
       case (KafkaInfraTypes.KAFKAJS): {

@@ -53,13 +53,14 @@ import {
   KafkaJsProducerOptions,
   KafkaMessagePublisher,
   MessageConsumer,
-  CompressionTypes
+  CompressionTypes, KafkaStreamConsumerOptions, KafkaStreamConsumer
 } from '@mojaloop-poc/lib-infrastructure'
 import { ParticpantsAgg } from '../domain/participants_agg'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 import { CreateParticipantCmd } from '../messages/create_participant_cmd'
 import { CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'
 import { RedisParticipantStateRepo } from '../infrastructure/redis_participant_repo'
+// import { InMemoryParticipantStateRepo } from '../infrastructure/inmemory_participant_repo'
 import { IParticipantRepo } from '../domain/participant_repo'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 
@@ -69,7 +70,7 @@ export class ParticipantCmdHandler implements IRunHandler {
   private _repo: IParticipantRepo
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
-    // const repo: IEntityStateRepository<ParticipantState> = new InMemoryParticipantStateRepo();
+    // const repo: IParticipantRepo = new InMemoryParticipantStateRepo()
     const repo: IParticipantRepo = new RedisParticipantStateRepo(appConfig.redis.host, logger)
     this._repo = repo
     await repo.init()
@@ -79,6 +80,7 @@ export class ParticipantCmdHandler implements IRunHandler {
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
     logger.info(`Creating ${appConfig.kafka.producer} participantCmdHandler.kafkaMsgPublisher...`)
     switch (appConfig.kafka.producer) {
+      case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
         const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
           client: {
@@ -213,6 +215,20 @@ export class ParticipantCmdHandler implements IRunHandler {
         participantCmdConsumer = new KafkaGenericConsumer(participantCmdConsumerOptions, logger)
         break
       }
+      case (KafkaInfraTypes.NODE_KAFKA_STREAM): {
+        const participantCmdConsumerOptions: KafkaStreamConsumerOptions = {
+          client: {
+            kafkaHost: appConfig.kafka.host,
+            id: `participantCmdConsumer-${Crypto.randomBytes(8)}`,
+            groupId: 'participantCmdGroup',
+            fromOffset: EnumOffset.LATEST,
+            autoCommit: appConfig.kafka.autocommit
+          },
+          topics: [ParticipantsTopics.Commands]
+        }
+        participantCmdConsumer = new KafkaStreamConsumer(participantCmdConsumerOptions, logger)
+        break
+      }
       case (KafkaInfraTypes.KAFKAJS): {
         const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
           client: {
@@ -242,7 +258,7 @@ export class ParticipantCmdHandler implements IRunHandler {
 
     this._consumer = participantCmdConsumer
     logger.info('Initializing participantCmdConsumer...')
-    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+
     await participantCmdConsumer.init(participantCmdHandler)
   }
 

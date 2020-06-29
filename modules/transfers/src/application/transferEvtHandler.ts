@@ -39,7 +39,7 @@
 // import {InMemoryTransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { MLTopics, ParticipantsTopics, PayerFundsReservedEvt, TransferPrepareRequestedEvt, TransferPrepareAcceptedEvt, TransferFulfilRequestedEvt, PayeeFundsCommittedEvt } from '@mojaloop-poc/lib-public-messages'
-import { IRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, CompressionTypes } from '@mojaloop-poc/lib-infrastructure'
+import { IRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, CompressionTypes, KafkaStreamConsumer } from '@mojaloop-poc/lib-infrastructure'
 import { AckPayerFundsReservedCmdPayload, AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { AckPayeeFundsCommittedCmdPayload, AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
 import { InvalidTransferEvtError } from './errors'
@@ -57,6 +57,7 @@ export class TransferEvtHandler implements IRunHandler {
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
     logger.info(`Creating ${appConfig.kafka.producer} transferEvtHandler.kafkaMsgPublisher...`)
     switch (appConfig.kafka.producer) {
+      case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
         const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
           client: {
@@ -192,6 +193,20 @@ export class TransferEvtHandler implements IRunHandler {
         transferEvtConsumer = new KafkaGenericConsumer(transferEvtConsumerOptions, logger)
         break
       }
+      case (KafkaInfraTypes.NODE_KAFKA_STREAM): {
+        const transferEvtConsumerOptions: KafkaGenericConsumerOptions = {
+          client: {
+            kafkaHost: appConfig.kafka.host,
+            id: `transferEvtConsumer-${Crypto.randomBytes(8)}`,
+            groupId: 'transferEvtGroup',
+            fromOffset: EnumOffset.LATEST,
+            autoCommit: appConfig.kafka.autocommit
+          },
+          topics: [MLTopics.Events, ParticipantsTopics.DomainEvents]
+        }
+        transferEvtConsumer = new KafkaStreamConsumer(transferEvtConsumerOptions, logger)
+        break
+      }
       case (KafkaInfraTypes.KAFKAJS): {
         const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
           client: {
@@ -221,7 +236,7 @@ export class TransferEvtHandler implements IRunHandler {
 
     this._consumer = transferEvtConsumer
     logger.info('Initializing transferCmdConsumer...')
-    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+
     await transferEvtConsumer.init(transferEvtHandler)
   }
 

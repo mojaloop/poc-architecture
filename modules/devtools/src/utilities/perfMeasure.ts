@@ -94,7 +94,7 @@ function recordCompleted (timeMs: number, transferId: string): void {
   perfMetricsHisto.observe(timeMs)
 }
 
-const handlerForFulfilEvt = (message: IDomainMessage): void => {
+const handlerForFulfilEvt = async (message: IDomainMessage): Promise<void> => {
   if (message.msgName === 'TransferFulfilledEvt') {
     const reqReceivedAt = evtMap.get(message.aggregateId)
     if (reqReceivedAt != null) {
@@ -108,7 +108,7 @@ const handlerForFulfilEvt = (message: IDomainMessage): void => {
   }
 }
 
-const handlerForInitialReqEvt = (message: IDomainMessage): void => {
+const handlerForInitialReqEvt = async (message: IDomainMessage): Promise<void> => {
   if (message.msgName === 'TransferPrepareRequestedEvt') {
     evtMap.set(message.aggregateId, message.msgTimestamp)
     perfMetricsPendingGauge.inc()
@@ -127,7 +127,7 @@ const start = async () => {
   await kafkaEvtConsumer.init(handlerForFulfilEvt)
 
   const kafkaEvtConsumerMl = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(kafkaConsumerOptionsMl, logger)
-
+  /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
   await kafkaEvtConsumerMl.init(handlerForInitialReqEvt)
 }
 

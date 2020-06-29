@@ -39,7 +39,7 @@
 // import { v4 as uuidv4 } from 'uuid'
 // import {InMemorytransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { CommandMsg, IDomainMessage, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
-import { IRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, CompressionTypes } from '@mojaloop-poc/lib-infrastructure'
+import { IRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, CompressionTypes, KafkaStreamConsumer } from '@mojaloop-poc/lib-infrastructure'
 // import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
 // import { TransferState } from '../domain/transfer_entity'
 import { TransfersTopics } from '@mojaloop-poc/lib-public-messages'
@@ -68,6 +68,7 @@ export class TransferCmdHandler implements IRunHandler {
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
     logger.info(`Creating ${appConfig.kafka.producer} transferCmdHandler.kafkaMsgPublisher...`)
     switch (appConfig.kafka.producer) {
+      case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
         const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
           client: {
@@ -183,6 +184,20 @@ export class TransferCmdHandler implements IRunHandler {
         transferCmdConsumer = new KafkaGenericConsumer(transferCmdConsumerOptions, logger)
         break
       }
+      case (KafkaInfraTypes.NODE_KAFKA_STREAM): {
+        const transferCmdConsumerOptions: KafkaGenericConsumerOptions = {
+          client: {
+            kafkaHost: appConfig.kafka.host,
+            id: `transferCmdConsumer-${Crypto.randomBytes(8)}`,
+            groupId: 'transferCmdGroup',
+            fromOffset: EnumOffset.LATEST,
+            autoCommit: appConfig.kafka.autocommit
+          },
+          topics: [TransfersTopics.Commands]
+        }
+        transferCmdConsumer = new KafkaStreamConsumer(transferCmdConsumerOptions, logger)
+        break
+      }
       case (KafkaInfraTypes.KAFKAJS): {
         const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
           client: {
@@ -212,7 +227,7 @@ export class TransferCmdHandler implements IRunHandler {
 
     this._consumer = transferCmdConsumer
     logger.info('Initializing transferCmdConsumer...')
-    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+
     await transferCmdConsumer.init(transferCmdHandler)
   }
 

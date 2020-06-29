@@ -34,7 +34,7 @@ export class KafkaJsConsumer extends MessageConsumer {
 
   private readonly _queue: any[] = []
   private readonly _processing: boolean = false
-  private _handlerCallback!: (message: IDomainMessage) => void
+  private _handlerCallback!: (message: IDomainMessage) => Promise<void>
 
   protected _logger: ILogger
 
@@ -66,7 +66,7 @@ export class KafkaJsConsumer extends MessageConsumer {
   }
 
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-  async init (handlerCallback: (message: IDomainMessage) => void): Promise<void> {
+  async init (handlerCallback: (message: IDomainMessage) => Promise<void>): Promise<void> {
     this._logger.info('initialising...')
 
     this._handlerCallback = handlerCallback

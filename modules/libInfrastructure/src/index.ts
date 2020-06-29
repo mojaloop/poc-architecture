@@ -39,12 +39,14 @@
 
 export enum KafkaInfraTypes {
   NODE_KAFKA = 'node-kafka',
+  NODE_KAFKA_STREAM = 'node-kafka-stream',
   KAFKAJS = 'kafkajs',
   // NODE_RDKAFKA = 'node-rdkafka'
 }
 
 // Exports for Infrastructure
 export * from './kafka_generic_consumer'
+export * from './kafka_stream_consumer'
 export * from './kafkajs_consumer'
 export * from './kafka_generic_producer'
 export * from './kafka_message_publisher'

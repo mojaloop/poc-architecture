@@ -40,7 +40,7 @@
 // import {InMemoryParticipantStateRepo} from "../infrastructure/inmemory_participant_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransferPrepareAcceptedEvt, TransferFulfilAcceptedEvt, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
-import { IRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, CompressionTypes } from '@mojaloop-poc/lib-infrastructure'
+import { IRunHandler, KafkaInfraTypes, KafkaJsProducerOptions, KafkajsMessagePublisher, KafkaJsConsumer, KafkaJsConsumerOptions, MessageConsumer, KafkaMessagePublisher, KafkaGenericConsumer, EnumOffset, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, CompressionTypes, KafkaStreamConsumerOptions, KafkaStreamConsumer } from '@mojaloop-poc/lib-infrastructure'
 import { ReservePayerFundsCmd, ReservePayerFundsCmdPayload } from '../messages/reserve_payer_funds_cmd'
 import { CommitPayeeFundsCmd, CommitPayeeFundsCmdPayload } from '../messages/commit_payee_funds_cmd'
 import { InvalidParticipantEvtError } from './errors'
@@ -56,6 +56,7 @@ export class ParticipantEvtHandler implements IRunHandler {
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
     logger.info(`Creating ${appConfig.kafka.producer} participantEvtHandler.kafkaMsgPublisher...`)
     switch (appConfig.kafka.producer) {
+      case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
         const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
           client: {
@@ -174,6 +175,20 @@ export class ParticipantEvtHandler implements IRunHandler {
         participantEvtConsumer = new KafkaGenericConsumer(participantEvtConsumerOptions, logger)
         break
       }
+      case (KafkaInfraTypes.NODE_KAFKA_STREAM): {
+        const participantEvtConsumerOptions: KafkaStreamConsumerOptions = {
+          client: {
+            kafkaHost: appConfig.kafka.host,
+            id: `participantEvtConsumer-${Crypto.randomBytes(8)}`,
+            groupId: 'participantEvtGroup',
+            fromOffset: EnumOffset.LATEST,
+            autoCommit: appConfig.kafka.autocommit
+          },
+          topics: [TransfersTopics.DomainEvents]
+        }
+        participantEvtConsumer = new KafkaStreamConsumer(participantEvtConsumerOptions, logger)
+        break
+      }
       case (KafkaInfraTypes.KAFKAJS): {
         const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
           client: {
@@ -203,7 +218,7 @@ export class ParticipantEvtHandler implements IRunHandler {
 
     this._consumer = participantEvtConsumer
     logger.info('Initializing participantCmdConsumer...')
-    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+
     await participantEvtConsumer.init(participantEvtHandler)
   }
 

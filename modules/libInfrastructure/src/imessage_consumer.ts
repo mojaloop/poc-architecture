@@ -47,7 +47,7 @@ export type Options<tClientOptions> = {
 }
 
 export interface iMessageConsumer {
-  init: (handlerCallback: (message: IDomainMessage) => void) => void
+  init: (handlerCallback: (message: IDomainMessage) => Promise<void>) => void
   destroy: (forceCommit: boolean) => Promise<void>
   connect: () => void
   pause: () => void
@@ -56,7 +56,7 @@ export interface iMessageConsumer {
 }
 
 export abstract class MessageConsumer extends EventEmitter implements iMessageConsumer {
-  abstract init (handlerCallback: (message: IDomainMessage) => void): void
+  abstract init (handlerCallback: (message: IDomainMessage) => Promise<void>): void
   abstract destroy (forceCommit: boolean): Promise<void>
   abstract connect (): void
   abstract pause (): void

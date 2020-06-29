@@ -37,6 +37,7 @@ export const init = async (): Promise<void> => {
 
     logger.info(`Creating ${JSON.stringify(appConfig.kafka.producer)} participantCmdHandler.kafkaMsgPublisher...`)
     switch (appConfig.kafka.producer) {
+      case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
         const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
           client: {
