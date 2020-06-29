@@ -23,6 +23,12 @@ dependencies:
   version: 0.1.0
   repository: "file://./poc-modules"
   condition: simulatorDevTools.enabled
+# Devtool client
+- name: poc-modules
+  alias: devtoolclient
+  version: 0.1.0
+  repository: "file://./poc-modules"
+  condition: devtoolclient.enabled
 # We will pull simulator from the official mojaloop helm repo
 - name: simulator
   alias: legacy-simulator

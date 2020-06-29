@@ -4,14 +4,14 @@
 replicaCount: 1
 image:
   repository: mojaloop/poc-architecture
-  tag: v0.17
-  command: '["node", "src/api/index.js"]'
+  tag: v0.19
+  command: 'cd modules/transfers && node dist/application/index.js handler --config ../../.env'
 
 config:
   # this can be set if the dependency chart for kafka is disabled. If 'kafka_host' is commented out, then the name of the dependency chart will be used.
   kafka_host: '$release_name-kafka'
   kafka_port: 9092
-  # Supported consumers: kafkajs, node-kafka
+  # Supported consumers: kafkajs, node-kafka, node-kafka-stream
   kafka_consumer: kafkajs
   # Supported producers: kafkajs, node-kafka
   kafka_producer: kafkajs
@@ -25,6 +25,7 @@ config:
   # Supported repo Types: memory, redis, cachedredis
   participants_repo_type: redis
   log_level: info
+  log_filter: info
 
 init:
   enabled: true
