@@ -219,7 +219,6 @@ export class TransferEvtHandler implements IRunHandler {
         logger.warn('TransferEvtConsumer - Unable to find a Kafka consumer implementation!')
         throw new Error('transferEvtConsumer was not created!')
       }
-    
     }
     logger.info(`TransferEvtConsumer - Created kafkaConsumer of type ${transferEvtConsumer.constructor.name}`)
 

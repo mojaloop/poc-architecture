@@ -22,7 +22,7 @@ config:
   simulator_host: '$release_name-legacy-simulator'
   uv_threadpool_size: 7
   redis_host: 'redis://$release_name-redis-master:6379'
-  # Supported repo Types: memory, redis
+  # Supported repo Types: memory, redis, cachedredis
   participants_repo_type: redis
   log_level: info
 

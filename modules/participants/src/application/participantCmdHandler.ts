@@ -37,7 +37,6 @@
 
 'use strict'
 // import { v4 as uuidv4 } from 'uuid'
-// import {InMemoryParticipantStateRepo} from "../infrastructure/inmemory_participant_repo";
 import { CommandMsg, IDomainMessage, ILogger, IMessagePublisher } from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
 import {
@@ -59,11 +58,12 @@ import { ParticpantsAgg } from '../domain/participants_agg'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 import { CreateParticipantCmd } from '../messages/create_participant_cmd'
 import { CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'
-import { RedisParticipantStateRepo } from '../infrastructure/redis_participant_repo'
 import { IParticipantRepo } from '../domain/participant_repo'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 import { RepoInfraTypes } from '../infrastructure'
 import { InMemoryParticipantStateRepo } from '../infrastructure/inmemory_participant_repo'
+import { RedisParticipantStateRepo } from '../infrastructure/redis_participant_repo'
+import { CachedRedisParticipantStateRepo } from '../infrastructure/cachedredis_participant_repo'
 
 export class ParticipantCmdHandler implements IRunHandler {
   private _consumer: MessageConsumer
@@ -73,14 +73,18 @@ export class ParticipantCmdHandler implements IRunHandler {
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     let repo: IParticipantRepo
 
-    logger.info(`ParticipantCmdHandler - Creating repo of type ${appConfig.repo.type}`)
+    logger.info(`ParticipantCmdHandler - Creating repo of type ${appConfig.repo.type as string}`)
     switch (appConfig.repo.type) {
       case RepoInfraTypes.REDIS: {
         repo = new RedisParticipantStateRepo(appConfig.redis.host, logger)
         break
       }
+      case RepoInfraTypes.CACHEDREDIS: {
+        repo = new CachedRedisParticipantStateRepo(appConfig.redis.host, logger)
+        break
+      }
       default: { // defaulting to In-Memory
-        repo = new InMemoryParticipantStateRepo();
+        repo = new InMemoryParticipantStateRepo()
       }
     }
     // const repo: IEntityStateRepository<ParticipantState> = new InMemoryParticipantStateRepo();
