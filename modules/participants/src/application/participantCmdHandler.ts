@@ -58,11 +58,6 @@ import { ParticpantsAgg } from '../domain/participants_agg'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 import { CreateParticipantCmd } from '../messages/create_participant_cmd'
 import { CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'
-<<<<<<< HEAD
-import { RedisParticipantStateRepo } from '../infrastructure/redis_participant_repo'
-// import { InMemoryParticipantStateRepo } from '../infrastructure/inmemory_participant_repo'
-=======
->>>>>>> fb49703c5e970b42e6eb86e351a9f46c72a4ca75
 import { IParticipantRepo } from '../domain/participant_repo'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 import { RepoInfraTypes } from '../infrastructure'
@@ -76,10 +71,6 @@ export class ParticipantCmdHandler implements IRunHandler {
   private _repo: IParticipantRepo
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
-<<<<<<< HEAD
-    // const repo: IParticipantRepo = new InMemoryParticipantStateRepo()
-    const repo: IParticipantRepo = new RedisParticipantStateRepo(appConfig.redis.host, logger)
-=======
     let repo: IParticipantRepo
 
     logger.info(`ParticipantCmdHandler - Creating repo of type ${appConfig.repo.type as string}`)
@@ -99,7 +90,7 @@ export class ParticipantCmdHandler implements IRunHandler {
     // const repo: IEntityStateRepository<ParticipantState> = new InMemoryParticipantStateRepo();
     // const repo: IParticipantRepo = new RedisParticipantStateRepo(appConfig.redis.host, logger)
     logger.info(`ParticipantCmdHandler - Created repo of type ${repo.constructor.name}`)
->>>>>>> fb49703c5e970b42e6eb86e351a9f46c72a4ca75
+
     this._repo = repo
     await repo.init()
 
