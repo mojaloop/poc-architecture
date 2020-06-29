@@ -20,7 +20,7 @@ const timeout = async (ms: number): Promise<void> => {
 }
 
 const getRandomFsps = (): string[] => {
-  const fspIds = ['simfsp01', 'simfsp02', 'simfsp03', 'simfsp04', 'simfsp05', 'simfsp06', 'simfsp07', 'simfsp08' ];
+  const fspIds = ['simfsp01', 'simfsp02', 'simfsp03', 'simfsp04', 'simfsp05', 'simfsp06', 'simfsp07', 'simfsp08' ]
   const random = Math.floor(Math.random() * Math.floor(fspIds.length))
 
   const payer: string = fspIds[random]
