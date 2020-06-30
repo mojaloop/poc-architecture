@@ -6,7 +6,9 @@ import {
   KafkajsMessagePublisher,
   KafkaJsProducerOptions,
   KafkaJsCompressionTypes,
-  KafkaNodeCompressionTypes
+  KafkaNodeCompressionTypes,
+  RDKafkaProducerOptions,
+  RDKafkaMessagePublisher
 } from '@mojaloop-poc/lib-infrastructure'
 import { MojaLogger, Crypto } from '@mojaloop-poc/lib-utilities'
 
@@ -78,6 +80,23 @@ export const init = async (): Promise<void> => {
         }
         kafkaMsgPublisher = new KafkajsMessagePublisher(
           kafkaJsProducerOptions,
+          logger
+        )
+        break
+      }
+      case (KafkaInfraTypes.NODE_RDKAFKA): {
+        const rdKafkaProducerOptions: RDKafkaProducerOptions = {
+          client: {
+            producerConfig: {
+              'metadata.broker.list': appConfig.kafka.host,
+              'dr_cb': true
+            },
+            topicConfig: {
+            }
+          }
+        }
+        kafkaMsgPublisher = new RDKafkaMessagePublisher(
+          rdKafkaProducerOptions,
           logger
         )
         break

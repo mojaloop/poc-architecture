@@ -52,7 +52,7 @@ import {
   KafkaJsProducerOptions,
   KafkaMessagePublisher,
   MessageConsumer,
-  KafkaJsCompressionTypes, KafkaStreamConsumerOptions, KafkaStreamConsumer, KafkaNodeCompressionTypes
+  KafkaJsCompressionTypes, KafkaStreamConsumerOptions, KafkaStreamConsumer, KafkaNodeCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher
 } from '@mojaloop-poc/lib-infrastructure'
 import { ParticpantsAgg } from '../domain/participants_agg'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
@@ -132,6 +132,23 @@ export class ParticipantCmdHandler implements IRunHandler {
         }
         kafkaMsgPublisher = new KafkajsMessagePublisher(
           kafkaJsProducerOptions,
+          logger
+        )
+        break
+      }
+      case (KafkaInfraTypes.NODE_RDKAFKA): {
+        const rdKafkaProducerOptions: RDKafkaProducerOptions = {
+          client: {
+            producerConfig: {
+              'metadata.broker.list': appConfig.kafka.host,
+              'dr_cb': true
+            },
+            topicConfig: {
+            }
+          }
+        }
+        kafkaMsgPublisher = new RDKafkaMessagePublisher(
+          rdKafkaProducerOptions,
           logger
         )
         break
@@ -271,6 +288,11 @@ export class ParticipantCmdHandler implements IRunHandler {
         participantCmdConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
         break
       }
+      /* case (KafkaInfraTypes.NODE_RDKAFKA): {
+        // TODO_NODE_RDKAFKA
+        break
+      }
+      */
       default: {
         logger.warn('ParticipantCmdConsumer - Unable to find a Kafka consumer implementation!')
         throw new Error('participantCmdConsumer was not created!')
