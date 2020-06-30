@@ -142,6 +142,13 @@ export class RDKafkaProducer extends MessageProducer {
 
   async send (kafkaMessages: IMessage | IMessage[] | any): Promise<void> {
     return await new Promise((resolve, reject) => {
+
+      if ((Array.isArray(arguments[0])) && (kafkaMessages.length > 1)) {
+        this._logger.error('RDKafkaProducer::send() Sending more than 1 message in one go is not supported yet.')
+        throw new Error('RDKafkaProducer::send() Sending more than 1 message in one go is not supported yet.')
+        /* TODO: the callback in produce() should be reworked, to call resolve() after receiving ACK-s for all messages. */
+      }
+
       if (!Array.isArray(arguments[0])) { kafkaMessages = [arguments[0]] as IMessage[] }
 
       kafkaMessages.forEach((kafkaMsg: IMessage) => {
