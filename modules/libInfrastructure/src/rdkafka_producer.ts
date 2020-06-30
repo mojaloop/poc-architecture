@@ -38,10 +38,10 @@
 'use strict'
 
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
-import { ILogger, IMessage, IDomainMessage } from '@mojaloop-poc/lib-domain'
-import { MessageProducer, Options, iMessageProducer } from './imessage_producer'
+import { ILogger, IMessage } from '@mojaloop-poc/lib-domain'
+import { MessageProducer, Options } from './imessage_producer'
 import * as RDKafka from 'node-rdkafka'
-import { Resolver } from 'dns'
+import { NumberNullUndefined } from 'node-rdkafka'
 
 type RDKafkaConfig = {
   producerConfig: RDKafka.ProducerGlobalConfig
@@ -63,17 +63,16 @@ export class RDKafkaProducer extends MessageProducer {
 
     this._logger = logger ?? new ConsoleLogger()
 
-    this._logger.info(`RDKafkaProducer instance created`)
+    this._logger.info('RDKafkaProducer instance created')
   }
 
   get envName (): string {
     return this._env_name
   }
 
-  async init(): Promise<void> {
+  async init (): Promise<void> {
     return await new Promise((resolve, reject) => {
-      this._logger.info(`RDKafkaProducer initialising...`)
-
+      this._logger.info('RDKafkaProducer initialising...')
 
       /* Global config: Mix incoming config with default config */
       const defaultGlobalConfig: RDKafka.ProducerGlobalConfig = {
@@ -92,31 +91,30 @@ export class RDKafkaProducer extends MessageProducer {
       }
 
       /* Start and connect the client */
-      this._client = new RDKafka.Producer(globalConfig, topicConfig)
-      this._client.connect(undefined, (err: RDKafka.LibrdKafkaError, data: RDKafka.Metadata) => {
-        if (err) {
-          this._logger.info(`RDKafkaProducer failed to connect with error:`, err)
+      this._client = new RDKafka.HighLevelProducer(globalConfig, topicConfig)
+      this._client.connect(undefined, (err: RDKafka.LibrdKafkaError | null, data: RDKafka.Metadata) => {
+        if (err !== null) {
+          this._logger.info('RDKafkaProducer failed to connect with error:', err)
           reject(err)
         }
       })
 
       this._client.on('ready', () => {
-        this._logger.info(`RDKafkaProducer ...connected !`)
+        this._logger.info('RDKafkaProducer ...connected !')
         resolve()
       })
 
       this._client.on('event.error', () => {
-        this._logger.error(`RDKafkaProducer ...error !`)
+        this._logger.error('RDKafkaProducer ...error !')
       })
     })
   }
 
-  destroy(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this._logger.info(`RDKafkaProducer disconnect()-ing...`)
+  async destroy (): Promise<void> {
+    return await new Promise((resolve, reject) => {
+      this._logger.info('RDKafkaProducer disconnect()-ing...')
       this._client.disconnect((err: any, _data: RDKafka.ClientMetrics) => {
-        console.log('err:', err)
-        if (err) {
+        if (err !== null) {
           this._logger.error('RDKafkaProducer disconnect() failed', err)
           reject(err)
         } else {
@@ -125,21 +123,25 @@ export class RDKafkaProducer extends MessageProducer {
       })
     })
   }
-  connect(): void {
-    throw new Error("Method connect() not implemented.")
-  }
-  pause(): void {
-    throw new Error("Method pause() not implemented.")
-  }
-  resume(): void {
-    throw new Error("Method resume() not implemented.")
-  }
-  disconnect(): void {
-    throw new Error("Method disconnect() not implemented.")
+
+  connect (): void {
+    throw new Error('Method connect() not implemented.')
   }
 
-  send (kafkaMessages: IMessage | IMessage[] | any): Promise<void> {
-    return new Promise((resolve, _reject) => {
+  pause (): void {
+    throw new Error('Method pause() not implemented.')
+  }
+
+  resume (): void {
+    throw new Error('Method resume() not implemented.')
+  }
+
+  disconnect (): void {
+    throw new Error('Method disconnect() not implemented.')
+  }
+
+  async send (kafkaMessages: IMessage | IMessage[] | any): Promise<void> {
+    return await new Promise((resolve, reject) => {
       if (!Array.isArray(arguments[0])) { kafkaMessages = [arguments[0]] as IMessage[] }
 
       kafkaMessages.forEach((kafkaMsg: IMessage) => {
@@ -156,14 +158,21 @@ export class RDKafkaProducer extends MessageProducer {
             /* key */
             kafkaMsg.msgKey,
             /* timestamp */
-            null
+            null,
+            /* callback */
+            (err: any, _offset?: NumberNullUndefined) => {
+              if (err !== null) {
+                reject(err)
+              } else {
+                resolve()
+              }
+            }
           )
         } catch (err) {
-          this._logger.error(`RDKafkaProducer::send ...error !`, err)
+          this._logger.error('RDKafkaProducer::send ...error !', err)
           throw err
         }
-      });
-      resolve()
+      })
     })
   }
 }
