@@ -56,7 +56,9 @@ import {
   KafkaStreamConsumer,
   KafkaNodeCompressionTypes,
   RDKafkaProducerOptions,
-  RDKafkaMessagePublisher
+  RDKafkaMessagePublisher,
+  RDKafkaConsumerOptions,
+  RDKafkaConsumer
 } from '@mojaloop-poc/lib-infrastructure'
 import { AckPayerFundsReservedCmdPayload, AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { AckPayeeFundsCommittedCmdPayload, AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
@@ -266,11 +268,20 @@ export class TransferEvtHandler implements IRunHandler {
         transferEvtConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
         break
       }
-      /*case (KafkaInfraTypes.NODE_RDKAFKA): {
-        // TODO_NODE_RDKAFKA
+      case (KafkaInfraTypes.NODE_RDKAFKA): {
+        const rdKafkaConsumerOptions: RDKafkaConsumerOptions = {
+          client: {
+            consumerConfig: {
+              'metadata.broker.list': appConfig.kafka.host,
+              'group.id': 'transferEvtGroup'
+            },
+            topicConfig: {}
+          },
+          topics: [MLTopics.Events, ParticipantsTopics.DomainEvents]
+        }
+        transferEvtConsumer = new RDKafkaConsumer(rdKafkaConsumerOptions, logger)
         break
       }
-      */
       default: {
         logger.warn('TransferEvtConsumer - Unable to find a Kafka consumer implementation!')
         throw new Error('transferEvtConsumer was not created!')

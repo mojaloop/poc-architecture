@@ -114,10 +114,10 @@ export const init = async (): Promise<void> => {
 }
 
 export const publishMessage = async (message: IMessage): Promise<void> => {
-  await init()
+  // await init()
   // logger.debug(`publishMessage - message: ${JSON.stringify(message)}`)
   await kafkaMsgPublisher!.publish(message)
-  await kafkaMsgPublisher!.destroy()
+  //await kafkaMsgPublisher!.destroy()
 }
 
 export const publishMessageMultipleInit = async (): Promise<void> => {

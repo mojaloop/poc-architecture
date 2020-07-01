@@ -56,7 +56,9 @@ import {
   KafkaStreamConsumer,
   KafkaNodeCompressionTypes,
   RDKafkaProducerOptions,
-  RDKafkaMessagePublisher
+  RDKafkaMessagePublisher,
+  RDKafkaConsumerOptions,
+  RDKafkaConsumer
 } from '@mojaloop-poc/lib-infrastructure'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 
@@ -283,10 +285,20 @@ export class SimulatorEvtHandler implements IRunHandler {
         simulatorEvtConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
         break
       }
-      /*case (KafkaInfraTypes.NODE_RDKAFKA): {
-        // TODO_NODE_RDKAFKA
+      case (KafkaInfraTypes.NODE_RDKAFKA): {
+        const rdKafkaConsumerOptions: RDKafkaConsumerOptions = {
+          client: {
+            consumerConfig: {
+              'metadata.broker.list': appConfig.kafka.host,
+              'group.id': 'simulatorEvtGroup'
+            },
+            topicConfig: {}
+          },
+          topics: [TransfersTopics.DomainEvents]
+        }
+        simulatorEvtConsumer = new RDKafkaConsumer(rdKafkaConsumerOptions, logger)
         break
-      }*/
+      }
       default: {
         logger.warn('SimulatorEvtHandler - Unable to find a Kafka consumer implementation!')
         throw new Error('simulatorEvtConsumer was not created!')

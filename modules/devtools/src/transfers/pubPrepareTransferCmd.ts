@@ -46,6 +46,7 @@ const start = async () => {
   }
   const reservePayerFundsCmd = new PrepareTransferCmd(prepareTransferCmdPayload)
 
+  logger.info('Publishing prepareTransferCmd')
   await Publisher.publishMessage(reservePayerFundsCmd)
   process.exit(0)
 }
