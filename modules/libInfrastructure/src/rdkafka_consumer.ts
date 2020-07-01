@@ -91,6 +91,7 @@ export class RDKafkaConsumer extends MessageConsumer {
       const autoCommitEnabled = this._options.client.consumerConfig['enable.auto.commit']
       const commitWaitMode = this._options.client.rdKafkaCommitWaitMode
 
+      /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
       this._logger.info(`RDKafkaConsumer autoCommitEnabled is ${autoCommitEnabled}, commitWaitMode is ${commitWaitMode}`)
 
       const consumeRecursiveWrapper = (): void => {
@@ -113,7 +114,7 @@ export class RDKafkaConsumer extends MessageConsumer {
                 if (msgAsDomainMessage != null) {
                   await handlerCallback(msgAsDomainMessage)
 
-                  if (!autoCommitEnabled) {
+                  if (autoCommitEnabled !== true) {
                     switch (commitWaitMode) {
                       case RdKafkaCommitMode.RDKAFKA_COMMIT_NO_WAIT:
                         this._client.commitMessage(messages[0])
