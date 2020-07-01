@@ -22,7 +22,7 @@ dependencies:
   alias: simulator-dev-tool
   version: 0.1.0
   repository: "file://./poc-modules"
-  condition: simulatorDevTools.enabled
+  condition: simulator-dev-tool.enabled
 # Devtool client
 - name: poc-modules
   alias: devtoolclient
