@@ -264,9 +264,11 @@ export class TransferCmdHandler implements IRunHandler {
           client: {
             consumerConfig: {
               'metadata.broker.list': appConfig.kafka.host,
-              'group.id': 'transferCmdGroup'
+              'group.id': 'transferCmdGroup',
+              'enable.auto.commit': appConfig.kafka.autocommit
             },
-            topicConfig: {}
+            topicConfig: {},
+            rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode
           },
           topics: [TransfersTopics.Commands]
         }

@@ -38,10 +38,12 @@ import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 import * as RDKafka from 'node-rdkafka'
 import { ILogger, IDomainMessage } from '@mojaloop-poc/lib-domain'
 import { MessageConsumer, Options } from './imessage_consumer'
+import { RdKafkaCommitMode } from '.'
 
 type RDKafkaConfig = {
   consumerConfig: RDKafka.ConsumerGlobalConfig
   topicConfig: RDKafka.ConsumerTopicConfig
+  rdKafkaCommitWaitMode: RdKafkaCommitMode
 }
 
 export type RDKafkaConsumerOptions = Options<RDKafkaConfig>
@@ -86,6 +88,11 @@ export class RDKafkaConsumer extends MessageConsumer {
       this._client = new RDKafka.KafkaConsumer(globalConfig, topicConfig)
       this._client.connect()
 
+      const autoCommitEnabled = this._options.client.consumerConfig["enable.auto.commit"]
+      const commitWaitMode = this._options.client.rdKafkaCommitWaitMode
+
+      this._logger.info(`RDKafkaConsumer autoCommitEnabled is ${autoCommitEnabled}, commitWaitMode is ${commitWaitMode}`)
+
       const consumeRecursiveWrapper = (): void => {
         /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
         this._client.consume(1, async (err: RDKafka.LibrdKafkaError, messages: RDKafka.Message[]) => {
@@ -101,13 +108,26 @@ export class RDKafkaConsumer extends MessageConsumer {
                 try {
                   msgAsDomainMessage = JSON.parse(msgAsString) as IDomainMessage
                 } catch (err) {
-                  this._logger.info('RDKafkaConsumer Error when JSON.parse()-ing message')
+                  this._logger.error('RDKafkaConsumer Error when JSON.parse()-ing message')
                 }
                 if (msgAsDomainMessage != null) {
                   await handlerCallback(msgAsDomainMessage)
+
+                  if (!autoCommitEnabled) {
+                    switch (commitWaitMode) {
+                      case RdKafkaCommitMode.RDKAFKA_COMMIT_NO_WAIT:
+                        this._client.commitMessage(messages[0])
+                        break
+                      case RdKafkaCommitMode.RDKAFKA_COMMIT_MSG_SYNC:
+                        this._client.commitMessageSync(messages[0])
+                        break
+                      default:
+                        this._logger.error('RDKafkaConsumer unknown commitWaitMode - no commits will happen!')
+                    }
+                  }
                 }
               } else {
-                this._logger.info('RDKafkaConsumer Received message with value==NULL.')
+                this._logger.error('RDKafkaConsumer Received message with value==NULL.')
               }
             }
           }

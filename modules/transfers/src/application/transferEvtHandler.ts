@@ -273,9 +273,11 @@ export class TransferEvtHandler implements IRunHandler {
           client: {
             consumerConfig: {
               'metadata.broker.list': appConfig.kafka.host,
-              'group.id': 'transferEvtGroup'
+              'group.id': 'transferEvtGroup',
+              'enable.auto.commit': appConfig.kafka.autocommit
             },
-            topicConfig: {}
+            topicConfig: {},
+            rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode
           },
           topics: [MLTopics.Events, ParticipantsTopics.DomainEvents]
         }

@@ -256,9 +256,11 @@ export class ParticipantEvtHandler implements IRunHandler {
           client: {
             consumerConfig: {
               'metadata.broker.list': appConfig.kafka.host,
-              'group.id': 'participantEvtGroup'
+              'group.id': 'participantEvtGroup',
+              'enable.auto.commit': appConfig.kafka.autocommit
             },
-            topicConfig: {}
+            topicConfig: {},
+            rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode
           },
           topics: [TransfersTopics.DomainEvents]
         }

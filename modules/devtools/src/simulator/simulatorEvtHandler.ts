@@ -290,9 +290,11 @@ export class SimulatorEvtHandler implements IRunHandler {
           client: {
             consumerConfig: {
               'metadata.broker.list': appConfig.kafka.host,
-              'group.id': 'simulatorEvtGroup'
+              'group.id': 'simulatorEvtGroup',
+              'enable.auto.commit': appConfig.kafka.autocommit
             },
-            topicConfig: {}
+            topicConfig: {},
+            rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode
           },
           topics: [TransfersTopics.DomainEvents]
         }

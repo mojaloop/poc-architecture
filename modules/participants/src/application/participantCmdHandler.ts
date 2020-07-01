@@ -293,9 +293,11 @@ export class ParticipantCmdHandler implements IRunHandler {
           client: {
             consumerConfig: {
               'metadata.broker.list': appConfig.kafka.host,
-              'group.id': 'participantCmdGroup'
+              'group.id': 'participantCmdGroup',
+              'enable.auto.commit': appConfig.kafka.autocommit
             },
-            topicConfig: {}
+            topicConfig: {},
+            rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode
           },
           topics: [ParticipantsTopics.Commands]
         }
