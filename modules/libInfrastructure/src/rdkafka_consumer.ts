@@ -88,7 +88,7 @@ export class RDKafkaConsumer extends MessageConsumer {
       this._client = new RDKafka.KafkaConsumer(globalConfig, topicConfig)
       this._client.connect()
 
-      const autoCommitEnabled = this._options.client.consumerConfig["enable.auto.commit"]
+      const autoCommitEnabled = this._options.client.consumerConfig['enable.auto.commit']
       const commitWaitMode = this._options.client.rdKafkaCommitWaitMode
 
       this._logger.info(`RDKafkaConsumer autoCommitEnabled is ${autoCommitEnabled}, commitWaitMode is ${commitWaitMode}`)

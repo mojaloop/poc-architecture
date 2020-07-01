@@ -76,6 +76,7 @@ export class ParticipantEvtHandler implements IRunHandler {
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
     logger.info(`ParticipantEvtHandler - Creating ${appConfig.kafka.producer} participantEvtHandler.kafkaMsgPublisher...`)
+    let clientId = `participantEvtHandler-${appConfig.kafka.producer}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
@@ -83,7 +84,7 @@ export class ParticipantEvtHandler implements IRunHandler {
           client: {
             kafka: {
               kafkaHost: appConfig.kafka.host,
-              clientId: `participantEvtHandler-${Crypto.randomBytes(8)}`
+              clientId
             },
             compression: appConfig.kafka.gzipCompression === true ? KafkaNodeCompressionTypes.GZIP : KafkaNodeCompressionTypes.None
           }
@@ -99,7 +100,7 @@ export class ParticipantEvtHandler implements IRunHandler {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: [appConfig.kafka.host],
-              clientId: `participantEvtHandler-${Crypto.randomBytes(8)}`
+              clientId
             },
             producer: { // https://kafka.js.org/docs/producing#options
               allowAutoTopicCreation: true,
@@ -119,7 +120,9 @@ export class ParticipantEvtHandler implements IRunHandler {
           client: {
             producerConfig: {
               'metadata.broker.list': appConfig.kafka.host,
-              'dr_cb': true
+              'dr_cb': true,
+              'client.id': clientId,
+              'socket.keepalive.enable': true
             },
             topicConfig: {
             }
@@ -201,12 +204,13 @@ export class ParticipantEvtHandler implements IRunHandler {
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
     logger.info(`ParticipantEvtHandler - Creating ${appConfig.kafka.consumer} participantEvtConsumer...`)
+    clientId = `participantEvtConsumer-${appConfig.kafka.consumer}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.consumer) {
       case (KafkaInfraTypes.NODE_KAFKA): {
         const participantEvtConsumerOptions: KafkaGenericConsumerOptions = {
           client: {
             kafkaHost: appConfig.kafka.host,
-            id: `participantEvtConsumer-${Crypto.randomBytes(8)}`,
+            id: clientId,
             groupId: 'participantEvtGroup',
             fromOffset: EnumOffset.LATEST,
             autoCommit: appConfig.kafka.autocommit
@@ -220,7 +224,7 @@ export class ParticipantEvtHandler implements IRunHandler {
         const participantEvtConsumerOptions: KafkaStreamConsumerOptions = {
           client: {
             kafkaHost: appConfig.kafka.host,
-            id: `participantEvtConsumer-${Crypto.randomBytes(8)}`,
+            id: clientId,
             groupId: 'participantEvtGroup',
             fromOffset: EnumOffset.LATEST,
             autoCommit: appConfig.kafka.autocommit
@@ -235,7 +239,7 @@ export class ParticipantEvtHandler implements IRunHandler {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: [appConfig.kafka.host],
-              clientId: `participantEvtConsumer-${Crypto.randomBytes(8)}`
+              clientId
             },
             consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
               groupId: 'participantEvtGroup'
@@ -257,7 +261,9 @@ export class ParticipantEvtHandler implements IRunHandler {
             consumerConfig: {
               'metadata.broker.list': appConfig.kafka.host,
               'group.id': 'participantEvtGroup',
-              'enable.auto.commit': appConfig.kafka.autocommit
+              'enable.auto.commit': appConfig.kafka.autocommit,
+              'client.id': clientId,
+              'socket.keepalive.enable': true
             },
             topicConfig: {},
             rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode

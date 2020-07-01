@@ -46,6 +46,7 @@ export const init = async (): Promise<void> => {
     logger.info(`appConfig=${JSON.stringify(appConfig)}`)
 
     logger.info(`Creating ${JSON.stringify(appConfig.kafka.producer)} participantCmdHandler.kafkaMsgPublisher...`)
+    const clientId = `kafkaMsgPublisher-${appConfig.kafka.producer}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
@@ -53,7 +54,7 @@ export const init = async (): Promise<void> => {
           client: {
             kafka: {
               kafkaHost: appConfig.kafka.host,
-              clientId: `kafkaMsgPublisher-${Crypto.randomBytes(8)}`
+              clientId
             },
             compression: appConfig.kafka.gzipCompression === true ? KafkaNodeCompressionTypes.GZIP : KafkaNodeCompressionTypes.None
           }
@@ -69,7 +70,7 @@ export const init = async (): Promise<void> => {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: [appConfig.kafka.host],
-              clientId: `kafkaMsgPublisher-${Crypto.randomBytes(8)}`
+              clientId
             },
             producer: { // https://kafka.js.org/docs/producing#options
               allowAutoTopicCreation: true,
@@ -88,6 +89,7 @@ export const init = async (): Promise<void> => {
         const rdKafkaProducerOptions: RDKafkaProducerOptions = {
           client: {
             producerConfig: {
+              'client.id': clientId,
               'metadata.broker.list': appConfig.kafka.host,
               dr_cb: true
             },

@@ -87,6 +87,7 @@ export class TransferCmdHandler implements IRunHandler {
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
     logger.info(`TransferCmdHandler - Creating ${appConfig.kafka.producer} transferCmdHandler.kafkaMsgPublisher...`)
+    let clientId = `transferCmdHandler-${appConfig.kafka.producer}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
@@ -94,7 +95,7 @@ export class TransferCmdHandler implements IRunHandler {
           client: {
             kafka: {
               kafkaHost: appConfig.kafka.host,
-              clientId: `transferCmdHandler-${Crypto.randomBytes(8)}`
+              clientId
             },
             compression: appConfig.kafka.gzipCompression === true ? KafkaNodeCompressionTypes.GZIP : KafkaNodeCompressionTypes.None
           }
@@ -110,7 +111,7 @@ export class TransferCmdHandler implements IRunHandler {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: [appConfig.kafka.host],
-              clientId: `transferCmdHandler-${Crypto.randomBytes(8)}`
+              clientId
             },
             producer: { // https://kafka.js.org/docs/producing#options
               allowAutoTopicCreation: true,
@@ -130,7 +131,9 @@ export class TransferCmdHandler implements IRunHandler {
           client: {
             producerConfig: {
               'metadata.broker.list': appConfig.kafka.host,
-              'dr_cb': true
+              'dr_cb': true,
+              'client.id': clientId,
+              'socket.keepalive.enable': true
             },
             topicConfig: {
             }
@@ -209,12 +212,13 @@ export class TransferCmdHandler implements IRunHandler {
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
     logger.info(`TransferCmdHandler - Creating ${appConfig.kafka.consumer} transferCmdConsumer...`)
+    clientId = `transferCmdConsumer-${appConfig.kafka.consumer}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.consumer) {
       case (KafkaInfraTypes.NODE_KAFKA): {
         const transferCmdConsumerOptions: KafkaGenericConsumerOptions = {
           client: {
             kafkaHost: appConfig.kafka.host,
-            id: `transferCmdConsumer-${Crypto.randomBytes(8)}`,
+            id: clientId,
             groupId: 'transferCmdGroup',
             fromOffset: EnumOffset.LATEST,
             autoCommit: appConfig.kafka.autocommit
@@ -228,7 +232,7 @@ export class TransferCmdHandler implements IRunHandler {
         const transferCmdConsumerOptions: KafkaGenericConsumerOptions = {
           client: {
             kafkaHost: appConfig.kafka.host,
-            id: `transferCmdConsumer-${Crypto.randomBytes(8)}`,
+            id: clientId,
             groupId: 'transferCmdGroup',
             fromOffset: EnumOffset.LATEST,
             autoCommit: appConfig.kafka.autocommit
@@ -243,7 +247,7 @@ export class TransferCmdHandler implements IRunHandler {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: [appConfig.kafka.host],
-              clientId: `transferCmdConsumer-${Crypto.randomBytes(8)}`
+              clientId
             },
             consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
               groupId: 'transferCmdGroup'
@@ -265,7 +269,9 @@ export class TransferCmdHandler implements IRunHandler {
             consumerConfig: {
               'metadata.broker.list': appConfig.kafka.host,
               'group.id': 'transferCmdGroup',
-              'enable.auto.commit': appConfig.kafka.autocommit
+              'enable.auto.commit': appConfig.kafka.autocommit,
+              'client.id': clientId,
+              'socket.keepalive.enable': true
             },
             topicConfig: {},
             rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode

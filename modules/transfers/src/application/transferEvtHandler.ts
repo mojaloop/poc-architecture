@@ -76,6 +76,7 @@ export class TransferEvtHandler implements IRunHandler {
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
     logger.info(`Creating ${appConfig.kafka.producer} transferEvtHandler.kafkaMsgPublisher...`)
+    let clientId = `transferEvtHandler-${appConfig.kafka.producer}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
@@ -83,7 +84,7 @@ export class TransferEvtHandler implements IRunHandler {
           client: {
             kafka: {
               kafkaHost: appConfig.kafka.host,
-              clientId: `transferEvtHandler-${Crypto.randomBytes(8)}`
+              clientId
             },
             compression: appConfig.kafka.gzipCompression === true ? KafkaNodeCompressionTypes.GZIP : KafkaNodeCompressionTypes.None
           }
@@ -99,7 +100,7 @@ export class TransferEvtHandler implements IRunHandler {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: [appConfig.kafka.host],
-              clientId: `transferEvtHandler-${Crypto.randomBytes(8)}`
+              clientId
             },
             producer: { // https://kafka.js.org/docs/producing#options
               allowAutoTopicCreation: true,
@@ -119,7 +120,9 @@ export class TransferEvtHandler implements IRunHandler {
           client: {
             producerConfig: {
               'metadata.broker.list': appConfig.kafka.host,
-              'dr_cb': true
+              'dr_cb': true,
+              'client.id': clientId,
+              'socket.keepalive.enable': true
             },
             topicConfig: {
             }
@@ -218,12 +221,13 @@ export class TransferEvtHandler implements IRunHandler {
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
     logger.info(`TransferEvtConsumer - Creating ${appConfig.kafka.consumer} transferEvtConsumer...`)
+    clientId = `transferEvtConsumer-${appConfig.kafka.consumer}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.consumer) {
       case (KafkaInfraTypes.NODE_KAFKA): {
         const transferEvtConsumerOptions: KafkaGenericConsumerOptions = {
           client: {
             kafkaHost: appConfig.kafka.host,
-            id: `transferEvtConsumer-${Crypto.randomBytes(8)}`,
+            id: clientId,
             groupId: 'transferEvtGroup',
             fromOffset: EnumOffset.LATEST,
             autoCommit: appConfig.kafka.autocommit
@@ -237,7 +241,7 @@ export class TransferEvtHandler implements IRunHandler {
         const transferEvtConsumerOptions: KafkaGenericConsumerOptions = {
           client: {
             kafkaHost: appConfig.kafka.host,
-            id: `transferEvtConsumer-${Crypto.randomBytes(8)}`,
+            id: clientId,
             groupId: 'transferEvtGroup',
             fromOffset: EnumOffset.LATEST,
             autoCommit: appConfig.kafka.autocommit
@@ -252,7 +256,7 @@ export class TransferEvtHandler implements IRunHandler {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: [appConfig.kafka.host],
-              clientId: `transferEvtConsumer-${Crypto.randomBytes(8)}`
+              clientId
             },
             consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
               groupId: 'transferEvtGroup'
@@ -274,7 +278,9 @@ export class TransferEvtHandler implements IRunHandler {
             consumerConfig: {
               'metadata.broker.list': appConfig.kafka.host,
               'group.id': 'transferEvtGroup',
-              'enable.auto.commit': appConfig.kafka.autocommit
+              'enable.auto.commit': appConfig.kafka.autocommit,
+              'client.id': clientId,
+              'socket.keepalive.enable': true
             },
             topicConfig: {},
             rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode
