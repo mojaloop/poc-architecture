@@ -225,7 +225,7 @@ export class KafkaGenericProducer extends MessageProducer {
         }
 
         // check for known topic and add null if not there
-        if (!this._knownTopics.has(topic)) { this._knownTopics.set(topic, false) }
+        // if (!this._knownTopics.has(topic)) { this._knownTopics.set(topic, false) }
 
         const km = new kafka.KeyedMessage(key, msg)
         payloads.push({ topic: topic, messages: km, key: key, attributes: this._options.client.compression })

@@ -6,7 +6,9 @@ import {
   KafkajsMessagePublisher,
   KafkaJsProducerOptions,
   KafkaJsCompressionTypes,
-  KafkaNodeCompressionTypes
+  KafkaNodeCompressionTypes,
+  RDKafkaProducerOptions,
+  RDKafkaMessagePublisher
 } from '@mojaloop-poc/lib-infrastructure'
 import { MojaLogger, Crypto } from '@mojaloop-poc/lib-utilities'
 
@@ -82,6 +84,23 @@ export const init = async (): Promise<void> => {
         )
         break
       }
+      case (KafkaInfraTypes.NODE_RDKAFKA): {
+        const rdKafkaProducerOptions: RDKafkaProducerOptions = {
+          client: {
+            producerConfig: {
+              'metadata.broker.list': appConfig.kafka.host,
+              dr_cb: true
+            },
+            topicConfig: {
+            }
+          }
+        }
+        kafkaMsgPublisher = new RDKafkaMessagePublisher(
+          rdKafkaProducerOptions,
+          logger
+        )
+        break
+      }
       default: {
         logger.warn('Unable to find a Kafka Producer implementation!')
         throw new Error('participantCmdHandler.kafkaMsgPublisher was not created!')
@@ -96,7 +115,7 @@ export const init = async (): Promise<void> => {
 
 export const publishMessage = async (message: IMessage): Promise<void> => {
   await init()
-  logger.debug(`publishMessage - message: ${JSON.stringify(message)}`)
+  // logger.debug(`publishMessage - message: ${JSON.stringify(message)}`)
   await kafkaMsgPublisher!.publish(message)
   await kafkaMsgPublisher!.destroy()
 }
@@ -107,14 +126,14 @@ export const publishMessageMultipleInit = async (): Promise<void> => {
 }
 
 export const publishMessageMultipleDestroy = async (): Promise<void> => {
-  await init()
+  // await init()
   logger.debug('publishMessageMultipleDestroy')
   await kafkaMsgPublisher!.destroy()
 }
 
 export const publishMessageMultiple = async (messages: IMessage[]): Promise<void> => {
-  await init()
-  logger.debug(`publishMessageMultiple - messages: ${JSON.stringify(messages)}`)
+  // await init()
+  // logger.debug(`publishMessageMultiple - messages: ${JSON.stringify(messages)}`)
   const promises = messages.map(async msg => await kafkaMsgPublisher!.publish(msg))
   await Promise.all(promises)
 }

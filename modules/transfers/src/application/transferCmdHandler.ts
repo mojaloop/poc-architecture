@@ -54,7 +54,9 @@ import {
   KafkaGenericProducerOptions,
   KafkaJsCompressionTypes,
   KafkaStreamConsumer,
-  KafkaNodeCompressionTypes
+  KafkaNodeCompressionTypes,
+  RDKafkaProducerOptions,
+  RDKafkaMessagePublisher
 } from '@mojaloop-poc/lib-infrastructure'
 // import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
 // import { TransferState } from '../domain/transfer_entity'
@@ -117,6 +119,23 @@ export class TransferCmdHandler implements IRunHandler {
         }
         kafkaMsgPublisher = new KafkajsMessagePublisher(
           kafkaJsProducerOptions,
+          logger
+        )
+        break
+      }
+      case (KafkaInfraTypes.NODE_RDKAFKA): {
+        const rdKafkaProducerOptions: RDKafkaProducerOptions = {
+          client: {
+            producerConfig: {
+              'metadata.broker.list': appConfig.kafka.host,
+              'dr_cb': true
+            },
+            topicConfig: {
+            }
+          }
+        }
+        kafkaMsgPublisher = new RDKafkaMessagePublisher(
+          rdKafkaProducerOptions,
           logger
         )
         break
@@ -238,6 +257,11 @@ export class TransferCmdHandler implements IRunHandler {
         transferCmdConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
         break
       }
+      /*case (KafkaInfraTypes.NODE_RDKAFKA): {
+        // TODO_NODE_RDKAFKA
+        break
+      }
+      */
       default: {
         logger.warn('TransferCmdHandler - Unable to find a Kafka consumer implementation!')
         throw new Error('transferCmdConsumer was not created!')

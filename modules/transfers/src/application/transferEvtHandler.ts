@@ -54,7 +54,9 @@ import {
   KafkaGenericProducerOptions,
   KafkaJsCompressionTypes,
   KafkaStreamConsumer,
-  KafkaNodeCompressionTypes
+  KafkaNodeCompressionTypes,
+  RDKafkaProducerOptions,
+  RDKafkaMessagePublisher
 } from '@mojaloop-poc/lib-infrastructure'
 import { AckPayerFundsReservedCmdPayload, AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { AckPayeeFundsCommittedCmdPayload, AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
@@ -106,6 +108,23 @@ export class TransferEvtHandler implements IRunHandler {
         }
         kafkaMsgPublisher = new KafkajsMessagePublisher(
           kafkaJsProducerOptions,
+          logger
+        )
+        break
+      }
+      case (KafkaInfraTypes.NODE_RDKAFKA): {
+        const rdKafkaProducerOptions: RDKafkaProducerOptions = {
+          client: {
+            producerConfig: {
+              'metadata.broker.list': appConfig.kafka.host,
+              'dr_cb': true
+            },
+            topicConfig: {
+            }
+          }
+        }
+        kafkaMsgPublisher = new RDKafkaMessagePublisher(
+          rdKafkaProducerOptions,
           logger
         )
         break
@@ -247,6 +266,11 @@ export class TransferEvtHandler implements IRunHandler {
         transferEvtConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
         break
       }
+      /*case (KafkaInfraTypes.NODE_RDKAFKA): {
+        // TODO_NODE_RDKAFKA
+        break
+      }
+      */
       default: {
         logger.warn('TransferEvtConsumer - Unable to find a Kafka consumer implementation!')
         throw new Error('transferEvtConsumer was not created!')

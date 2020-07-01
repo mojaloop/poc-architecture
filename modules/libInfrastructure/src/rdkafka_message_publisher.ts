@@ -37,25 +37,37 @@
 
 'use strict'
 
-export enum KafkaInfraTypes {
-  NODE_KAFKA = 'node-kafka',
-  NODE_KAFKA_STREAM = 'node-kafka-stream',
-  KAFKAJS = 'kafkajs',
-  NODE_RDKAFKA = 'node-rdkafka'
-}
+// import * as kafka from 'kafka-node'
+import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
+import { ILogger, IMessage, IMessagePublisher } from '@mojaloop-poc/lib-domain'
+import { RDKafkaProducer, RDKafkaProducerOptions } from './rdkafka_producer'
 
-// Exports for Infrastructure
-export * from './kafka_generic_consumer'
-export * from './kafka_stream_consumer'
-export * from './kafkajs_consumer'
-export * from './kafka_generic_producer'
-export * from './kafka_message_publisher'
-export * from './kafkajs_consumer'
-export * from './kafkajs_producer'
-export * from './kafkajs_message_publisher'
-// export * from './rdkafka_consumer'
-export * from './rdkafka_producer'
-export * from './rdkafka_message_publisher'
-export * from './imessage_consumer'
-export * from './irun_handler'
-export * from './api_server'
+export class RDKafkaMessagePublisher implements IMessagePublisher {
+  private readonly _producer: RDKafkaProducer
+  protected _logger: ILogger
+
+  constructor (options: RDKafkaProducerOptions, logger?: ILogger) {
+    this._logger = logger ?? new ConsoleLogger()
+    this._producer = new RDKafkaProducer(options, this._logger)
+  }
+
+  get envName (): string {
+    return this._producer.envName
+  }
+
+  async init (): Promise<void> {
+    return await this._producer.init()
+  }
+
+  async destroy (): Promise<void> {
+    return await this._producer.destroy()
+  }
+
+  async publish (message: IMessage): Promise<void> {
+    return await this._producer.send(message)
+  }
+
+  async publishMany (messages: IMessage[]): Promise<void> {
+    return await this._producer.send(messages)
+  }
+}

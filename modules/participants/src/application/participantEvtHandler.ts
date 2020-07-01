@@ -56,7 +56,9 @@ import {
   KafkaJsCompressionTypes,
   KafkaStreamConsumerOptions,
   KafkaStreamConsumer,
-  KafkaNodeCompressionTypes
+  KafkaNodeCompressionTypes,
+  RDKafkaProducerOptions,
+  RDKafkaMessagePublisher
 } from '@mojaloop-poc/lib-infrastructure'
 import { ReservePayerFundsCmd, ReservePayerFundsCmdPayload } from '../messages/reserve_payer_funds_cmd'
 import { CommitPayeeFundsCmd, CommitPayeeFundsCmdPayload } from '../messages/commit_payee_funds_cmd'
@@ -106,6 +108,23 @@ export class ParticipantEvtHandler implements IRunHandler {
         }
         kafkaMsgPublisher = new KafkajsMessagePublisher(
           kafkaJsProducerOptions,
+          logger
+        )
+        break
+      }
+      case (KafkaInfraTypes.NODE_RDKAFKA): {
+        const rdKafkaProducerOptions: RDKafkaProducerOptions = {
+          client: {
+            producerConfig: {
+              'metadata.broker.list': appConfig.kafka.host,
+              'dr_cb': true
+            },
+            topicConfig: {
+            }
+          }
+        }
+        kafkaMsgPublisher = new RDKafkaMessagePublisher(
+          rdKafkaProducerOptions,
           logger
         )
         break
@@ -230,6 +249,11 @@ export class ParticipantEvtHandler implements IRunHandler {
         participantEvtConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
         break
       }
+      /* case (KafkaInfraTypes.NODE_RDKAFKA): {
+        // TODO_NODE_RDKAFKA
+        break
+      }
+      */
       default: {
         logger.warn('ParticipantEvtHandler - Unable to find a Kafka consumer implementation!')
         throw new Error('participantEvtConsumer was not created!')

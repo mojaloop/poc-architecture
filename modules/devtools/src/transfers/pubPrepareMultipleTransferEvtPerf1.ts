@@ -29,6 +29,7 @@ const getRandomFsps = (): string[] => {
 }
 
 const send = async (): Promise<void> => {
+  const startTime = Date.now()
   const evts: TransferPrepareRequestedEvt[] = []
   const expireDate = new Date()
   expireDate.setMinutes(expireDate.getMinutes() + 5)
@@ -84,7 +85,14 @@ const send = async (): Promise<void> => {
     }
     ))
   }
+
+  const constructMsgsMs = Date.now() - startTime
   await Publisher.publishMessageMultiple(evts)
+  const publishMsgsMs = Date.now() - startTime
+
+  // eslint-disable-next-line no-console
+  console.info(`Sending batches of ${INJECTED_PER_SECOND} messages - ${constructMsgsMs} ms to construct - ${publishMsgsMs} ms to publish`)
+
   await timeout(1000)
 }
 
