@@ -45,5 +45,15 @@ dependencies:
 - name: redis
   version: 10.7.4
   repository: https://charts.bitnami.com/bitnami
+  alias: redis-transfers
+  condition: redis-transfers.enabled
+- name: redis
+  version: 10.7.4
+  repository: https://charts.bitnami.com/bitnami
+  alias: redis-participants
+  condition: redis-participants.enabled
+- name: redis
+  version: 10.7.4
+  repository: https://charts.bitnami.com/bitnami
   alias: redis
   condition: redis.enabled
