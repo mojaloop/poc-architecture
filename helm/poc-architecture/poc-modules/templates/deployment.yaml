@@ -119,6 +119,8 @@ spec:
               value: {{ .Values.config.kafka_autocommit_interval | quote }}
             - name: KAFKA_AUTO_COMMIT_THRESHOLD
               value: {{ .Values.config.kafka_autocommit_threshold | quote }}
+            - name: RDKAFKA_COMMIT_WAIT_MODE
+              value: {{ .Values.config.rdkafka_commit_wait_mode | quote }}
             - name: UV_THREADPOOL_SIZE
               value: {{ .Values.config.uv_threadpool_size | quote }}
 
