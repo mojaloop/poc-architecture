@@ -3,6 +3,7 @@ import { CurrencyTypes, TransferPrepareRequestedEvt, TransferPrepareRequestedEvt
 import { v4 as uuidv4 } from 'uuid'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { MojaLogger } from '@mojaloop-poc/lib-utilities'
+import { FspIds } from '../utilities/participant'
 /* eslint-disable-next-line @typescript-eslint/no-var-requires */
 const encodePayload = require('@mojaloop/central-services-shared').Util.StreamingProtocol.encodePayload
 // /* eslint-disable-next-line @typescript-eslint/no-var-requires */
@@ -16,8 +17,8 @@ const start = async () => {
 
   const preparePayload = {
     transferId: uuidv4(),
-    payerFsp: 'fsp-1',
-    payeeFsp: 'fsp-2',
+    payerFsp: FspIds[0],
+    payeeFsp: FspIds[1],
     amount: {
       amount: '1.11',
       currency: CurrencyTypes.USD

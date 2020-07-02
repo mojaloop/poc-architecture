@@ -3,6 +3,7 @@ import { TransferFulfilRequestedEvt, TransferFulfilRequestedEvtPayload } from '@
 import { v4 as uuidv4 } from 'uuid'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { MojaLogger } from '@mojaloop-poc/lib-utilities'
+import { FspIds } from '../utilities/participant'
 /* eslint-disable-next-line @typescript-eslint/no-var-requires */
 const encodePayload = require('@mojaloop/central-services-shared').Util.StreamingProtocol.encodePayload
 // /* eslint-disable-next-line @typescript-eslint/no-var-requires */
@@ -20,8 +21,8 @@ const start = async () => {
     fulfilment: 'XoSz1cL0tljJSCp_VtIYmPNw-zFUgGfbUqf69AagUzY'
   }
 
-  const payerFsp = 'fsp-1'
-  const payeeFsp = 'fsp-2'
+  const payerFsp = FspIds[0]
+  const payeeFsp = FspIds[1]
   const transferId = uuidv4()
   const contentType = 'application/vnd.interoperability.transfers+json;version=1'
   const encodedFulfilPayload = encodePayload(Buffer.from(JSON.stringify(fulfilPayload)), contentType)

@@ -9,8 +9,7 @@ import {
   KafkaNodeCompressionTypes,
   RDKafkaProducerOptions,
   RDKafkaMessagePublisher,
-  RDKafkaCompressionTypes,
-  RDKafkaPartioner
+  RDKafkaCompressionTypes
 } from '@mojaloop-poc/lib-infrastructure'
 import { MojaLogger, Crypto } from '@mojaloop-poc/lib-utilities'
 
@@ -98,7 +97,7 @@ export const init = async (): Promise<void> => {
               'compression.codec': appConfig.kafka.gzipCompression === true ? RDKafkaCompressionTypes.GZIP : RDKafkaCompressionTypes.NONE
             },
             topicConfig: {
-              partitioner: RDKafkaPartioner.MURMUR2_RANDOM
+              // partitioner: RDKafkaPartioner.MURMUR2_RANDOM // default java algorithm, seems to have worse random distribution for hashing than rdkafka's default
             }
           }
         }

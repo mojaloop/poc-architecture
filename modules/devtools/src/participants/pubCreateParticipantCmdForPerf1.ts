@@ -6,6 +6,7 @@ import { CreateParticipantCmdPayload, CreateParticipantCmd } from '@mojaloop-poc
 import { ParticipantAccountTypes, AccountLimitTypes, CurrencyTypes } from '@mojaloop-poc/lib-public-messages'
 import { ILogger, IMessage } from '@mojaloop-poc/lib-domain'
 import { MojaLogger } from '@mojaloop-poc/lib-utilities'
+import { SimFspIds } from '../utilities/participant'
 
 const logger: ILogger = new MojaLogger()
 
@@ -18,8 +19,8 @@ const start = async () => {
   const simulatorHost: string = Publisher.appConfig.simulator.host?.toString() ?? 'localhost:8444'
 
   const participantCmdList: IMessage[] = []
-  for (let i = 1; i <= 8; i++) {
-    const participantId = `simfsp0${i}`
+  for (const fsp of SimFspIds) {
+    const participantId = fsp
     logger.info(`Creating ParticipantCmdPayload for ${participantId}`)
     const createParticipantCmdPayloadFSP: CreateParticipantCmdPayload = {
       participant: {

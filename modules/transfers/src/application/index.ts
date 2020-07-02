@@ -75,6 +75,10 @@ Program.command('handler')
 
     // # setup application config
     const appConfig = {
+      api: {
+        host: (process.env.TRANSFERS_API_HOST != null) ? process.env.TRANSFERS_API_HOST : '0.0.0.0',
+        port: (process.env.TRANSFERS_API_PORT != null && !isNaN(Number(process.env.TRANSFERS_API_PORT)) && process.env.TRANSFERS_API_PORT?.trim()?.length > 0) ? Number.parseInt(process.env.TRANSFERS_API_PORT) : 3002
+      },
       kafka: {
         host: (process.env.KAFKA_HOST != null) ? process.env.KAFKA_HOST : 'localhost:9092',
         consumer: (process.env.KAFKA_CONSUMER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_CONSUMER,
@@ -136,8 +140,8 @@ Program.command('handler')
     let apiServer: ApiServer | undefined
     if (args.disableApi == null) {
       const apiServerOptions: TApiServerOptions = {
-        host: '0.0.0.0',
-        port: 3002,
+        host: appConfig.api.host,
+        port: appConfig.api.port,
         metricCallback: async () => {
           return metrics.getMetricsForPrometheus()
         },

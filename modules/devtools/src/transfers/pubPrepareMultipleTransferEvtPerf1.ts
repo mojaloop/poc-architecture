@@ -6,6 +6,7 @@ import {
 import { v4 as uuidv4 } from 'uuid'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { MojaLogger } from '@mojaloop-poc/lib-utilities'
+import { getRandomFsps } from '../utilities/participant'
 
 /* eslint-disable @typescript-eslint/no-var-requires */
 const encodePayload = require('@mojaloop/central-services-shared').Util.StreamingProtocol.encodePayload
@@ -19,15 +20,6 @@ const timeout = async (ms: number): Promise<void> => {
   return await new Promise(resolve => setTimeout(resolve, ms))
 }
 
-const getRandomFsps = (): string[] => {
-  const fspIds = ['simfsp01', 'simfsp02', 'simfsp03', 'simfsp04', 'simfsp05', 'simfsp06', 'simfsp07', 'simfsp08']
-  const random = Math.floor(Math.random() * Math.floor(fspIds.length))
-
-  const payer: string = fspIds[random]
-  const payee: string = random + 1 >= fspIds.length ? fspIds[0] : fspIds[random + 1]
-  return [payer, payee]
-}
-
 const send = async (): Promise<void> => {
   const startTime = Date.now()
   const evts: TransferPrepareRequestedEvt[] = []
@@ -36,7 +28,7 @@ const send = async (): Promise<void> => {
 
   for (let i = 0; i < INJECTED_PER_SECOND; i++) {
     const fspIds = getRandomFsps()
-
+    // logger.debug(`Send batch[${i}] - FSPs=${JSON.stringify(fspIds)}`)
     const preparePayload = {
       transferId: uuidv4(),
       payerFsp: fspIds[0],

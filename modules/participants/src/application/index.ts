@@ -76,6 +76,10 @@ Program.command('handler')
 
     // # setup application config
     const appConfig = {
+      api: {
+        host: (process.env.PARTICIPANTS_API_HOST != null) ? process.env.PARTICIPANTS_API_HOST : '0.0.0.0',
+        port: (process.env.PARTICIPANTS_API_PORT != null && !isNaN(Number(process.env.PARTICIPANTS_API_PORT)) && process.env.PARTICIPANTS_API_PORT?.trim()?.length > 0) ? Number.parseInt(process.env.PARTICIPANTS_API_PORT) : 3003
+      },
       repo: {
         type: (process.env.PARTICIPANTS_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.PARTICIPANTS_REPO_TYPE
       },
@@ -144,8 +148,8 @@ Program.command('handler')
     let apiServer: ApiServer | undefined
     if (args.disableApi == null) {
       const apiServerOptions: TApiServerOptions = {
-        host: '0.0.0.0',
-        port: 3003,
+        host: appConfig.api.host,
+        port: appConfig.api.port,
         metricCallback: async () => {
           return metrics.getMetricsForPrometheus()
         },

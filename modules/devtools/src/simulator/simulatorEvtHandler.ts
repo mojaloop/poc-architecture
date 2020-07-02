@@ -55,7 +55,6 @@ import {
   KafkaGenericProducerOptions,
   KafkaStreamConsumer,
   KafkaNodeCompressionTypes,
-  RDKafkaPartioner,
   RDKafkaCompressionTypes,
   RDKafkaProducerOptions,
   RDKafkaMessagePublisher,
@@ -126,7 +125,7 @@ export class SimulatorEvtHandler implements IRunHandler {
               'compression.codec': appConfig.kafka.gzipCompression === true ? RDKafkaCompressionTypes.GZIP : RDKafkaCompressionTypes.NONE
             },
             topicConfig: {
-              partitioner: RDKafkaPartioner.MURMUR2_RANDOM
+              // partitioner: RDKafkaPartioner.MURMUR2_RANDOM // default java algorithm, seems to have worse random distribution for hashing than rdkafka's default
             }
           }
         }

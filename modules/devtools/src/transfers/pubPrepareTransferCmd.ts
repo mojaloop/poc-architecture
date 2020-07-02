@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { PrepareTransferCmdPayload, PrepareTransferCmd } from '../../node_modules/@mojaloop-poc/transfers/dist/messages/prepare_transfer_cmd'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { MojaLogger } from '@mojaloop-poc/lib-utilities'
+import { FspIds } from '../utilities/participant'
 
 const logger: ILogger = new MojaLogger()
 
@@ -17,8 +18,8 @@ const start = async () => {
 
   const prepareTransferCmdPayload: PrepareTransferCmdPayload = {
     transferId: uuidv4(),
-    payerId: 'fsp-1',
-    payeeId: 'fsp-2',
+    payerId: FspIds[0],
+    payeeId: FspIds[1],
     currency: CurrencyTypes.USD,
     amount: '1',
     expiration: '2020-06-08T10:25:26.575Z',

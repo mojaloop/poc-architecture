@@ -6,6 +6,7 @@ import {
 import { v4 as uuidv4 } from 'uuid'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { MojaLogger } from '@mojaloop-poc/lib-utilities'
+import { getRandomFsps } from '../utilities/participant'
 
 /* eslint-disable @typescript-eslint/no-var-requires */
 const encodePayload = require('@mojaloop/central-services-shared').Util.StreamingProtocol.encodePayload
@@ -17,15 +18,6 @@ const contentType = 'application/vnd.interoperability.transfers+json;version=1'
 
 const timeout = async (ms: number): Promise<void> => {
   return await new Promise(resolve => setTimeout(resolve, ms))
-}
-
-const getRandomFsps = (): string[] => {
-  const fspIds = ['fsp-1', 'fsp-2', 'fsp-3', 'fsp-4']
-  const random = Math.floor(Math.random() * Math.floor(fspIds.length))
-
-  const payer: string = fspIds[random]
-  const payee: string = random + 1 >= fspIds.length ? fspIds[0] : fspIds[random + 1]
-  return [payer, payee]
 }
 
 const send = async (): Promise<void> => {
