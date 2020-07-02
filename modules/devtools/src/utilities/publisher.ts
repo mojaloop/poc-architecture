@@ -8,7 +8,9 @@ import {
   KafkaJsCompressionTypes,
   KafkaNodeCompressionTypes,
   RDKafkaProducerOptions,
-  RDKafkaMessagePublisher
+  RDKafkaMessagePublisher,
+  RDKafkaCompressionTypes,
+  RDKafkaPartioner
 } from '@mojaloop-poc/lib-infrastructure'
 import { MojaLogger, Crypto } from '@mojaloop-poc/lib-utilities'
 
@@ -30,7 +32,7 @@ export const init = async (): Promise<void> => {
 
     appConfig = {
       kafka: {
-        host: process.env.KAFKA_HOST ?? 'localhost:9092',
+        host: (process.env.KAFKA_HOST != null) ? process.env.KAFKA_HOST : 'localhost:9092',
         producer: (process.env.KAFKA_PRODUCER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_PRODUCER,
         autocommit: (process.env.KAFKA_AUTO_COMMIT === 'true'),
         autoCommitInterval: (process.env.KAFKA_AUTO_COMMIT_INTERVAL != null && !isNaN(Number(process.env.KAFKA_AUTO_COMMIT_INTERVAL)) && process.env.KAFKA_AUTO_COMMIT_INTERVAL?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_AUTO_COMMIT_INTERVAL) : null,
@@ -46,7 +48,7 @@ export const init = async (): Promise<void> => {
     logger.info(`appConfig=${JSON.stringify(appConfig)}`)
 
     logger.info(`Creating ${JSON.stringify(appConfig.kafka.producer)} participantCmdHandler.kafkaMsgPublisher...`)
-    const clientId = `kafkaMsgPublisher-${appConfig.kafka.producer}-${Crypto.randomBytes(8)}`
+    const clientId = `kafkaMsgPublisher-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
@@ -91,9 +93,12 @@ export const init = async (): Promise<void> => {
             producerConfig: {
               'client.id': clientId,
               'metadata.broker.list': appConfig.kafka.host,
-              dr_cb: true
+              dr_cb: true,
+              'socket.keepalive.enable': true,
+              'compression.codec': appConfig.kafka.gzipCompression === true ? RDKafkaCompressionTypes.GZIP : RDKafkaCompressionTypes.NONE
             },
             topicConfig: {
+              partitioner: RDKafkaPartioner.MURMUR2_RANDOM
             }
           }
         }
@@ -119,7 +124,7 @@ export const publishMessage = async (message: IMessage): Promise<void> => {
   // await init()
   // logger.debug(`publishMessage - message: ${JSON.stringify(message)}`)
   await kafkaMsgPublisher!.publish(message)
-  //await kafkaMsgPublisher!.destroy()
+  // await kafkaMsgPublisher!.destroy()
 }
 
 export const publishMessageMultipleInit = async (): Promise<void> => {

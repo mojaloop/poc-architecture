@@ -48,6 +48,24 @@ type RDKafkaConfig = {
   topicConfig: RDKafka.ProducerTopicConfig
 }
 
+export enum RDKafkaPartioner {
+  RANDOM = 'random',
+  CONSISTENT = 'consistent',
+  RANDOM_CONSISTENT = 'consistent_random',
+  MURMUR2 = 'murmur2',
+  MURMUR2_RANDOM = 'murmur2_random',
+  FNV1A = 'fnv1a',
+  FNV1A_RANDOM = 'fnv1a_random'
+}
+
+export enum RDKafkaCompressionTypes {
+  NONE = 'none',
+  GZIP = 'gzip',
+  SNAPPY = 'snappy',
+  LZ4 = 'lz4',
+  ZSTD = 'zstd'
+}
+
 export type RDKafkaProducerOptions = Options<RDKafkaConfig>
 export class RDKafkaProducer extends MessageProducer {
   protected _logger: ILogger

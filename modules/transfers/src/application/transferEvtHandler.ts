@@ -40,25 +40,19 @@
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { MLTopics, ParticipantsTopics, PayerFundsReservedEvt, TransferPrepareRequestedEvt, TransferPrepareAcceptedEvt, TransferFulfilRequestedEvt, PayeeFundsCommittedEvt } from '@mojaloop-poc/lib-public-messages'
 import {
+  EnumOffset,
   IRunHandler,
   KafkaInfraTypes,
-  KafkaJsProducerOptions,
-  KafkajsMessagePublisher,
-  KafkaJsConsumer,
-  KafkaJsConsumerOptions,
-  MessageConsumer,
   KafkaMessagePublisher,
-  KafkaGenericConsumer,
-  EnumOffset,
-  KafkaGenericConsumerOptions,
-  KafkaGenericProducerOptions,
-  KafkaJsCompressionTypes,
+  MessageConsumer,
+  // node-kafka imports
+  KafkaGenericConsumer, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, KafkaNodeCompressionTypes,
+  // node-kafka-stream imports
   KafkaStreamConsumer,
-  KafkaNodeCompressionTypes,
-  RDKafkaProducerOptions,
-  RDKafkaMessagePublisher,
-  RDKafkaConsumerOptions,
-  RDKafkaConsumer
+  // kafkajs imports
+  KafkaJsCompressionTypes, KafkaJsConsumer, KafkaJsConsumerOptions, KafkajsMessagePublisher, KafkaJsProducerOptions,
+  // rdkafka imports
+  RDKafkaPartioner, RDKafkaCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher, RDKafkaConsumerOptions, RDKafkaConsumer
 } from '@mojaloop-poc/lib-infrastructure'
 import { AckPayerFundsReservedCmdPayload, AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { AckPayeeFundsCommittedCmdPayload, AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
@@ -76,7 +70,7 @@ export class TransferEvtHandler implements IRunHandler {
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
     logger.info(`Creating ${appConfig.kafka.producer} transferEvtHandler.kafkaMsgPublisher...`)
-    let clientId = `transferEvtHandler-${appConfig.kafka.producer}-${Crypto.randomBytes(8)}`
+    let clientId = `transferEvtHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
@@ -120,11 +114,13 @@ export class TransferEvtHandler implements IRunHandler {
           client: {
             producerConfig: {
               'metadata.broker.list': appConfig.kafka.host,
-              'dr_cb': true,
+              dr_cb: true,
               'client.id': clientId,
-              'socket.keepalive.enable': true
+              'socket.keepalive.enable': true,
+              'compression.codec': appConfig.kafka.gzipCompression === true ? RDKafkaCompressionTypes.GZIP : RDKafkaCompressionTypes.NONE
             },
             topicConfig: {
+              partitioner: RDKafkaPartioner.MURMUR2_RANDOM
             }
           }
         }
@@ -219,9 +215,8 @@ export class TransferEvtHandler implements IRunHandler {
 
     let transferEvtConsumer: MessageConsumer | undefined
 
-    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`TransferEvtConsumer - Creating ${appConfig.kafka.consumer} transferEvtConsumer...`)
-    clientId = `transferEvtConsumer-${appConfig.kafka.consumer}-${Crypto.randomBytes(8)}`
+    logger.info(`TransferEvtConsumer - Creating ${appConfig.kafka.consumer as string} transferEvtConsumer...`)
+    clientId = `transferEvtConsumer-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.consumer) {
       case (KafkaInfraTypes.NODE_KAFKA): {
         const transferEvtConsumerOptions: KafkaGenericConsumerOptions = {
@@ -279,6 +274,7 @@ export class TransferEvtHandler implements IRunHandler {
               'metadata.broker.list': appConfig.kafka.host,
               'group.id': 'transferEvtGroup',
               'enable.auto.commit': appConfig.kafka.autocommit,
+              'auto.commit.interval.ms': appConfig.kafka.autoCommitInterval,
               'client.id': clientId,
               'socket.keepalive.enable': true
             },

@@ -44,11 +44,6 @@ export enum KafkaInfraTypes {
   NODE_RDKAFKA = 'node-rdkafka'
 }
 
-export enum RdKafkaCommitMode {
-  RDKAFKA_COMMIT_NO_WAIT = 'no-wait',
-  RDKAFKA_COMMIT_MSG_SYNC = 'commit-msg-sync'
-}
-
 // Exports for Infrastructure
 export * from './kafka_generic_consumer'
 export * from './kafka_stream_consumer'

@@ -38,7 +38,11 @@ import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 import * as RDKafka from 'node-rdkafka'
 import { ILogger, IDomainMessage } from '@mojaloop-poc/lib-domain'
 import { MessageConsumer, Options } from './imessage_consumer'
-import { RdKafkaCommitMode } from '.'
+
+export enum RdKafkaCommitMode {
+  RDKAFKA_COMMIT_NO_WAIT = 'no-wait',
+  RDKAFKA_COMMIT_MSG_SYNC = 'commit-msg-sync'
+}
 
 type RDKafkaConfig = {
   consumerConfig: RDKafka.ConsumerGlobalConfig

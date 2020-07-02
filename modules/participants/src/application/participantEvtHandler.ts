@@ -41,26 +41,19 @@
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransferPrepareAcceptedEvt, TransferFulfilAcceptedEvt, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
 import {
+  EnumOffset,
   IRunHandler,
   KafkaInfraTypes,
-  KafkaJsProducerOptions,
-  KafkajsMessagePublisher,
-  KafkaJsConsumer,
-  KafkaJsConsumerOptions,
-  MessageConsumer,
   KafkaMessagePublisher,
-  KafkaGenericConsumer,
-  EnumOffset,
-  KafkaGenericConsumerOptions,
-  KafkaGenericProducerOptions,
-  KafkaJsCompressionTypes,
-  KafkaStreamConsumerOptions,
-  KafkaStreamConsumer,
-  KafkaNodeCompressionTypes,
-  RDKafkaProducerOptions,
-  RDKafkaMessagePublisher,
-  RDKafkaConsumerOptions,
-  RDKafkaConsumer
+  MessageConsumer,
+  // node-kafka imports
+  KafkaGenericConsumer, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, KafkaNodeCompressionTypes,
+  // node-kafka-stream imports
+  KafkaStreamConsumerOptions, KafkaStreamConsumer,
+  // kafkajs imports
+  KafkaJsCompressionTypes, KafkaJsConsumer, KafkaJsConsumerOptions, KafkajsMessagePublisher, KafkaJsProducerOptions,
+  // rdkafka imports
+  RDKafkaPartioner, RDKafkaCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher, RDKafkaConsumerOptions, RDKafkaConsumer
 } from '@mojaloop-poc/lib-infrastructure'
 import { ReservePayerFundsCmd, ReservePayerFundsCmdPayload } from '../messages/reserve_payer_funds_cmd'
 import { CommitPayeeFundsCmd, CommitPayeeFundsCmdPayload } from '../messages/commit_payee_funds_cmd'
@@ -74,9 +67,8 @@ export class ParticipantEvtHandler implements IRunHandler {
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
-    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`ParticipantEvtHandler - Creating ${appConfig.kafka.producer} participantEvtHandler.kafkaMsgPublisher...`)
-    let clientId = `participantEvtHandler-${appConfig.kafka.producer}-${Crypto.randomBytes(8)}`
+    logger.info(`ParticipantEvtHandler - Creating ${appConfig.kafka.producer as string} participantEvtHandler.kafkaMsgPublisher...`)
+    let clientId = `participantEvtHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
@@ -120,11 +112,13 @@ export class ParticipantEvtHandler implements IRunHandler {
           client: {
             producerConfig: {
               'metadata.broker.list': appConfig.kafka.host,
-              'dr_cb': true,
+              dr_cb: true,
               'client.id': clientId,
-              'socket.keepalive.enable': true
+              'socket.keepalive.enable': true,
+              'compression.codec': appConfig.kafka.gzipCompression === true ? RDKafkaCompressionTypes.GZIP : RDKafkaCompressionTypes.NONE
             },
             topicConfig: {
+              partitioner: RDKafkaPartioner.MURMUR2_RANDOM
             }
           }
         }
@@ -202,9 +196,8 @@ export class ParticipantEvtHandler implements IRunHandler {
 
     let participantEvtConsumer: MessageConsumer | undefined
 
-    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`ParticipantEvtHandler - Creating ${appConfig.kafka.consumer} participantEvtConsumer...`)
-    clientId = `participantEvtConsumer-${appConfig.kafka.consumer}-${Crypto.randomBytes(8)}`
+    logger.info(`ParticipantEvtHandler - Creating ${appConfig.kafka.consumer as string} participantEvtConsumer...`)
+    clientId = `participantEvtConsumer-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.consumer) {
       case (KafkaInfraTypes.NODE_KAFKA): {
         const participantEvtConsumerOptions: KafkaGenericConsumerOptions = {
@@ -262,6 +255,7 @@ export class ParticipantEvtHandler implements IRunHandler {
               'metadata.broker.list': appConfig.kafka.host,
               'group.id': 'participantEvtGroup',
               'enable.auto.commit': appConfig.kafka.autocommit,
+              'auto.commit.interval.ms': appConfig.kafka.autoCommitInterval,
               'client.id': clientId,
               'socket.keepalive.enable': true
             },

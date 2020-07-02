@@ -40,25 +40,19 @@
 // import {InMemorytransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import { CommandMsg, IDomainMessage, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
 import {
+  EnumOffset,
   IRunHandler,
   KafkaInfraTypes,
-  KafkaJsProducerOptions,
-  KafkajsMessagePublisher,
-  KafkaJsConsumer,
-  KafkaJsConsumerOptions,
-  MessageConsumer,
   KafkaMessagePublisher,
-  KafkaGenericConsumer,
-  EnumOffset,
-  KafkaGenericConsumerOptions,
-  KafkaGenericProducerOptions,
-  KafkaJsCompressionTypes,
+  MessageConsumer,
+  // node-kafka imports
+  KafkaGenericConsumer, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, KafkaNodeCompressionTypes,
+  // node-kafka-stream imports
   KafkaStreamConsumer,
-  KafkaNodeCompressionTypes,
-  RDKafkaProducerOptions,
-  RDKafkaMessagePublisher,
-  RDKafkaConsumerOptions,
-  RDKafkaConsumer
+  // kafkajs imports
+  KafkaJsCompressionTypes, KafkaJsConsumer, KafkaJsConsumerOptions, KafkajsMessagePublisher, KafkaJsProducerOptions,
+  // rdkafka imports
+  RDKafkaPartioner, RDKafkaCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher, RDKafkaConsumerOptions, RDKafkaConsumer
 } from '@mojaloop-poc/lib-infrastructure'
 // import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
 // import { TransferState } from '../domain/transfer_entity'
@@ -87,7 +81,7 @@ export class TransferCmdHandler implements IRunHandler {
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
     logger.info(`TransferCmdHandler - Creating ${appConfig.kafka.producer} transferCmdHandler.kafkaMsgPublisher...`)
-    let clientId = `transferCmdHandler-${appConfig.kafka.producer}-${Crypto.randomBytes(8)}`
+    let clientId = `transferCmdHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
@@ -131,11 +125,13 @@ export class TransferCmdHandler implements IRunHandler {
           client: {
             producerConfig: {
               'metadata.broker.list': appConfig.kafka.host,
-              'dr_cb': true,
+              dr_cb: true,
               'client.id': clientId,
-              'socket.keepalive.enable': true
+              'socket.keepalive.enable': true,
+              'compression.codec': appConfig.kafka.gzipCompression === true ? RDKafkaCompressionTypes.GZIP : RDKafkaCompressionTypes.NONE
             },
             topicConfig: {
+              partitioner: RDKafkaPartioner.MURMUR2_RANDOM
             }
           }
         }
@@ -210,9 +206,8 @@ export class TransferCmdHandler implements IRunHandler {
 
     let transferCmdConsumer: MessageConsumer | undefined
 
-    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`TransferCmdHandler - Creating ${appConfig.kafka.consumer} transferCmdConsumer...`)
-    clientId = `transferCmdConsumer-${appConfig.kafka.consumer}-${Crypto.randomBytes(8)}`
+    logger.info(`TransferCmdHandler - Creating ${appConfig.kafka.consumer as string} transferCmdConsumer...`)
+    clientId = `transferCmdConsumer-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.consumer) {
       case (KafkaInfraTypes.NODE_KAFKA): {
         const transferCmdConsumerOptions: KafkaGenericConsumerOptions = {
@@ -270,6 +265,7 @@ export class TransferCmdHandler implements IRunHandler {
               'metadata.broker.list': appConfig.kafka.host,
               'group.id': 'transferCmdGroup',
               'enable.auto.commit': appConfig.kafka.autocommit,
+              'auto.commit.interval.ms': appConfig.kafka.autoCommitInterval,
               'client.id': clientId,
               'socket.keepalive.enable': true
             },

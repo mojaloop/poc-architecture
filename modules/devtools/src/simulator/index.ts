@@ -73,7 +73,7 @@ Program.command('handler')
     // # setup application config
     const appConfig = {
       kafka: {
-        host: process.env.KAFKA_HOST,
+        host: (process.env.KAFKA_HOST != null) ? process.env.KAFKA_HOST : 'localhost:9092',
         consumer: (process.env.KAFKA_CONSUMER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_CONSUMER,
         producer: (process.env.KAFKA_PRODUCER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_PRODUCER,
         autocommit: (process.env.KAFKA_AUTO_COMMIT === 'true'),

@@ -5,8 +5,8 @@
 'use strict'
 
 import { IDomainMessage, ILogger } from '@mojaloop-poc/lib-domain'
-import { KafkaGenericConsumer, KafkaGenericConsumerOptions } from '@mojaloop-poc/lib-infrastructure'
-import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
+import { KafkaGenericConsumer, KafkaGenericConsumerOptions, KafkaInfraTypes, MessageConsumer, RDKafkaConsumer, RDKafkaConsumerOptions, KafkaStreamConsumer, EnumOffset, KafkaJsConsumerOptions, KafkaJsConsumer, RdKafkaCommitMode } from '@mojaloop-poc/lib-infrastructure'
+import { ConsoleLogger, Crypto } from '@mojaloop-poc/lib-utilities'
 // import { ConsoleLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
 
 import * as dotenv from 'dotenv'
@@ -50,23 +50,121 @@ let fulfiledCounter = 0
 // # setup application config
 const appConfig = {
   kafka: {
-    host: process.env.KAFKA_HOST
+    host: (process.env.KAFKA_HOST != null) ? process.env.KAFKA_HOST : 'localhost:9092',
+    consumer: (process.env.KAFKA_CONSUMER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_CONSUMER,
+    producer: (process.env.KAFKA_PRODUCER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_PRODUCER,
+    autocommit: (process.env.KAFKA_AUTO_COMMIT === 'true'),
+    autoCommitInterval: (process.env.KAFKA_AUTO_COMMIT_INTERVAL != null && !isNaN(Number(process.env.KAFKA_AUTO_COMMIT_INTERVAL)) && process.env.KAFKA_AUTO_COMMIT_INTERVAL?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_AUTO_COMMIT_INTERVAL) : null,
+    autoCommitThreshold: (process.env.KAFKA_AUTO_COMMIT_THRESHOLD != null && !isNaN(Number(process.env.KAFKA_AUTO_COMMIT_THRESHOLD)) && process.env.KAFKA_AUTO_COMMIT_THRESHOLD?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_AUTO_COMMIT_THRESHOLD) : null,
+    rdKafkaCommitWaitMode: (process.env.RDKAFKA_COMMIT_WAIT_MODE == null) ? RdKafkaCommitMode.RDKAFKA_COMMIT_MSG_SYNC : process.env.RDKAFKA_COMMIT_WAIT_MODE,
+    gzipCompression: (process.env.KAFKA_PRODUCER_GZIP === 'true')
+  },
+  redis: {
+    host: process.env.REDIS_HOST
+  },
+  simulator: {
+    host: process.env.SIMULATOR_HOST
   }
 }
 
-const kafkaConsumerOptions: KafkaGenericConsumerOptions = {
-  client: {
-    kafkaHost: appConfig.kafka.host,
-    groupId: 'perf_measure_consumer' + Date.now().toString(),
-    fromOffset: 'latest'
-  },
-  topics: [TransfersTopics.DomainEvents]
+const CreateConsumer = async (topic: string): Promise<MessageConsumer | undefined> => {
+  let consumer: MessageConsumer | undefined
+
+  /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+  logger.info(`perfMeasure - Creating ${appConfig.kafka.consumer} perfMeasure for topic: ${topic}...`)
+  const clientId = `perfMeasure-${appConfig.kafka.consumer}-${Crypto.randomBytes(8)}`
+  const groupId = 'perf_measure_consumer' + Date.now().toString()
+  switch (appConfig.kafka.consumer) {
+    case (KafkaInfraTypes.NODE_KAFKA): {
+      const simulatorEvtConsumerOptions: KafkaGenericConsumerOptions = {
+        client: {
+          kafkaHost: appConfig.kafka.host,
+          id: clientId,
+          groupId,
+          fromOffset: EnumOffset.LATEST,
+          autoCommit: appConfig.kafka.autocommit
+        },
+        topics: [topic]
+      }
+      consumer = new KafkaGenericConsumer(simulatorEvtConsumerOptions, logger)
+      break
+    }
+    case (KafkaInfraTypes.NODE_KAFKA_STREAM): {
+      const simulatorEvtConsumerOptions: KafkaGenericConsumerOptions = {
+        client: {
+          kafkaHost: appConfig.kafka.host,
+          id: clientId,
+          groupId,
+          fromOffset: EnumOffset.LATEST,
+          autoCommit: appConfig.kafka.autocommit
+        },
+        topics: [topic]
+      }
+      consumer = new KafkaStreamConsumer(simulatorEvtConsumerOptions, logger)
+      break
+    }
+    case (KafkaInfraTypes.KAFKAJS): {
+      const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
+        client: {
+          client: { // https://kafka.js.org/docs/configuration#options
+            brokers: [appConfig.kafka.host],
+            clientId
+          },
+          consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
+            groupId
+          },
+          consumerRunConfig: {
+            autoCommit: appConfig.kafka.autocommit,
+            autoCommitInterval: appConfig.kafka.autoCommitInterval,
+            autoCommitThreshold: appConfig.kafka.autoCommitThreshold
+          }
+        },
+        topics: [topic]
+      }
+      consumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
+      break
+    }
+    case (KafkaInfraTypes.NODE_RDKAFKA): {
+      const rdKafkaConsumerOptions: RDKafkaConsumerOptions = {
+        client: {
+          consumerConfig: {
+            'client.id': clientId,
+            'metadata.broker.list': appConfig.kafka.host,
+            'group.id': groupId,
+            'enable.auto.commit': appConfig.kafka.autocommit,
+            'auto.commit.interval.ms': (appConfig.kafka.autoCommitInterval != null) ? appConfig.kafka.autoCommitInterval : 200
+          },
+          topicConfig: {},
+          rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode as RdKafkaCommitMode
+        },
+        topics: [topic]
+      }
+      consumer = new RDKafkaConsumer(rdKafkaConsumerOptions, logger)
+      break
+    }
+    default: {
+      logger.warn(`perfMeasure - Unable to find a Kafka consumer implementation for topic: ${topic}!`)
+      throw new Error(`perfMeasure was not created for topic: ${topic}!`)
+    }
+  }
+
+  logger.info(`perfMeasure - Created kafkaConsumer of type ${consumer.constructor.name} for topic: ${topic}`)
+  return consumer
 }
 
-const kafkaConsumerOptionsMl: KafkaGenericConsumerOptions = {
-  client: kafkaConsumerOptions.client,
-  topics: [MLTopics.Events]
-}
+// const kafkaConsumerOptions: KafkaGenericConsumerOptions = {
+//   client: {
+//     kafkaHost: appConfig.kafka.host,
+//     groupId: 'perf_measure_consumer' + Date.now().toString(),
+//     fromOffset: 'latest'
+//   },
+//   topics: [TransfersTopics.DomainEvents]
+// }
+
+// const kafkaConsumerOptionsMl: KafkaGenericConsumerOptions = {
+//   client: kafkaConsumerOptions.client,
+//   topics: [MLTopics.Events]
+// }
 
 const buckets: Map<number, {counter: number, totalTimeMs: number}> = new Map<number, {counter: number, totalTimeMs: number}>()
 const evtMap: Map<string, number> = new Map<string, number>()
@@ -151,12 +249,19 @@ const start = async () => {
   logRPS()
 
   // await metrics.init()
-
-  const kafkaEvtConsumer = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(kafkaConsumerOptions, logger)
+  const kafkaEvtConsumer = await CreateConsumer(TransfersTopics.DomainEvents)
+  if (kafkaEvtConsumer === undefined) {
+    throw Error('perfMeasure - Unabled to create kafkaEvtConsumer consumer')
+  }
+  // const kafkaEvtConsumer = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(kafkaConsumerOptions, logger)
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
   await kafkaEvtConsumer.init(handlerForFulfilEvt)
 
-  const kafkaEvtConsumerMl = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(kafkaConsumerOptionsMl, logger)
+  const kafkaEvtConsumerMl = await CreateConsumer(MLTopics.Events)
+  if (kafkaEvtConsumerMl === undefined) {
+    throw Error('perfMeasure - Unabled to create kafkaEvtConsumerMl consumer')
+  }
+  // const kafkaEvtConsumerMl = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(kafkaConsumerOptionsMl, logger)
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
   await kafkaEvtConsumerMl.init(handlerForInitialReqEvt)
 }

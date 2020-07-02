@@ -42,17 +42,17 @@ import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
 import {
   EnumOffset,
   IRunHandler,
-  KafkaGenericConsumer,
-  KafkaGenericConsumerOptions,
-  KafkaGenericProducerOptions,
   KafkaInfraTypes,
-  KafkaJsConsumer,
-  KafkaJsConsumerOptions,
-  KafkajsMessagePublisher,
-  KafkaJsProducerOptions,
   KafkaMessagePublisher,
   MessageConsumer,
-  KafkaJsCompressionTypes, KafkaStreamConsumerOptions, KafkaStreamConsumer, KafkaNodeCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher, RDKafkaConsumerOptions, RDKafkaConsumer
+  // node-kafka imports
+  KafkaGenericConsumer, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, KafkaNodeCompressionTypes,
+  // node-kafka-stream imports
+  KafkaStreamConsumerOptions, KafkaStreamConsumer,
+  // kafkajs imports
+  KafkaJsCompressionTypes, KafkaJsConsumer, KafkaJsConsumerOptions, KafkajsMessagePublisher, KafkaJsProducerOptions,
+  // rdkafka imports
+  RDKafkaPartioner, RDKafkaCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher, RDKafkaConsumerOptions, RDKafkaConsumer
 } from '@mojaloop-poc/lib-infrastructure'
 import { ParticpantsAgg } from '../domain/participants_agg'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
@@ -96,9 +96,8 @@ export class ParticipantCmdHandler implements IRunHandler {
 
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
-    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`ParticipantCmdHandler - Creating ${appConfig.kafka.producer} participantCmdHandler.kafkaMsgPublisher...`)
-    let clientId = `participantCmdHandler-${appConfig.kafka.producer}-${Crypto.randomBytes(8)}`
+    logger.info(`ParticipantCmdHandler - Creating ${appConfig.kafka.producer as string} participantCmdHandler.kafkaMsgPublisher...`)
+    let clientId = `participantCmdHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
@@ -142,11 +141,13 @@ export class ParticipantCmdHandler implements IRunHandler {
           client: {
             producerConfig: {
               'metadata.broker.list': appConfig.kafka.host,
-              'dr_cb': true,
+              dr_cb: true,
               'client.id': clientId,
-              'socket.keepalive.enable': true
+              'socket.keepalive.enable': true,
+              'compression.codec': appConfig.kafka.gzipCompression === true ? RDKafkaCompressionTypes.GZIP : RDKafkaCompressionTypes.NONE
             },
             topicConfig: {
+              partitioner: RDKafkaPartioner.MURMUR2_RANDOM
             }
           }
         }
@@ -239,9 +240,8 @@ export class ParticipantCmdHandler implements IRunHandler {
     this._publisher = kafkaMsgPublisher
     let participantCmdConsumer: MessageConsumer | undefined
 
-    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`ParticipantCmdConsumer - Creating ${appConfig.kafka.consumer} participantCmdConsumer...`)
-    clientId = `participantCmdConsumer-${appConfig.kafka.consumer}-${Crypto.randomBytes(8)}`
+    logger.info(`ParticipantCmdConsumer - Creating ${appConfig.kafka.consumer as string} participantCmdConsumer...`)
+    clientId = `participantCmdConsumer-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.consumer) {
       case (KafkaInfraTypes.NODE_KAFKA): {
         const participantCmdConsumerOptions: KafkaGenericConsumerOptions = {
@@ -299,6 +299,7 @@ export class ParticipantCmdHandler implements IRunHandler {
               'metadata.broker.list': appConfig.kafka.host,
               'group.id': 'participantCmdGroup',
               'enable.auto.commit': appConfig.kafka.autocommit,
+              'auto.commit.interval.ms': appConfig.kafka.autoCommitInterval,
               'client.id': clientId,
               'socket.keepalive.enable': true
             },

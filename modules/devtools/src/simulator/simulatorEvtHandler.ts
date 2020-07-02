@@ -41,6 +41,7 @@ import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg 
 import { TransferPrepareRequestedEvt, TransferFulfilRequestedEvt, TransferPreparedEvt, TransferFulfilledEvt, TransferFulfilRequestedEvtPayload, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
 import {
   IRunHandler,
+  KafkaJsCompressionTypes,
   KafkaInfraTypes,
   KafkaJsProducerOptions,
   KafkajsMessagePublisher,
@@ -52,9 +53,10 @@ import {
   EnumOffset,
   KafkaGenericConsumerOptions,
   KafkaGenericProducerOptions,
-  KafkaJsCompressionTypes,
   KafkaStreamConsumer,
   KafkaNodeCompressionTypes,
+  RDKafkaPartioner,
+  RDKafkaCompressionTypes,
   RDKafkaProducerOptions,
   RDKafkaMessagePublisher,
   RDKafkaConsumerOptions,
@@ -73,9 +75,8 @@ export class SimulatorEvtHandler implements IRunHandler {
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
-    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`SimulatorEvtHandler - Creating ${appConfig.kafka.producer} simulatorEvtHandler.kafkaMsgPublisher...`)
-    let clientId = `simulatorEvtHandler-${appConfig.kafka.producer}-${Crypto.randomBytes(8)}`
+    logger.info(`SimulatorEvtHandler - Creating ${appConfig.kafka.producer as string} simulatorEvtHandler.kafkaMsgPublisher...`)
+    let clientId = `simulatorEvtHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
@@ -119,11 +120,13 @@ export class SimulatorEvtHandler implements IRunHandler {
           client: {
             producerConfig: {
               'metadata.broker.list': appConfig.kafka.host,
-              'dr_cb': true,
+              dr_cb: true,
               'client.id': clientId,
-              'socket.keepalive.enable': true
+              'socket.keepalive.enable': true,
+              'compression.codec': appConfig.kafka.gzipCompression === true ? RDKafkaCompressionTypes.GZIP : RDKafkaCompressionTypes.NONE
             },
             topicConfig: {
+              partitioner: RDKafkaPartioner.MURMUR2_RANDOM
             }
           }
         }
@@ -297,7 +300,8 @@ export class SimulatorEvtHandler implements IRunHandler {
               'metadata.broker.list': appConfig.kafka.host,
               'group.id': 'simulatorEvtGroup',
               'enable.auto.commit': appConfig.kafka.autocommit,
-              'auto.commit.interval.ms': appConfig.kafka.autoCommitInterval
+              'auto.commit.interval.ms': appConfig.kafka.autoCommitInterval,
+              'socket.keepalive.enable': true
             },
             topicConfig: {},
             rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode
