@@ -44,6 +44,17 @@ export enum KafkaInfraTypes {
   NODE_RDKAFKA = 'node-rdkafka'
 }
 
+export const getEnvIntegerOrDefault = (key: string, defaultValue: number): number => {
+  const envValue = process.env[key]
+  let rv = defaultValue
+
+  if ((envValue != null) && !isNaN(Number.parseInt(envValue))) {
+    rv = Number.parseInt(envValue)
+  }
+
+  return rv
+}
+
 // Exports for Infrastructure
 export * from './kafka_generic_consumer'
 export * from './kafka_stream_consumer'

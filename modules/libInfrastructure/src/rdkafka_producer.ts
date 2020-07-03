@@ -42,21 +42,11 @@ import { ILogger, IMessage } from '@mojaloop-poc/lib-domain'
 import { MessageProducer, Options } from './imessage_producer'
 import * as RDKafka from 'node-rdkafka'
 import { NumberNullUndefined } from 'node-rdkafka'
+import { getEnvIntegerOrDefault } from '.'
 
 type RDKafkaConfig = {
   producerConfig: RDKafka.ProducerGlobalConfig
   topicConfig: RDKafka.ProducerTopicConfig
-}
-
-const getEnvIntegerOrDefault = (key: string, defaultValue: number): number => {
-  const envValue = process.env[key]
-  let rv = defaultValue
-
-  if ((envValue != null) && !isNaN(Number.parseInt(envValue))) {
-    rv = Number.parseInt(envValue)
-  }
-
-  return rv
 }
 
 const RDKAFKA_BATCH_NUM_MESSAGES = getEnvIntegerOrDefault('RDKAFKA_BATCH_NUM_MESSAGES', 1)
