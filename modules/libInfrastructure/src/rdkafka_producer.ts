@@ -48,6 +48,9 @@ type RDKafkaConfig = {
   topicConfig: RDKafka.ProducerTopicConfig
 }
 
+// const RDKAFKA_BATCH_NUM_MESSAGES = getEnvIntegerOrDefault('RDKAFKA_BATCH_NUM_MESSAGES', 1)
+// const RDKAFKA_QUEUE_BUFFERING_MAX_US = getEnvIntegerOrDefault('RDKAFKA_QUEUE_BUFFERING_MAX_US', 0)
+
 export enum RDKafkaPartioner {
   RANDOM = 'random',
   CONSISTENT = 'consistent',
@@ -94,6 +97,8 @@ export class RDKafkaProducer extends MessageProducer {
 
       /* Global config: Mix incoming config with default config */
       const defaultGlobalConfig: RDKafka.ProducerGlobalConfig = {
+        // 'batch.num.messages': RDKAFKA_BATCH_NUM_MESSAGES,
+        // 'queue.buffering.max.ms': RDKAFKA_QUEUE_BUFFERING_MAX_US * 0.001
       }
       const globalConfig = {
         ...defaultGlobalConfig,
@@ -107,6 +112,9 @@ export class RDKafkaProducer extends MessageProducer {
         ...defaultTopicConfig,
         ...this._options.client.topicConfig
       }
+
+      this._logger.info(`RDKafkaProducer starting with following globalConfig: ${JSON.stringify(globalConfig)}`)
+      this._logger.info(`RDKafkaProducer starting with following topicConfig: ${JSON.stringify(topicConfig)}`)
 
       /* Start and connect the client */
       this._client = new RDKafka.HighLevelProducer(globalConfig, topicConfig)

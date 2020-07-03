@@ -22,9 +22,6 @@
  * Gates Foundation
  - Name Surname <name.surname@gatesfoundation.com>
 
- * Coil
- - Donovan Changfoot <donovan.changfoot@coil.com>
-
  * Crosslake
  - Pedro Sousa Barreto <pedrob@crosslaketech.com>
 
@@ -37,9 +34,13 @@
 
 'use strict'
 
-// Exports for Utilities
-export * from './logger_console'
-export * from './logger_moja'
-export * from './crypto'
-export * from './metrics'
-export * from './env_tools'
+export const getEnvIntegerOrDefault = (key: string, defaultValue: number): number => {
+  const envValue = process.env[key]
+  let rv = defaultValue
+
+  if ((envValue != null) && !isNaN(Number.parseInt(envValue))) {
+    rv = Number.parseInt(envValue)
+  }
+
+  return rv
+}
