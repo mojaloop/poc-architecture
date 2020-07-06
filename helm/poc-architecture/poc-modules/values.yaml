@@ -21,6 +21,9 @@ config:
   kafka_autocommit_threshold: 1000
   # Supported commit modes: no-wait, commit-msg-sync (blocking)
   rdkafka_commit_wait_mode: commit-msg-sync
+  rdkafka_batch_num_messages: null
+  rdkafka_queue_buffering_max_us: null
+  measure_kafka_group_id: ''
   simulator_host: '$release_name-legacy-simulator'
   uv_threadpool_size: 7
   redis_host: 'redis://$release_name-redis-master:6379'

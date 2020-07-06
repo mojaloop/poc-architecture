@@ -75,6 +75,9 @@ const appConfig = {
   },
   simulator: {
     host: process.env.SIMULATOR_HOST
+  },
+  measure: {
+    groupId: (process.env.MEASURE_KAFKA_GROUP_ID == null) ? null: process.env.MEASURE_KAFKA_GROUP_ID
   }
 }
 
@@ -84,7 +87,14 @@ const CreateConsumer = async (topic: string): Promise<MessageConsumer | undefine
   /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
   logger.info(`perfMeasure - Creating ${appConfig.kafka.consumer} perfMeasure for topic: ${topic}...`)
   const clientId = `perfMeasure-${appConfig.kafka.consumer}-${Crypto.randomBytes(8)}`
-  const groupId = 'perf_measure_consumer' + Date.now().toString()
+  // const groupId = 'perf_measure_consumer' + Date.now().toString()
+  // const groupId = 'perf_measure_consumer'
+  let groupId
+  if (appConfig.measure.groupId != null && appConfig.measure.groupId.length > 0) {
+    groupId = appConfig.measure.groupId
+  } else {
+    groupId = 'perf_measure_consumer' + Date.now().toString()
+  }
   switch (appConfig.kafka.consumer) {
     case (KafkaInfraTypes.NODE_KAFKA): {
       const simulatorEvtConsumerOptions: KafkaGenericConsumerOptions = {

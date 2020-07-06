@@ -121,6 +121,12 @@ spec:
               value: {{ .Values.config.kafka_autocommit_threshold | quote }}
             - name: RDKAFKA_COMMIT_WAIT_MODE
               value: {{ .Values.config.rdkafka_commit_wait_mode | quote }}
+            - name: RDKAFKA_BATCH_NUM_MESSAGES
+              value: {{ .Values.config.rdkafka_batch_num_messages | quote }}
+            - name: RDKAFKA_QUEUE_BUFFERING_MAX_US
+              value: {{ .Values.config.rdkafka_queue_buffering_max_us | quote }}
+            - name: MEASURE_KAFKA_GROUP_ID
+              value: {{ .Values.config.measure_kafka_group_id | quote }}
             - name: UV_THREADPOOL_SIZE
               value: {{ .Values.config.uv_threadpool_size | quote }}
 
