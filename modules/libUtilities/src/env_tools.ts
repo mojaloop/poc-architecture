@@ -44,3 +44,16 @@ export const getEnvIntegerOrDefault = (key: string, defaultValue: any): any => {
 
   return rv
 }
+
+export const getEnvValueOrDefault = (key: string, defaultValue: any): any => {
+  const envValue = process.env[key]
+  let rv
+
+  if (envValue != null) {
+    rv = envValue
+  } else {
+    rv = defaultValue
+  }
+
+  return rv
+}

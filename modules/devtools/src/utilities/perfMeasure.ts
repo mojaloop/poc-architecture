@@ -22,29 +22,6 @@ const INTERVAL_MS = Number.parseInt(STR_INTERVAL_MS)
 // TODO: Figure a better way to handle env config here
 dotenv.config({ path: '../../.env' })
 
-/*
-const metricsConfig: TMetricOptionsType = {
-  timeout: 5000, // Set the timeout in ms for the underlying prom-client library. Default is '5000'.
-  prefix: 'poc_tran_', // Set prefix for all defined metrics names
-  defaultLabels: { // Set default labels that will be applied to all metrics
-    serviceName: 'perfMeasure'
-  }
-}
-
-const metrics = new Metrics(metricsConfig)
-
-const perfMetricsHisto = metrics.getHistogram( // Create a new Histogram instrumentation
-  'perfMeasureHist', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
-  'Instrumentation for perfMeasure', // Description of metric
-  [] // Define a custom label 'success'
-)
-
-const perfMetricsPendingGauge = metrics.getGauge( // Create a new Histogram instrumentation
-  'perfMeasureGauge', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
-  'Instrumentation for perfMeasure', // Description of metric
-  [] // Define a custom label 'success'
-)
-*/
 let perfMetricsHisto: promclient.Histogram
 let perfMetricsPendingGauge: promclient.Gauge
 
