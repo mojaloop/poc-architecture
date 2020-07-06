@@ -5,12 +5,16 @@
 'use strict'
 
 import { IDomainMessage, ILogger } from '@mojaloop-poc/lib-domain'
-import { KafkaGenericConsumer, KafkaGenericConsumerOptions, KafkaInfraTypes, MessageConsumer, RDKafkaConsumer, RDKafkaConsumerOptions, KafkaStreamConsumer, EnumOffset, KafkaJsConsumerOptions, KafkaJsConsumer, RdKafkaCommitMode } from '@mojaloop-poc/lib-infrastructure'
-import { ConsoleLogger, Crypto } from '@mojaloop-poc/lib-utilities'
+import { KafkaGenericConsumer, KafkaGenericConsumerOptions, KafkaInfraTypes, MessageConsumer, RDKafkaConsumer, RDKafkaConsumerOptions, KafkaStreamConsumer, EnumOffset, KafkaJsConsumerOptions, KafkaJsConsumer, RdKafkaCommitMode, ApiServer, TApiServerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { ConsoleLogger, Crypto, getEnvIntegerOrDefault, TMetricOptionsType, Metrics } from '@mojaloop-poc/lib-utilities'
 // import { ConsoleLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
 
 import * as dotenv from 'dotenv'
+import * as promclient from 'prom-client'
 import { TransfersTopics, MLTopics } from '@mojaloop-poc/lib-public-messages'
+
+/* eslint-disable-next-line @typescript-eslint/no-var-requires */
+const pckg = require('../../package.json')
 
 const STR_INTERVAL_MS = process.env?.INTERVAL_MS ?? '1000'
 const INTERVAL_MS = Number.parseInt(STR_INTERVAL_MS)
@@ -41,14 +45,21 @@ const perfMetricsPendingGauge = metrics.getGauge( // Create a new Histogram inst
   [] // Define a custom label 'success'
 )
 */
+let perfMetricsHisto: promclient.Histogram
+let perfMetricsPendingGauge: promclient.Gauge
 
 const logger: ILogger = new ConsoleLogger()
+let metrics: Metrics
 let startTime = 0
 let requestedCounter = 0
 let fulfiledCounter = 0
 
 // # setup application config
 const appConfig = {
+  api: {
+    host: (process.env.PERF_MEASURE_API_HOST != null) ? process.env.PERF_MEASURE_API_HOST : '0.0.0.0',
+    port: getEnvIntegerOrDefault('PERF_MEASURE_API_PORT', 4001)
+  },
   kafka: {
     host: (process.env.KAFKA_HOST != null) ? process.env.KAFKA_HOST : 'localhost:9092',
     consumer: (process.env.KAFKA_CONSUMER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_CONSUMER,
@@ -211,8 +222,6 @@ function recordCompleted (timeMs: number, transferId: string): void {
   bucketData.counter++
   bucketData.totalTimeMs += timeMs
   buckets.set(currentSecond, bucketData)
-
-  // perfMetricsHisto.observe(timeMs)
 }
 
 const handlerForFulfilEvt = async (message: IDomainMessage): Promise<void> => {
@@ -220,13 +229,16 @@ const handlerForFulfilEvt = async (message: IDomainMessage): Promise<void> => {
     fulfiledCounter++
     const reqReceivedAt = evtMap.get(message.aggregateId)
     if (reqReceivedAt != null) {
+      const timeDelta = message.msgTimestamp - reqReceivedAt
       // console.log(`Prepare leg completed for transfer id: ${message.aggregateId} took: - ${message.msgTimestamp - reqReceivedAt} ms`)
-      recordCompleted(message.msgTimestamp - reqReceivedAt, message.aggregateId)
+      recordCompleted(timeDelta, message.aggregateId)
       evtMap.delete(message.aggregateId)
+
+      perfMetricsHisto.observe({}, timeDelta / 1000)
     }
 
     // decrease even if we don't have it here in mem
-    // perfMetricsPendingGauge.dec()
+    perfMetricsPendingGauge.dec()
   }
 }
 
@@ -239,7 +251,7 @@ const handlerForInitialReqEvt = async (message: IDomainMessage): Promise<void> =
       startTime = Date.now()
     } // delay until we actually receive the first req
 
-    // perfMetricsPendingGauge.inc()
+    perfMetricsPendingGauge.inc()
     // console.log(`Prepare leg started for transfer id: ${message.aggregateId} at: - ${new Date(message.msgTimestamp).toISOString()}`)
   }
 }
@@ -248,7 +260,32 @@ const handlerForInitialReqEvt = async (message: IDomainMessage): Promise<void> =
 const start = async () => {
   logRPS()
 
-  // await metrics.init()
+  // Instantiate metrics factory
+
+  const metricsConfig: TMetricOptionsType = {
+    timeout: 5000, // Set the timeout in ms for the underlying prom-client library. Default is '5000'.
+    prefix: 'moja_', // Set prefix for all defined metrics names
+    defaultLabels: { // Set default labels that will be applied to all metrics
+      serviceName: 'simulator'
+    }
+  }
+
+  metrics = new Metrics(metricsConfig)
+  await metrics.init()
+
+  perfMetricsHisto = metrics.getHistogram(
+    'tx_transfer',
+    'Transaction metrics for Transfers',
+    []
+  )
+
+  perfMetricsPendingGauge = metrics.getGauge(
+    'tx_pending',
+    'Transaction metrics for pending transfers',
+    []
+  )
+
+  // Kafka consumer
   const kafkaEvtConsumer = await CreateConsumer(TransfersTopics.DomainEvents)
   if (kafkaEvtConsumer === undefined) {
     throw Error('perfMeasure - Unabled to create kafkaEvtConsumer consumer')
@@ -264,6 +301,30 @@ const start = async () => {
   // const kafkaEvtConsumerMl = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(kafkaConsumerOptionsMl, logger)
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
   await kafkaEvtConsumerMl.init(handlerForInitialReqEvt)
+
+  // start only API
+  const args = { // TODO: do a proper args parsing instead of hard-coded const
+    disableApi: null
+  }
+  let apiServer: ApiServer | undefined
+  if (args.disableApi == null) {
+    const apiServerOptions: TApiServerOptions = {
+      host: appConfig.api.host,
+      port: appConfig.api.port,
+      metricCallback: async () => {
+        return metrics.getMetricsForPrometheus()
+      },
+      healthCallback: async () => {
+        return {
+          status: 'ok',
+          version: pckg.version,
+          name: pckg.name
+        }
+      }
+    }
+    apiServer = new ApiServer(apiServerOptions, logger)
+    await apiServer.init()
+  }
 }
 
 start().catch((err) => {

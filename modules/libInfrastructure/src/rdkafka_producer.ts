@@ -37,7 +37,7 @@
 
 'use strict'
 
-import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
+import { ConsoleLogger, getEnvIntegerOrDefault } from '@mojaloop-poc/lib-utilities'
 import { ILogger, IMessage } from '@mojaloop-poc/lib-domain'
 import { MessageProducer, Options } from './imessage_producer'
 import * as RDKafka from 'node-rdkafka'
@@ -47,9 +47,6 @@ type RDKafkaConfig = {
   producerConfig: RDKafka.ProducerGlobalConfig
   topicConfig: RDKafka.ProducerTopicConfig
 }
-
-// const RDKAFKA_BATCH_NUM_MESSAGES = getEnvIntegerOrDefault('RDKAFKA_BATCH_NUM_MESSAGES', 1)
-// const RDKAFKA_QUEUE_BUFFERING_MAX_US = getEnvIntegerOrDefault('RDKAFKA_QUEUE_BUFFERING_MAX_US', 0)
 
 export enum RDKafkaPartioner {
   RANDOM = 'random',
@@ -96,13 +93,21 @@ export class RDKafkaProducer extends MessageProducer {
       this._logger.info('RDKafkaProducer initialising...')
 
       /* Global config: Mix incoming config with default config */
-      const defaultGlobalConfig: RDKafka.ProducerGlobalConfig = {
-        // 'batch.num.messages': RDKAFKA_BATCH_NUM_MESSAGES,
-        // 'queue.buffering.max.ms': RDKAFKA_QUEUE_BUFFERING_MAX_US * 0.001
-      }
+      const defaultGlobalConfig: RDKafka.ProducerGlobalConfig = {}
+
       const globalConfig = {
         ...defaultGlobalConfig,
         ...this._options.client.producerConfig
+      }
+
+      /* Add config from environmental variables */
+      const RDKAFKA_BATCH_NUM_MESSAGES = getEnvIntegerOrDefault('RDKAFKA_BATCH_NUM_MESSAGES', null)
+      const RDKAFKA_QUEUE_BUFFERING_MAX_US = getEnvIntegerOrDefault('RDKAFKA_QUEUE_BUFFERING_MAX_US', null)
+      if (RDKAFKA_BATCH_NUM_MESSAGES != null) {
+        globalConfig['batch.num.messages'] = RDKAFKA_BATCH_NUM_MESSAGES
+      }
+      if (RDKAFKA_QUEUE_BUFFERING_MAX_US != null) {
+        globalConfig['queue.buffering.max.ms'] = RDKAFKA_QUEUE_BUFFERING_MAX_US * 0.001
       }
 
       /* Topic config: Mix incoming config with default config */

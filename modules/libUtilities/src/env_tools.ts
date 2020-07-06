@@ -34,7 +34,7 @@
 
 'use strict'
 
-export const getEnvIntegerOrDefault = (key: string, defaultValue: number): number => {
+export const getEnvIntegerOrDefault = (key: string, defaultValue: any): any => {
   const envValue = process.env[key]
   let rv = defaultValue
 
