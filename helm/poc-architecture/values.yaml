@@ -2253,4 +2253,4 @@ devtoolclient:
   service:
     type: ClusterIP
     externalPort: 80
-    internalPort: 3000
+    internalPort: 4001
