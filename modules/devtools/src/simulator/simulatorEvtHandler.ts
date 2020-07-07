@@ -205,6 +205,7 @@ export class SimulatorEvtHandler implements IRunHandler {
             }
 
             transferEvt = new TransferFulfilRequestedEvt(transferFulfilRequestedEvtPayload)
+            transferEvt.passTraceInfo(message)
 
             break
           }

@@ -2,6 +2,7 @@
  * Created by pedrosousabarreto@gmail.com on 04/Jun/2020.
  */
 
+/* eslint-disable no-console */
 'use strict'
 
 import { IDomainMessage, ILogger } from '@mojaloop-poc/lib-domain'
@@ -11,7 +12,8 @@ import { ConsoleLogger, Crypto, getEnvIntegerOrDefault, TMetricOptionsType, Metr
 
 import * as dotenv from 'dotenv'
 import * as promclient from 'prom-client'
-import { TransfersTopics, MLTopics } from '@mojaloop-poc/lib-public-messages'
+import { TransfersTopics } from '@mojaloop-poc/lib-public-messages'
+import base64url from 'base64url'
 
 /* eslint-disable-next-line @typescript-eslint/no-var-requires */
 const pckg = require('../../package.json')
@@ -23,12 +25,11 @@ const INTERVAL_MS = Number.parseInt(STR_INTERVAL_MS)
 dotenv.config({ path: '../../.env' })
 
 let perfMetricsHisto: promclient.Histogram
-let perfMetricsPendingGauge: promclient.Gauge
 
 const logger: ILogger = new ConsoleLogger()
 let metrics: Metrics
-let startTime = 0
-let requestedCounter = 0
+const startTime = 0
+const requestedCounter = 0
 let fulfiledCounter = 0
 
 // # setup application config
@@ -165,7 +166,6 @@ const CreateConsumer = async (topic: string): Promise<MessageConsumer | undefine
 // }
 
 const buckets: Map<number, {counter: number, totalTimeMs: number}> = new Map<number, {counter: number, totalTimeMs: number}>()
-const evtMap: Map<string, number> = new Map<string, number>()
 
 function logRPS (): void {
   const now = Date.now()
@@ -191,7 +191,7 @@ function logRPS (): void {
   const avgFulfiled = Math.floor(fulfiledCounter / (elaspsed / 1000))
 
   // eslint-disable-next-line no-console
-  console.log(`\n *** ${counter} req/sec *** ${avg} avg ms *** ${evtMap.size} pending *** ${avgRequested}/${avgFulfiled} avg req/ful (all time) ***\n`)
+  console.log(`\n *** ${counter} req/sec *** ${avg} avg ms *** ${avgRequested}/${avgFulfiled} avg req/ful (all time) ***\n`)
 
   if (buckets.has(lastSecond - 1)) {
     buckets.delete(lastSecond - 1)
@@ -214,32 +214,29 @@ function recordCompleted (timeMs: number, transferId: string): void {
 const handlerForFulfilEvt = async (message: IDomainMessage): Promise<void> => {
   if (message.msgName === 'TransferFulfilledEvt') {
     fulfiledCounter++
-    const reqReceivedAt = evtMap.get(message.aggregateId)
-    if (reqReceivedAt != null) {
-      const timeDelta = message.msgTimestamp - reqReceivedAt
-      // console.log(`Prepare leg completed for transfer id: ${message.aggregateId} took: - ${message.msgTimestamp - reqReceivedAt} ms`)
-      recordCompleted(timeDelta, message.aggregateId)
-      evtMap.delete(message.aggregateId)
 
-      perfMetricsHisto.observe({}, timeDelta / 1000)
+    /* Get the trace state if present in the message */
+    const traceState: string | undefined = message.traceInfo?.traceState
+    if (traceState !== undefined) {
+      /* expecting something like "acmevendor=eyJzcGF..." where "eyJzcGF" is base64 encoded msg */
+      const prefix = 'acmevendor='
+      if (traceState.includes(prefix)) {
+        const payloadEncoded = traceState.substr(prefix.length)
+        const payloadDecoded = base64url.toBuffer(payloadEncoded)
+        try {
+          const payload = JSON.parse(payloadDecoded.toString())
+          if (payload?.timeApiPrepare != null) {
+            const timeDelta = message.msgTimestamp - payload?.timeApiPrepare
+            recordCompleted(timeDelta, message.aggregateId)
+            console.log('timeDelta:', timeDelta)
+            perfMetricsHisto.observe({}, timeDelta / 1000)
+          }
+          console.log('payload:', payload)
+        } catch (err) {
+          console.error('handlerForFulfilEvt Error when JSON.parse()-ing message')
+        }
+      }
     }
-
-    // decrease even if we don't have it here in mem
-    perfMetricsPendingGauge.dec()
-  }
-}
-
-const handlerForInitialReqEvt = async (message: IDomainMessage): Promise<void> => {
-  if (message.msgName === 'TransferPrepareRequestedEvt') {
-    requestedCounter++
-    evtMap.set(message.aggregateId, message.msgTimestamp)
-
-    if (startTime === 0) {
-      startTime = Date.now()
-    } // delay until we actually receive the first req
-
-    perfMetricsPendingGauge.inc()
-    // console.log(`Prepare leg started for transfer id: ${message.aggregateId} at: - ${new Date(message.msgTimestamp).toISOString()}`)
   }
 }
 
@@ -266,12 +263,6 @@ const start = async () => {
     []
   )
 
-  perfMetricsPendingGauge = metrics.getGauge(
-    'tx_pending',
-    'Transaction metrics for pending transfers',
-    []
-  )
-
   // Kafka consumer
   const kafkaEvtConsumer = await CreateConsumer(TransfersTopics.DomainEvents)
   if (kafkaEvtConsumer === undefined) {
@@ -280,14 +271,6 @@ const start = async () => {
   // const kafkaEvtConsumer = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(kafkaConsumerOptions, logger)
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
   await kafkaEvtConsumer.init(handlerForFulfilEvt)
-
-  const kafkaEvtConsumerMl = await CreateConsumer(MLTopics.Events)
-  if (kafkaEvtConsumerMl === undefined) {
-    throw Error('perfMeasure - Unabled to create kafkaEvtConsumerMl consumer')
-  }
-  // const kafkaEvtConsumerMl = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(kafkaConsumerOptionsMl, logger)
-  /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-  await kafkaEvtConsumerMl.init(handlerForInitialReqEvt)
 
   // start only API
   const args = { // TODO: do a proper args parsing instead of hard-coded const
@@ -323,12 +306,5 @@ start().catch((err) => {
 process.on('SIGINT', function () {
   // eslint-disable-next-line no-console
   console.log('Ctrl-C... collecting pending...')
-  const now = Date.now()
-
-  evtMap.forEach((value, key) => {
-    // eslint-disable-next-line no-console
-    console.log(`Pending transfer - ID: ${key} - Timestamp: ${value} - Age: ${now - value} ms`)
-  })
-
   process.exit(2)
 })
