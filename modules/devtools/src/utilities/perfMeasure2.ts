@@ -219,19 +219,20 @@ const handlerForFulfilEvt = async (message: IDomainMessage): Promise<void> => {
     const traceState: string | undefined = message.traceInfo?.traceState
     if (traceState !== undefined) {
       /* expecting something like "acmevendor=eyJzcGF..." where "eyJzcGF" is base64 encoded msg */
-      const prefix = 'acmevendor='
-      if (traceState.includes(prefix)) {
-        const payloadEncoded = traceState.substr(prefix.length)
+      if (traceState.indexOf('=') != -1) {
+        const payloadEncoded = traceState.substr(traceState.indexOf('=') + 1)
         const payloadDecoded = base64url.toBuffer(payloadEncoded)
         try {
           const payload = JSON.parse(payloadDecoded.toString())
           if (payload?.timeApiPrepare != null) {
             const timeDelta = message.msgTimestamp - payload?.timeApiPrepare
             recordCompleted(timeDelta, message.aggregateId)
-            console.log('timeDelta:', timeDelta)
-            perfMetricsHisto.observe({}, timeDelta / 1000)
+            const labels = {
+              payerId: message.payload.payerId,
+              payeeId: message.payload.payeeId
+            }
+            perfMetricsHisto.observe(labels, timeDelta / 1000)
           }
-          console.log('payload:', payload)
         } catch (err) {
           console.error('handlerForFulfilEvt Error when JSON.parse()-ing message')
         }
@@ -260,7 +261,7 @@ const start = async () => {
   perfMetricsHisto = metrics.getHistogram(
     'tx_transfer',
     'Transaction metrics for Transfers',
-    []
+    ['payerId', 'payeeId']
   )
 
   // Kafka consumer
