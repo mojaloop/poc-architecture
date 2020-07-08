@@ -11,6 +11,7 @@ import { TransfersFactory } from './transfers_factory'
 import { AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
 import { AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
+import { TransferBloomState } from './transfer_bloom_entity'
 
 export enum TransfersAggTopics {
   'Commands' = 'TransferCommands',
@@ -18,23 +19,35 @@ export enum TransfersAggTopics {
 }
 
 export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
-  constructor (entityStateRepo: IEntityStateRepository<TransferState>, msgPublisher: IMessagePublisher, logger: ILogger) {
+  _duplicateRepo: IEntityStateRepository<TransferBloomState>
+
+  constructor (entityStateRepo: IEntityStateRepository<TransferState>, duplicateRepo: IEntityStateRepository<TransferBloomState>, msgPublisher: IMessagePublisher, logger: ILogger) {
     super(TransfersFactory.GetInstance(), entityStateRepo, msgPublisher, logger)
     this._registerCommandHandler('PrepareTransferCmd', this.processPrepareTransferCommand)
     this._registerCommandHandler('AckPayerFundsReservedCmd', this.processAckPayerFundsReservedCommand)
     this._registerCommandHandler('AckPayeeFundsCommittedCmd', this.processAckPayeeFundsReservedCommand)
     this._registerCommandHandler('FulfilTransferCmd', this.processFulfilTransferCommand)
+    this._duplicateRepo = duplicateRepo
   }
 
   async processPrepareTransferCommand (commandMsg: PrepareTransferCmd): Promise<boolean> {
     // try loading first to detect duplicates
 
-    await this.load(commandMsg.payload.transferId, false)
+    const transferBloomState: TransferBloomState | null = await this._duplicateRepo.load(commandMsg.payload.transferId)
 
-    if (this._rootEntity != null) {
+    if (transferBloomState?.result === true) {
       this.recordDomainEvent(new DuplicateTransferDetectedEvt(commandMsg.payload.transferId))
       return false
+    } else {
+      await this._duplicateRepo.store(transferBloomState!)
     }
+
+    // await this.load(commandMsg.payload.transferId, false)
+
+    // if (this._rootEntity != null) {
+    //   this.recordDomainEvent(new DuplicateTransferDetectedEvt(commandMsg.payload.transferId))
+    //   return false
+    // }
 
     /* TODO: validation of incoming payload */
 
@@ -54,7 +67,8 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       }
     }
 
-    this._rootEntity!.prepareTransfer(transferPrepareRequestData)
+    const expireInSec = 10 * 60 // 30m in seconds
+    this._rootEntity!.prepareTransfer(transferPrepareRequestData, expireInSec)
 
     const transferPrepareAcceptedEvtPayload = {
       transferId: transferPrepareRequestData.id,

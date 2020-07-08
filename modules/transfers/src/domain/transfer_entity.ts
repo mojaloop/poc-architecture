@@ -40,6 +40,7 @@ export class TransferState extends BaseEntityState {
   completedTimestamp: string
   fulfil: TransferRawPayload
   reject: TransferRawPayload
+  // expireStateInSec: number
 }
 
 export type PrepareTransferData = {
@@ -117,7 +118,7 @@ export class TransferEntity extends BaseEntity<TransferState> {
     return entity
   }
 
-  prepareTransfer (incommingTransfer: PrepareTransferData): void {
+  prepareTransfer (incommingTransfer: PrepareTransferData, expireInSec?: number): void {
     this._state.id = incommingTransfer.id
     this._state.amount = incommingTransfer.amount
     this._state.currency = incommingTransfer.currency
@@ -130,6 +131,9 @@ export class TransferEntity extends BaseEntity<TransferState> {
       headers: incommingTransfer.prepare?.headers,
       payload: incommingTransfer.prepare?.payload
     }
+    // if (expireInSec != null) {
+    //   this._state.expireStateInSec = expireInSec
+    // }
   }
 
   acknowledgeTransferReserved (): void {

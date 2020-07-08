@@ -60,8 +60,9 @@ import { TransfersTopics } from '@mojaloop-poc/lib-public-messages'
 import { TransfersAgg } from '../domain/transfers_agg'
 import { PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
 import { AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
-import { RedisTransferStateRepo } from '../infrastructure/redis_participant_repo'
-import { ITransfersRepo } from '../domain/transfers_repo'
+import { RedisTransferStateRepo } from '../infrastructure/redis_transfer_repo'
+import { RedisTransferDuplicateRepo } from '../infrastructure/redis_duplicate_repo'
+import { ITransfersRepo, IDuplicateTransfersRepo } from '../domain/transfers_repo'
 import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
 import { AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
@@ -69,13 +70,18 @@ import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 export class TransferCmdHandler implements IRunHandler {
   private _consumer: MessageConsumer
   private _publisher: IMessagePublisher
-  private _repo: ITransfersRepo
+  private _stateRepo: ITransfersRepo
+  private readonly _duplicateRepo: ITransfersRepo
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
+    logger.info(`TransferCmdHandler::start - appConfig=${JSON.stringify(appConfig)}`)
     // const repo: IEntityStateRepository<TransferState> = new InMemoryTransferStateRepo()
-    const repo: ITransfersRepo = new RedisTransferStateRepo(appConfig.redis.host, logger)
-    this._repo = repo
-    await repo.init()
+    const stateRepo: ITransfersRepo = new RedisTransferStateRepo(appConfig.redis.host, logger, appConfig.redis.expirationInSeconds)
+    // https://hur.st/bloomfilter/?n=100000000&p=1.0E-7&m=&k=
+    const duplicateRepo: IDuplicateTransfersRepo = new RedisTransferDuplicateRepo(appConfig.duplicate.host, appConfig.duplicate.filterSizeInBytes, appConfig.duplicate.numOfHashes, logger)
+    this._stateRepo = stateRepo
+    await stateRepo.init()
+    await duplicateRepo.init()
 
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
@@ -152,7 +158,7 @@ export class TransferCmdHandler implements IRunHandler {
     this._publisher = kafkaMsgPublisher
     await kafkaMsgPublisher.init()
 
-    const agg: TransfersAgg = new TransfersAgg(repo, kafkaMsgPublisher, logger)
+    const agg: TransfersAgg = new TransfersAgg(stateRepo, duplicateRepo, kafkaMsgPublisher, logger)
 
     const histoTransferCmdHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
       'transferCmdHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
@@ -295,6 +301,7 @@ export class TransferCmdHandler implements IRunHandler {
   async destroy (): Promise<void> {
     await this._consumer.destroy(true)
     await this._publisher.destroy()
-    await this._repo.destroy()
+    await this._stateRepo.destroy()
+    await this._duplicateRepo.destroy()
   }
 }

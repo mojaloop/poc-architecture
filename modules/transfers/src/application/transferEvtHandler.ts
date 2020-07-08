@@ -66,6 +66,7 @@ export class TransferEvtHandler implements IRunHandler {
   private _publisher: IMessagePublisher
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
+    logger.info(`TransferEvtHandler::start - appConfig=${JSON.stringify(appConfig)}`)
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */

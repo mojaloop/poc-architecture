@@ -39,6 +39,10 @@
 
 import { IEntityStateRepository } from '@mojaloop-poc/lib-domain'
 import { TransferState } from './transfer_entity'
+import { TransferBloomState } from './transfer_bloom_entity'
 
 export type ITransfersRepo = {
 } & IEntityStateRepository<TransferState>
+
+export type IDuplicateTransfersRepo = {
+} & IEntityStateRepository<TransferBloomState>
