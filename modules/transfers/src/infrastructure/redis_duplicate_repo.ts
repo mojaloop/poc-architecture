@@ -39,27 +39,18 @@
 
 import * as redis from 'redis'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { IDuplicateTransfersRepo } from '../domain/transfers_repo'
-import { TransferBloomState } from '../domain/transfer_bloom_entity'
-// import * as BloomRedis from 'bloom-redis'
-/* eslint-disable-next-line @typescript-eslint/no-var-requires */
-const BloomRedis = require('bloom-redis')
+import { IDupTransferRepo } from '../domain/transfers_duplicate_repo'
 
-export class RedisTransferDuplicateRepo implements IDuplicateTransfersRepo {
+export class RedisTransferDuplicateRepo implements IDupTransferRepo {
   protected _redisClient!: redis.RedisClient
   private readonly _redisConnStr: string
   private readonly _logger: ILogger
   private _initialized: boolean = false
-  private readonly keyPrefix: string = 'transfer_'
-  private _redisBloomFilter!: any
-  private readonly _filterSizeInBytes: number
-  private readonly _numOfHashes: number
+  private readonly _setKey: string = 'transfer'
 
-  constructor (connStr: string, filterSizeInBytes: number, numOfHashes: number, logger: ILogger) {
+  constructor (connStr: string, logger: ILogger) {
     this._redisConnStr = connStr
     this._logger = logger
-    this._filterSizeInBytes = filterSizeInBytes
-    this._numOfHashes = numOfHashes
   }
 
   async init (): Promise<void> {
@@ -69,19 +60,6 @@ export class RedisTransferDuplicateRepo implements IDuplicateTransfersRepo {
       this._redisClient.on('ready', () => {
         this._logger.info('Redis client ready')
         if (this._initialized) { return }
-        this._redisBloomFilter = new BloomRedis.BloomFilter({
-          client: this._redisClient, // make sure the Bloom module uses our newly created connection to Redis
-          key: 'transfer-bloom-filter', // the Redis key
-
-          // calculated size of the Bloom filter.
-          // This is where your size / probability trade-offs are made
-          // http://hur.st/bloomfilter?n=100000&p=1.0E-6
-          // size: 3354770433, // ~500MB
-          size: this._filterSizeInBytes,
-          // size      : 3354770, // ~500MB
-          // numHashes: 23
-          numHashes: this._numOfHashes
-        })
         this._initialized = true
         return resolve()
       })
@@ -89,6 +67,57 @@ export class RedisTransferDuplicateRepo implements IDuplicateTransfersRepo {
       this._redisClient.on('error', (err) => {
         this._logger.error(err, 'A redis error has occurred:')
         if (!this._initialized) { return reject(err) }
+      })
+    })
+  }
+
+  async add (id: string): Promise<boolean> {
+    return await new Promise((resolve, reject) => {
+      if (!this.canCall()) return reject(new Error('Repository not ready'))
+      this._redisClient.sadd(this._setKey, id, (err: Error | null, result: number) => {
+        if (err != null) {
+          this._logger.error(err, `Error storing '${id}' for set to redis: ${this._setKey}`)
+          return reject(err)
+        }
+        if (result === 1) {
+          return resolve(true)
+        } else {
+          return resolve(false)
+        }
+      })
+    })
+  }
+
+  async exists (id: string): Promise<boolean> {
+    return await new Promise((resolve, reject) => {
+      if (!this.canCall()) return reject(new Error('Repository not ready'))
+      this._redisClient.getset(this._setKey, id, (err: Error | null, result: string) => {
+        if (err != null) {
+          this._logger.error(err, `Error checkig '${id}' for set to redis: ${this._setKey}`)
+          return reject(err)
+        }
+        if (result === id) {
+          return resolve(true)
+        } else {
+          return resolve(false)
+        }
+      })
+    })
+  }
+
+  async remove (id: string): Promise<boolean> {
+    return await new Promise((resolve, reject) => {
+      if (!this.canCall()) return reject(new Error('Repository not ready'))
+      this._redisClient.srem(this._setKey, id, (err: Error | null, result: number) => {
+        if (err != null) {
+          this._logger.error(err, `Error removing '${id}' from set to redis: ${this._setKey}`)
+          return reject(err)
+        }
+        if (result === 1) {
+          return resolve(true)
+        } else {
+          return resolve(false)
+        }
       })
     })
   }
@@ -101,55 +130,5 @@ export class RedisTransferDuplicateRepo implements IDuplicateTransfersRepo {
 
   canCall (): boolean {
     return this._initialized // for now, no circuit breaker exists
-  }
-
-  async load (id: string): Promise<TransferBloomState | null> {
-    return await new Promise((resolve, reject) => {
-      if (!this.canCall()) return reject(new Error('Repository not ready'))
-
-      const key: string = this.keyWithPrefix(id)
-
-      this._redisBloomFilter.contains(
-        key, // the key from the query string
-        (err: Error, result: boolean) => {
-          if (err != null) {
-            return reject(err)
-          } else {
-            const transferBloomState: TransferBloomState = new TransferBloomState()
-            transferBloomState.id = id
-            transferBloomState.result = result
-            return resolve(transferBloomState)
-          }
-        }
-      )
-    })
-  }
-
-  async remove (id: string): Promise<void> {
-    return await new Promise((resolve, reject) => {
-      throw Error('not implemented')
-    })
-  }
-
-  async store (entityState: TransferBloomState): Promise<void> {
-    return await new Promise((resolve, reject) => {
-      if (!this.canCall()) return reject(new Error('Repository not ready'))
-
-      const key: string = this.keyWithPrefix(entityState.id)
-      this._redisBloomFilter.add(
-        key,
-        (err: Error) => {
-          if (err != null) {
-            return reject(err)
-          } else {
-            return resolve()
-          }
-        }
-      )
-    })
-  }
-
-  private keyWithPrefix (key: string): string {
-    return this.keyPrefix + key
   }
 }

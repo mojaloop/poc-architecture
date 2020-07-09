@@ -62,23 +62,24 @@ import { PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
 import { AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { RedisTransferStateRepo } from '../infrastructure/redis_transfer_repo'
 import { RedisTransferDuplicateRepo } from '../infrastructure/redis_duplicate_repo'
-import { ITransfersRepo, IDuplicateTransfersRepo } from '../domain/transfers_repo'
+import { ITransfersRepo } from '../domain/transfers_repo'
 import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
 import { AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
+import { IDupTransferRepo } from '../domain/transfers_duplicate_repo'
 
 export class TransferCmdHandler implements IRunHandler {
   private _consumer: MessageConsumer
   private _publisher: IMessagePublisher
   private _stateRepo: ITransfersRepo
-  private readonly _duplicateRepo: ITransfersRepo
+  private readonly _duplicateRepo: IDupTransferRepo
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     logger.info(`TransferCmdHandler::start - appConfig=${JSON.stringify(appConfig)}`)
     // const repo: IEntityStateRepository<TransferState> = new InMemoryTransferStateRepo()
     const stateRepo: ITransfersRepo = new RedisTransferStateRepo(appConfig.redis.host, logger, appConfig.redis.expirationInSeconds)
     // https://hur.st/bloomfilter/?n=100000000&p=1.0E-7&m=&k=
-    const duplicateRepo: IDuplicateTransfersRepo = new RedisTransferDuplicateRepo(appConfig.duplicate.host, appConfig.duplicate.filterSizeInBytes, appConfig.duplicate.numOfHashes, logger)
+    const duplicateRepo: IDupTransferRepo = new RedisTransferDuplicateRepo(appConfig.duplicate.host, logger)
     this._stateRepo = stateRepo
     await stateRepo.init()
     await duplicateRepo.init()

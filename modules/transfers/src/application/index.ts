@@ -94,9 +94,7 @@ Program.command('handler')
         expirationInSeconds: getEnvIntegerOrDefault('REDIS_EXPIRATION_IN_SEC', -1) as number
       },
       duplicate: {
-        host: getEnvValueOrDefault('REDIS_DUPL_HOST', 'redis://localhost:6379') as string,
-        filterSizeInBytes: getEnvIntegerOrDefault('TRANS_DUPLICATE_BLOOM_FILTER_SIZE_IN_BYTES', 3354770433) as number,
-        numOfHashes: getEnvIntegerOrDefault('TRANS_DUPLICATE_BLOOM_FILTER_NUM_OF_HASHES', 23) as number
+        host: getEnvValueOrDefault('REDIS_DUPL_HOST', 'redis://localhost:6379') as string
       }
     }
 

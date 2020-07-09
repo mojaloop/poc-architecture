@@ -37,8 +37,11 @@
 
 'use strict'
 
-import { IEntityStateRepository } from '@mojaloop-poc/lib-domain'
-import { TransferState } from './transfer_entity'
-
-export type ITransfersRepo = {
-} & IEntityStateRepository<TransferState>
+export interface IDupTransferRepo {
+  init: () => Promise<void>
+  destroy: () => Promise<void>
+  canCall: () => boolean
+  add: (transferId: string) => Promise<boolean>
+  exists: (transferId: string) => Promise<boolean>
+  remove: (id: string) => Promise<boolean>
+}

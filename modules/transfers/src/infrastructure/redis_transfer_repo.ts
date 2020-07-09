@@ -91,7 +91,7 @@ export class RedisTransferStateRepo implements ITransfersRepo {
 
       const key: string = this.keyWithPrefix(id)
 
-      this._redisClient.get(key, (err?: Error|null, result?: string) => {
+      this._redisClient.get(key, (err: Error | null, result: string | null) => {
         if (err != null) {
           this._logger.error(err, 'Error fetching entity state from redis - for key: ' + key)
           return reject(err)

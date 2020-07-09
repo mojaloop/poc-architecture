@@ -38,7 +38,7 @@
 
 'use strict'
 
-import fastify from 'fastify'
+import { fastify as Fastify, FastifyInstance, RouteShorthandOptions } from 'fastify'
 import { Server, IncomingMessage, ServerResponse } from 'http'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 
@@ -53,12 +53,12 @@ export class ApiServer {
   private readonly _logger: ILogger
   private readonly _options: TApiServerOptions
   private _serverOptions: TApiServerOptions
-  private readonly _server: fastify.FastifyInstance<Server, IncomingMessage, ServerResponse>
+  private readonly _server: FastifyInstance<Server, IncomingMessage, ServerResponse>
 
   constructor (opts: TApiServerOptions, logger: ILogger) {
     this._logger = logger
     this._options = opts
-    this._server = fastify({
+    this._server = Fastify({
       // todo here
     })
   }
@@ -78,7 +78,7 @@ export class ApiServer {
 
     this._logger.info(`Http Server starting with opts: ${JSON.stringify(this._serverOptions)}`)
 
-    const routeHealthOpts: fastify.RouteShorthandOptions = {
+    const routeHealthOpts: RouteShorthandOptions = {
       schema: {
         response: {
           200: {
@@ -103,10 +103,10 @@ export class ApiServer {
       // console.log(reply.res) // this is the http.ServerResponse with correct typings!
       // this._logger.debug(JSON.stringify(reply.res))
       const response = await this._serverOptions.healthCallback()
-      reply.code(200).send(response)
+      await reply.code(200).send(response)
     })
 
-    const routeMetricOpts: fastify.RouteShorthandOptions = {
+    const routeMetricOpts: RouteShorthandOptions = {
       schema: {
         response: {
           200: {
@@ -120,7 +120,7 @@ export class ApiServer {
       // console.log(reply.res) // this is the http.ServerResponse with correct typings!
       // this._logger.debug(JSON.stringify(reply.res))
       const response = await this._serverOptions.metricCallback()
-      reply.code(200).send(response)
+      await reply.code(200).send(response)
     })
 
     // Run the server!

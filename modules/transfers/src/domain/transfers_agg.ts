@@ -11,7 +11,7 @@ import { TransfersFactory } from './transfers_factory'
 import { AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
 import { AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
-import { TransferBloomState } from './transfer_bloom_entity'
+import { IDupTransferRepo } from './transfers_duplicate_repo'
 
 export enum TransfersAggTopics {
   'Commands' = 'TransferCommands',
@@ -19,9 +19,9 @@ export enum TransfersAggTopics {
 }
 
 export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
-  _duplicateRepo: IEntityStateRepository<TransferBloomState>
+  _duplicateRepo: IDupTransferRepo
 
-  constructor (entityStateRepo: IEntityStateRepository<TransferState>, duplicateRepo: IEntityStateRepository<TransferBloomState>, msgPublisher: IMessagePublisher, logger: ILogger) {
+  constructor (entityStateRepo: IEntityStateRepository<TransferState>, duplicateRepo: IDupTransferRepo, msgPublisher: IMessagePublisher, logger: ILogger) {
     super(TransfersFactory.GetInstance(), entityStateRepo, msgPublisher, logger)
     this._registerCommandHandler('PrepareTransferCmd', this.processPrepareTransferCommand)
     this._registerCommandHandler('AckPayerFundsReservedCmd', this.processAckPayerFundsReservedCommand)
@@ -33,13 +33,11 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
   async processPrepareTransferCommand (commandMsg: PrepareTransferCmd): Promise<boolean> {
     // try loading first to detect duplicates
 
-    const transferBloomState: TransferBloomState | null = await this._duplicateRepo.load(commandMsg.payload.transferId)
+    const isTransferAddedToDuplicateRepo = await this._duplicateRepo.add(commandMsg.payload.transferId)
 
-    if (transferBloomState?.result === true) {
+    if (!isTransferAddedToDuplicateRepo) {
       this.recordDomainEvent(new DuplicateTransferDetectedEvt(commandMsg.payload.transferId))
       return false
-    } else {
-      await this._duplicateRepo.store(transferBloomState!)
     }
 
     // await this.load(commandMsg.payload.transferId, false)
