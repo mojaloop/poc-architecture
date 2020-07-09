@@ -43,6 +43,7 @@
   "dependencies": {
     "@mojaloop-poc/lib-domain": "^0.1.0",
     "@mojaloop/central-services-logger": "^10.4.0",
+    "base64url": "^3.0.1",
     "prom-client": "^12.0.0"
   },
   "devDependencies": {
