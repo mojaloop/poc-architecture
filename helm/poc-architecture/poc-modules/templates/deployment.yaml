@@ -1,7 +1,7 @@
 {{- $kafkaHost := ( .Values.config.kafka_host | replace "$release_name" .Release.Name ) -}}
 {{- $redisHost := ( .Values.config.redis_host | replace "$release_name" .Release.Name ) -}}
 {{- $simulatorHost := ( .Values.config.simulator_host | replace "$release_name" .Release.Name ) -}}
-apiVersion: apps/v1
+apiVersion: {{ template "poc-modules.apiVersion.Deployment" . }}
 kind: Deployment
 metadata:
   name: {{ template "poc-modules.fullname" . }}
