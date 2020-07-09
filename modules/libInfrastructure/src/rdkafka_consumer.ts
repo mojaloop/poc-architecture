@@ -106,12 +106,16 @@ export class RDKafkaConsumer extends MessageConsumer {
           } else {
             if (messages.length > 0) {
               // this._logger.info(`RDKafkaConsumer got callback with data: ${JSON.stringify(messages)}`)
-              const msgValue = messages[0].value
-              if (msgValue != null) {
+              const msg = messages[0]
+              const msgValue = msg?.value
+              if (msg != null && msgValue != null) {
                 const msgAsString = msgValue.toString()
                 let msgAsDomainMessage
                 try {
                   msgAsDomainMessage = JSON.parse(msgAsString) as IDomainMessage
+                  if (msgAsDomainMessage.msgPartition == null) {
+                    msgAsDomainMessage.msgPartition = msg.partition
+                  }
                 } catch (err) {
                   this._logger.error('RDKafkaConsumer Error when JSON.parse()-ing message')
                 }

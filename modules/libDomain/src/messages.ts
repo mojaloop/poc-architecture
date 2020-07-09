@@ -57,6 +57,7 @@ export interface IMessage{
   msgTimestamp: number
   msgKey: string // usually the id of the aggregate (used for partitioning)
   msgTopic: string
+  msgPartition: number | null
   // TODO: for later
 
   // source_system_name:string // source system name
@@ -86,6 +87,7 @@ export abstract class DomainMsg implements IDomainMessage {
   msgId: string = uuidv4() // unique per message
   msgTimestamp: number = Date.now()
   msgName: string = (this as any).constructor.name
+  msgPartition: number | null = null
   traceInfo: TTraceInfo | null = null
 
   abstract msgType: MessageTypes

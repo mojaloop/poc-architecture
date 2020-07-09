@@ -138,6 +138,9 @@ export class KafkaJsConsumer extends MessageConsumer {
       eachMessage: async ({ topic, partition, message }) => {
         try {
           const domainMessage = JSON.parse(message.value.toString()) as IDomainMessage
+          if (domainMessage.msgPartition == null) {
+            domainMessage.msgPartition = partition
+          }
           await this._handlerCallback(domainMessage)
           // const admin = this._client.admin()
           // await admin.connect()

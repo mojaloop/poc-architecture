@@ -5,7 +5,7 @@ import * as Publisher from '../utilities/publisher'
 import { CreateParticipantCmdPayload, CreateParticipantCmd } from '@mojaloop-poc/participants/dist/messages/create_participant_cmd'
 import { ParticipantAccountTypes, AccountLimitTypes, CurrencyTypes } from '@mojaloop-poc/lib-public-messages'
 import { ILogger, IMessage } from '@mojaloop-poc/lib-domain'
-import { MojaLogger } from '@mojaloop-poc/lib-utilities'
+import { MojaLogger, getEnvIntegerOrDefault } from '@mojaloop-poc/lib-utilities'
 import { getFspList } from '../utilities/participant'
 
 const logger: ILogger = new MojaLogger()
@@ -17,11 +17,14 @@ const start = async () => {
   const LIMIT = process.env?.LIMIT ?? '10000000'
 
   const simulatorHost: string = Publisher.appConfig.simulator.host?.toString() ?? 'localhost:8444'
+  const PARTITION_CNT: number = getEnvIntegerOrDefault('PARTITION_CNT', 1)
 
   const participantCmdList: IMessage[] = []
+  let partitionIndex = 0
   for (const fsp of getFspList()) {
+    const partition = partitionIndex % PARTITION_CNT
     const participantId = fsp
-    logger.info(`Creating ParticipantCmdPayload for ${participantId}`)
+    logger.info(`Creating ParticipantCmdPayload for ${participantId} for partition:'${partition}'`)
     const createParticipantCmdPayloadFSP: CreateParticipantCmdPayload = {
       participant: {
         id: participantId,
@@ -57,11 +60,13 @@ const start = async () => {
             type: 'SETTLEMENT_TRANSFER_POSITION_CHANGE_EMAIL',
             value: 'joe@test.com'
           }
-        ]
+        ],
+        partition
       }
     }
     const createParticipantCmdFSP = new CreateParticipantCmd(createParticipantCmdPayloadFSP)
     participantCmdList.push(createParticipantCmdFSP)
+    partitionIndex++
   }
   await Publisher.publishMessageMultiple(participantCmdList)
   process.exit(0)

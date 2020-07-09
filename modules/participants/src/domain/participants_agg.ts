@@ -121,7 +121,7 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
     participantState.name = commandMsg.payload.participant.name
     participantState.accounts = participantAccountStateList
     participantState.endpoints = participantEndpointStateList
-
+    participantState.partition = commandMsg.payload.participant.partition
     this._rootEntity = new ParticipantEntity(participantState)
 
     const participantCreatedEvtPayload = {

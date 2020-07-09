@@ -183,13 +183,13 @@ export class RDKafkaProducer extends MessageProducer {
 
       kafkaMessages.forEach((kafkaMsg: IMessage) => {
         const msg = JSON.stringify(kafkaMsg)
-
+        const partition = (kafkaMsg.msgPartition !== null) ? kafkaMsg.msgPartition : null
         try {
           this._client.produce(
             /* topic name */
             kafkaMsg.msgTopic,
             /* partiton - if manually specified otherwise null */
-            null,
+            partition,
             /* msg in form a buffer */
             Buffer.from(msg, 'utf-8'),
             /* key */
