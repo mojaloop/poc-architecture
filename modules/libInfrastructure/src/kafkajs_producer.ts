@@ -151,15 +151,22 @@ export class KafkajsProducer extends MessageProducer {
           messages: []
         }
       }
-      payloadsForEachTopic[kafkaMsg.msgTopic].messages.push(
-        {
+      let message: any
+      if (kafkaMsg.msgPartition !== null) {
+        message = {
           key: kafkaMsg.msgKey,
-          value: JSON.stringify(kafkaMsg)
-          // partition?: number
+          value: JSON.stringify(kafkaMsg),
+          partition: kafkaMsg.msgPartition
           // headers?: IHeaders
           // timestamp?: string
         }
-      )
+      } else {
+        message = {
+          key: kafkaMsg.msgKey,
+          value: JSON.stringify(kafkaMsg)
+        }
+      }
+      payloadsForEachTopic[kafkaMsg.msgTopic].messages.push(message)
     })
 
     const topicMessages = Object.values(payloadsForEachTopic)

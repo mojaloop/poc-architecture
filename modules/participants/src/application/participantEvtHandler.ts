@@ -59,13 +59,26 @@ import { ReservePayerFundsCmd, ReservePayerFundsCmdPayload } from '../messages/r
 import { CommitPayeeFundsCmd, CommitPayeeFundsCmdPayload } from '../messages/commit_payee_funds_cmd'
 import { InvalidParticipantEvtError } from './errors'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
+import { IParticipantRepo } from '../domain/participant_repo'
+import { CachedRedisParticipantStateRepo } from '../infrastructure/cachedredis_participant_repo'
 
 export class ParticipantEvtHandler implements IRunHandler {
   private _consumer: MessageConsumer
   private _publisher: IMessagePublisher
+  private _repo: IParticipantRepo
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     logger.info(`ParticipantEvtHandler::start - appConfig=${JSON.stringify(appConfig)}`)
+
+    logger.info(`ParticipantEvtHandler - Creating repo of type ${CachedRedisParticipantStateRepo.constructor.name}`)
+
+    const repo: IParticipantRepo = new CachedRedisParticipantStateRepo(appConfig.redis.host, logger)
+
+    this._repo = repo
+    await repo.init()
+
+    logger.info(`ParticipantEvtHandler - Created repo of type ${repo.constructor.name}`)
+
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
     logger.info(`ParticipantEvtHandler - Creating ${appConfig.kafka.producer as string} participantEvtHandler.kafkaMsgPublisher...`)
@@ -161,6 +174,12 @@ export class ParticipantEvtHandler implements IRunHandler {
             const reservePayerFundsCmdPayload: ReservePayerFundsCmdPayload = participantEvt.payload
             participantCmd = new ReservePayerFundsCmd(reservePayerFundsCmdPayload)
             participantCmd.passTraceInfo(participantEvt)
+            // lets find and set the appropriate partition for the participant
+            const participant = await this._repo.load(participantCmd.msgKey)
+            if (participant == null) {
+              throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - Participant '${participantCmd.msgKey}' is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+            }
+            participantCmd.msgPartition = participant.partition
             break
           }
           case TransferFulfilAcceptedEvt.name: {
@@ -169,6 +188,12 @@ export class ParticipantEvtHandler implements IRunHandler {
             const commitPayeeFundsCmdPayload: CommitPayeeFundsCmdPayload = participantEvt.payload
             participantCmd = new CommitPayeeFundsCmd(commitPayeeFundsCmdPayload)
             participantCmd.passTraceInfo(participantEvt)
+            // lets find and set the appropriate partition for the participant
+            const participant = await this._repo.load(participantCmd.msgKey)
+            if (participant == null) {
+              throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - Participant '${participantCmd.msgKey}' is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+            }
+            participantCmd.msgPartition = participant.partition
             break
           }
           default: {
@@ -285,5 +310,6 @@ export class ParticipantEvtHandler implements IRunHandler {
   async destroy (): Promise<void> {
     await this._consumer.destroy(true)
     await this._publisher.destroy()
+    await this._repo.destroy()
   }
 }

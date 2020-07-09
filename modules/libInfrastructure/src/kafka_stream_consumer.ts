@@ -246,6 +246,9 @@ export class KafkaStreamConsumer extends MessageConsumer {
 
     try {
       domainMessage = JSON.parse(message.value) as IDomainMessage
+      if (domainMessage.msgPartition == null) {
+        domainMessage.msgPartition = msgMetaData.partition
+      }
     } catch (err) {
       this._logger.error(err, 'Error parsing kafka message')
       this.emit('error', err)
