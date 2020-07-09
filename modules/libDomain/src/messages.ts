@@ -117,7 +117,7 @@ export abstract class DomainMsg implements IDomainMessage {
     this.traceInfo = origMsg.traceInfo
   }
 
-  abstract validatePayload(): void
+  abstract validatePayload (): void
 }
 
 export abstract class DomainEventMsg extends DomainMsg {

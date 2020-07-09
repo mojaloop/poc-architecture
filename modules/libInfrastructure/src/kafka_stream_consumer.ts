@@ -51,7 +51,7 @@ export class KafkaStreamConsumer extends MessageConsumer {
     this._logger.info('instance created')
   }
 
-  static Create<tOptions>(options: tOptions, logger: ILogger): MessageConsumer {
+  static Create<tOptions> (options: tOptions, logger: ILogger): MessageConsumer {
     const consumer = Reflect.construct(this, arguments)
 
     consumer.on('error', (err: Error): void => {

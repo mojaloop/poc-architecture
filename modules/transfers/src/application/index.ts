@@ -37,7 +37,7 @@
 
 'use strict'
 
-import { MojaLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
+import { getEnvIntegerOrDefault, getEnvValueOrDefault, MojaLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { TApiServerOptions, ApiServer, IRunHandler, KafkaInfraTypes, RdKafkaCommitMode } from '@mojaloop-poc/lib-infrastructure'
 import { TransferCmdHandler } from './transferCmdHandler'
@@ -90,7 +90,11 @@ Program.command('handler')
         gzipCompression: (process.env.KAFKA_PRODUCER_GZIP === 'true')
       },
       redis: {
-        host: process.env.REDIS_HOST
+        host: getEnvValueOrDefault('REDIS_HOST', 'redis://localhost:6379') as string,
+        expirationInSeconds: getEnvIntegerOrDefault('REDIS_EXPIRATION_IN_SEC', -1) as number
+      },
+      duplicate: {
+        host: getEnvValueOrDefault('REDIS_DUPL_HOST', 'redis://localhost:6379') as string
       }
     }
 

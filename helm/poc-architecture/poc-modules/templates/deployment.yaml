@@ -1,5 +1,6 @@
 {{- $kafkaHost := ( .Values.config.kafka_host | replace "$release_name" .Release.Name ) -}}
 {{- $redisHost := ( .Values.config.redis_host | replace "$release_name" .Release.Name ) -}}
+{{- $redisDuplicateHost := ( .Values.config.redis_duplicate_host | replace "$release_name" .Release.Name ) -}}
 {{- $simulatorHost := ( .Values.config.simulator_host | replace "$release_name" .Release.Name ) -}}
 apiVersion: {{ template "poc-modules.apiVersion.Deployment" . }}
 kind: Deployment
@@ -103,6 +104,8 @@ spec:
               value: "{{ $kafkaHost }}:{{ .Values.config.kafka_port }}"
             - name: REDIS_HOST
               value: {{ $redisHost | quote }}
+            - name: REDIS_DUPL_HOST
+              value: {{ $redisDuplicateHost | quote }}
             - name: SIMULATOR_HOST
               value: {{ $simulatorHost | quote }}
             - name: PARTICIPANTS_REPO_TYPE

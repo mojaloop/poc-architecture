@@ -71,6 +71,7 @@ export class ParticipantCmdHandler implements IRunHandler {
   private _repo: IParticipantRepo
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
+    logger.info(`ParticipantCmdHandler::start - appConfig=${JSON.stringify(appConfig)}`)
     let repo: IParticipantRepo
 
     logger.info(`ParticipantCmdHandler - Creating repo of type ${appConfig.repo.type as string}`)

@@ -72,6 +72,7 @@ export class SimulatorEvtHandler implements IRunHandler {
   private _publisher: IMessagePublisher
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
+    logger.info(`SimulatorEvtHandler::start - appConfig=${JSON.stringify(appConfig)}`)
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
     logger.info(`SimulatorEvtHandler - Creating ${appConfig.kafka.producer as string} simulatorEvtHandler.kafkaMsgPublisher...`)

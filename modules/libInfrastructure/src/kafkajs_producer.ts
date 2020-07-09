@@ -77,7 +77,7 @@ export class KafkajsProducer extends MessageProducer {
     this._logger.info('KafkaGenericProducer instance created')
   }
 
-  static Create<tOptions>(options: tOptions, logger: ILogger): iMessageProducer {
+  static Create<tOptions> (options: tOptions, logger: ILogger): iMessageProducer {
     const producer = Reflect.construct(this, arguments)
 
     producer.on('error', (err: Error): void => {

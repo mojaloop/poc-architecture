@@ -39,20 +39,21 @@
 
 import * as redis from 'redis'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { ParticipantState } from '../domain/participant_entity'
-import { IParticipantRepo } from '../domain/participant_repo'
-import { ParticipantAccountTypes, ParticipantEndpoint } from '@mojaloop-poc/lib-public-messages'
+import { TransferState } from '../domain/transfer_entity'
+import { ITransfersRepo } from '../domain/transfers_repo'
 
-export class RedisParticipantStateRepo implements IParticipantRepo {
+export class RedisTransferStateRepo implements ITransfersRepo {
   protected _redisClient!: redis.RedisClient
   private readonly _redisConnStr: string
   private readonly _logger: ILogger
   private _initialized: boolean = false
-  private readonly keyPrefix: string = 'participant_'
+  private readonly keyPrefix: string = 'transfer_'
+  private readonly _expirationInSeconds: number
 
-  constructor (connStr: string, logger: ILogger) {
+  constructor (connStr: string, logger: ILogger, expirationInSeconds: number = -1) {
     this._redisConnStr = connStr
     this._logger = logger
+    this._expirationInSeconds = expirationInSeconds
   }
 
   async init (): Promise<void> {
@@ -84,7 +85,7 @@ export class RedisParticipantStateRepo implements IParticipantRepo {
     return this._initialized // for now, no circuit breaker exists
   }
 
-  async load (id: string): Promise<ParticipantState|null> {
+  async load (id: string): Promise<TransferState|null> {
     return await new Promise((resolve, reject) => {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
 
@@ -100,7 +101,7 @@ export class RedisParticipantStateRepo implements IParticipantRepo {
           return resolve(null)
         }
         try {
-          const state: ParticipantState = JSON.parse(result)
+          const state: TransferState = JSON.parse(result)
           return resolve(state)
         } catch (err) {
           this._logger.error(err, 'Error parsing entity state from redis - for key: ' + key)
@@ -131,11 +132,12 @@ export class RedisParticipantStateRepo implements IParticipantRepo {
     })
   }
 
-  async store (entityState: ParticipantState): Promise<void> {
+  async store (entityState: TransferState): Promise<void> {
     return await new Promise((resolve, reject) => {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
 
       const key: string = this.keyWithPrefix(entityState.id)
+      // const expireStateInSec: number = (entityState != null && entityState?.expireStateInSec > 0) ? entityState.expireStateInSec : -1
       let stringValue: string
       try {
         stringValue = JSON.stringify(entityState)
@@ -144,7 +146,7 @@ export class RedisParticipantStateRepo implements IParticipantRepo {
         return reject(err)
       }
 
-      this._redisClient.set(key, stringValue, (err: Error | null, reply: string) => {
+      this._redisClient.setex(key, this._expirationInSeconds, stringValue, (err: Error | null, reply: string) => {
         if (err != null) {
           this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
           return reject(err)
@@ -160,15 +162,5 @@ export class RedisParticipantStateRepo implements IParticipantRepo {
 
   private keyWithPrefix (key: string): string {
     return this.keyPrefix + key
-  }
-
-  async hasAccount (participantId: string, accType: ParticipantAccountTypes, currency: string): Promise<boolean> {
-    const participant = await this.load(participantId)
-    return participant?.accounts?.find(account => account.type === accType && account.currency === currency) != null
-  }
-
-  async getEndPoints (participantId: string): Promise<ParticipantEndpoint[]|undefined> {
-    const participant = await this.load(participantId)
-    return participant?.endpoints
   }
 }

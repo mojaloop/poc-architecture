@@ -231,8 +231,8 @@ const handlerForFulfilEvt = async (message: IDomainMessage): Promise<void> => {
 
       /* report metrics */
       perfMetricsHisto.full!.observe({}, fullDelta / 1000)
-      perfMetricsHisto.prepare!.observe({payerId: message.payload.payerId}, prepareDelta / 1000)
-      perfMetricsHisto.fulfill!.observe({payeeId: message.payload.payeeId}, fulfilDelta / 1000)
+      perfMetricsHisto.prepare!.observe({ payerId: message.payload.payerId }, prepareDelta / 1000)
+      perfMetricsHisto.fulfill!.observe({ payeeId: message.payload.payeeId }, fulfilDelta / 1000)
     }
   }
 }
@@ -262,12 +262,12 @@ const start = async () => {
   perfMetricsHisto.prepare = metrics.getHistogram(
     'tx_transfer_prepare',
     'Transaction metrics for Transfers',
-    [ 'payerId' ]
+    ['payerId']
   )
   perfMetricsHisto.fulfill = metrics.getHistogram(
     'tx_transfer_fulfil',
     'Transaction metrics for Transfers',
-    [ 'payeeId' ]
+    ['payeeId']
   )
 
   // Kafka consumer
