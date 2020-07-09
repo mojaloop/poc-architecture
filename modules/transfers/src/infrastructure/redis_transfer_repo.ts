@@ -146,7 +146,7 @@ export class RedisTransferStateRepo implements ITransfersRepo {
         return reject(err)
       }
 
-      this._redisClient.set(key, stringValue, (err: Error | null, reply: string) => {
+      this._redisClient.setex(key, this._expirationInSeconds, stringValue, (err: Error | null, reply: string) => {
         if (err != null) {
           this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
           return reject(err)
@@ -155,23 +155,7 @@ export class RedisTransferStateRepo implements ITransfersRepo {
           this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
           return reject(err)
         }
-
-        if (this._expirationInSeconds > 0) {
-          this._redisClient.expire(key, this._expirationInSeconds, (err: Error | null, reply: number) => {
-            if (err != null) {
-              this._logger.error(err, 'Error setting expiration for entity state to redis - for key: ' + key)
-              return reject(err)
-            }
-            if (reply > 0) {
-              return resolve()
-            }
-            this._logger.error('Unsuccessful attempt setting expiration for the entity state in redis - for key: ' + key)
-            return reject(err)
-          })
-        } else {
-          return resolve()
-        }
-        // return resolve()
+        return resolve()
       })
     })
   }
