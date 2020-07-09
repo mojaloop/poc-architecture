@@ -155,8 +155,7 @@ export class RedisTransferStateRepo implements ITransfersRepo {
           this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
           return reject(err)
         }
-        // if (expireStateInSec > 0) {
-        // this._redisClient.expire(key, expireStateInSec, (err: Error | null, reply: number) => {
+        
         if (this._expirationInSeconds > 0) {
           this._redisClient.expire(key, this._expirationInSeconds, (err: Error | null, reply: number) => {
             if (err != null) {

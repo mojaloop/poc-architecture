@@ -131,9 +131,6 @@ export class TransferEntity extends BaseEntity<TransferState> {
       headers: incommingTransfer.prepare?.headers,
       payload: incommingTransfer.prepare?.payload
     }
-    // if (expireInSec != null) {
-    //   this._state.expireStateInSec = expireInSec
-    // }
   }
 
   acknowledgeTransferReserved (): void {
