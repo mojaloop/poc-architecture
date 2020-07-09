@@ -46,7 +46,7 @@ export type CreateParticipantCmdPayload = {
     name: string
     accounts: ParticipantAccount[]
     endpoints: ParticipantEndpoint[]
-    partition: number
+    partition: number | null
   }
 }
 

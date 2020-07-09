@@ -68,7 +68,7 @@ export class ParticipantState extends BaseEntityState {
   name: string
   accounts: ParticipantAccountState[]
   endpoints: ParticipantEndpointState[]
-  partition: number
+  partition: number | null
 }
 
 export class ParticipantEntity extends BaseEntity<ParticipantState> {
@@ -88,7 +88,7 @@ export class ParticipantEntity extends BaseEntity<ParticipantState> {
     return this._state.endpoints
   }
 
-  get partition (): number {
+  get partition (): number | null {
     return this._state.partition
   }
 

@@ -17,13 +17,17 @@ const start = async () => {
   const LIMIT = process.env?.LIMIT ?? '10000000'
 
   const simulatorHost: string = Publisher.appConfig.simulator.host?.toString() ?? 'localhost:8444'
-  const PARTITION_CNT: number = getEnvIntegerOrDefault('PARTITION_CNT', 1)
+  const PARTITION_CNT: number = getEnvIntegerOrDefault('PARTITION_CNT', null)
 
   const participantCmdList: IMessage[] = []
   let partitionIndex = 0
   for (const fsp of getFspList()) {
-    const partition = partitionIndex % PARTITION_CNT
+    let partition = null
+    if (PARTITION_CNT !== null) {
+      partition = partitionIndex % PARTITION_CNT
+    }
     const participantId = fsp
+    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
     logger.info(`Creating ParticipantCmdPayload for ${participantId} for partition:'${partition}'`)
     const createParticipantCmdPayloadFSP: CreateParticipantCmdPayload = {
       participant: {
@@ -64,7 +68,9 @@ const start = async () => {
         partition
       }
     }
+
     const createParticipantCmdFSP = new CreateParticipantCmd(createParticipantCmdPayloadFSP)
+    createParticipantCmdFSP.msgPartition = partition
     participantCmdList.push(createParticipantCmdFSP)
     partitionIndex++
   }
