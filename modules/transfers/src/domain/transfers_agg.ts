@@ -65,7 +65,6 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       }
     }
 
-    const expireInSec = 10 * 60 // 30m in seconds
     this._rootEntity!.prepareTransfer(transferPrepareRequestData)
 
     const transferPrepareAcceptedEvtPayload = {
