@@ -118,7 +118,7 @@ export class TransferEntity extends BaseEntity<TransferState> {
     return entity
   }
 
-  prepareTransfer (incommingTransfer: PrepareTransferData, expireInSec?: number): void {
+  prepareTransfer (incommingTransfer: PrepareTransferData): void {
     this._state.id = incommingTransfer.id
     this._state.amount = incommingTransfer.amount
     this._state.currency = incommingTransfer.currency
