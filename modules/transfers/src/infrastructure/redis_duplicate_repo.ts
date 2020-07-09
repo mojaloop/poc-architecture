@@ -91,12 +91,12 @@ export class RedisTransferDuplicateRepo implements IDupTransferRepo {
   async exists (id: string): Promise<boolean> {
     return await new Promise((resolve, reject) => {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
-      this._redisClient.getset(this._setKey, id, (err: Error | null, result: string) => {
+      this._redisClient.SISMEMBER(this._setKey, id, (err: Error | null, result: number) => {
         if (err != null) {
           this._logger.error(err, `Error checkig '${id}' for set to redis: ${this._setKey}`)
           return reject(err)
         }
-        if (result === id) {
+        if (result === 1) {
           return resolve(true)
         } else {
           return resolve(false)
