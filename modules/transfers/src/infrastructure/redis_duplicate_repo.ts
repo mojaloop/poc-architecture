@@ -46,7 +46,7 @@ export class RedisTransferDuplicateRepo implements IDupTransferRepo {
   private readonly _redisConnStr: string
   private readonly _logger: ILogger
   private _initialized: boolean = false
-  private readonly _setKey: string = 'transfer'
+  private readonly _setKey: string = 'transfers_duplicate'
 
   constructor (connStr: string, logger: ILogger) {
     this._redisConnStr = connStr
