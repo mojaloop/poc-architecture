@@ -61,7 +61,7 @@ import {
   RDKafkaConsumerOptions,
   RDKafkaConsumer
 } from '@mojaloop-poc/lib-infrastructure'
-import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
+import { Crypto, IMetricsFactory, mergeObjectIntoTraceStateToMessage } from '@mojaloop-poc/lib-utilities'
 
 /* eslint-disable @typescript-eslint/no-var-requires */
 const encodePayload = require('@mojaloop/central-services-shared').Util.StreamingProtocol.encodePayload
@@ -205,6 +205,7 @@ export class SimulatorEvtHandler implements IRunHandler {
             }
 
             transferEvt = new TransferFulfilRequestedEvt(transferFulfilRequestedEvtPayload)
+            mergeObjectIntoTraceStateToMessage(message, { timeApiFulfil: Date.now() })
             transferEvt.passTraceInfo(message)
 
             break

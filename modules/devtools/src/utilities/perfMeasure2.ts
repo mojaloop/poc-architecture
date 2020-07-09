@@ -7,13 +7,12 @@
 
 import { IDomainMessage, ILogger } from '@mojaloop-poc/lib-domain'
 import { KafkaGenericConsumer, KafkaGenericConsumerOptions, KafkaInfraTypes, MessageConsumer, RDKafkaConsumer, RDKafkaConsumerOptions, KafkaStreamConsumer, EnumOffset, KafkaJsConsumerOptions, KafkaJsConsumer, RdKafkaCommitMode, ApiServer, TApiServerOptions } from '@mojaloop-poc/lib-infrastructure'
-import { ConsoleLogger, Crypto, getEnvIntegerOrDefault, TMetricOptionsType, Metrics } from '@mojaloop-poc/lib-utilities'
+import { ConsoleLogger, Crypto, getEnvIntegerOrDefault, TMetricOptionsType, Metrics, extractTraceStateFromMessage } from '@mojaloop-poc/lib-utilities'
 // import { ConsoleLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
 
 import * as dotenv from 'dotenv'
 import * as promclient from 'prom-client'
 import { TransfersTopics } from '@mojaloop-poc/lib-public-messages'
-import base64url from 'base64url'
 
 /* eslint-disable-next-line @typescript-eslint/no-var-requires */
 const pckg = require('../../package.json')
@@ -24,7 +23,12 @@ const INTERVAL_MS = Number.parseInt(STR_INTERVAL_MS)
 // TODO: Figure a better way to handle env config here
 dotenv.config({ path: '../../.env' })
 
-let perfMetricsHisto: promclient.Histogram
+type tperfMetricsHisto = {[key: string]: promclient.Histogram | null}
+const perfMetricsHisto: tperfMetricsHisto = {
+  full: null,
+  prepare: null,
+  fulfill: null
+}
 
 const logger: ILogger = new ConsoleLogger()
 let metrics: Metrics
@@ -216,27 +220,19 @@ const handlerForFulfilEvt = async (message: IDomainMessage): Promise<void> => {
     fulfiledCounter++
 
     /* Get the trace state if present in the message */
-    const traceState: string | undefined = message.traceInfo?.traceState
-    if (traceState !== undefined) {
-      /* expecting something like "acmevendor=eyJzcGF..." where "eyJzcGF" is base64 encoded msg */
-      if (traceState.indexOf('=') != -1) {
-        const payloadEncoded = traceState.substr(traceState.indexOf('=') + 1)
-        const payloadDecoded = base64url.toBuffer(payloadEncoded)
-        try {
-          const payload = JSON.parse(payloadDecoded.toString())
-          if (payload?.timeApiPrepare != null) {
-            const timeDelta = message.msgTimestamp - payload?.timeApiPrepare
-            recordCompleted(timeDelta, message.aggregateId)
-            const labels = {
-              payerId: message.payload.payerId,
-              payeeId: message.payload.payeeId
-            }
-            perfMetricsHisto.observe(labels, timeDelta / 1000)
-          }
-        } catch (err) {
-          console.error('handlerForFulfilEvt Error when JSON.parse()-ing message')
-        }
-      }
+    const traceStatePayload = extractTraceStateFromMessage(message)
+    if ((traceStatePayload?.timeApiPrepare != null) &&
+      (traceStatePayload?.timeApiFulfil != null)) {
+      /* calculate metrics */
+      const fullDelta = message.msgTimestamp - traceStatePayload?.timeApiPrepare
+      const prepareDelta = traceStatePayload?.timeApiFulfil - traceStatePayload?.timeApiPrepare
+      const fulfilDelta = message.msgTimestamp - traceStatePayload?.timeApiFulfil
+      recordCompleted(fullDelta, message.aggregateId)
+
+      /* report metrics */
+      perfMetricsHisto.full!.observe({}, fullDelta / 1000)
+      perfMetricsHisto.prepare!.observe({payerId: message.payload.payerId}, prepareDelta / 1000)
+      perfMetricsHisto.fulfill!.observe({payeeId: message.payload.payeeId}, fulfilDelta / 1000)
     }
   }
 }
@@ -258,10 +254,20 @@ const start = async () => {
   metrics = new Metrics(metricsConfig)
   await metrics.init()
 
-  perfMetricsHisto = metrics.getHistogram(
+  perfMetricsHisto.full = metrics.getHistogram(
     'tx_transfer',
     'Transaction metrics for Transfers',
-    ['payerId', 'payeeId']
+    []
+  )
+  perfMetricsHisto.prepare = metrics.getHistogram(
+    'tx_transfer_prepare',
+    'Transaction metrics for Transfers',
+    [ 'payerId' ]
+  )
+  perfMetricsHisto.fulfill = metrics.getHistogram(
+    'tx_transfer_fulfil',
+    'Transaction metrics for Transfers',
+    [ 'payeeId' ]
   )
 
   // Kafka consumer
