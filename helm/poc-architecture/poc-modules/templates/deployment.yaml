@@ -104,6 +104,8 @@ spec:
               value: "{{ $kafkaHost }}:{{ .Values.config.kafka_port }}"
             - name: REDIS_HOST
               value: {{ $redisHost | quote }}
+            - name: REDIS_EXPIRATION_IN_SEC
+              value: {{ .Values.config.redis_expiration_in_sec | quote }}
             - name: REDIS_DUPL_HOST
               value: {{ $redisDuplicateHost | quote }}
             - name: SIMULATOR_HOST

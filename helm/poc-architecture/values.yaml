@@ -15,6 +15,7 @@ parameters:
   kafka_producer: &kafka_producer node-rdkafka
   # Supported repo Types: memory, redis, cachedredis
   participants_repo_type: &participants_repo_type cachedredis
+  redis_expiration_in_sec: &redis_expiration_in_sec 1800
 
 
 ## Jobs
@@ -2103,6 +2104,7 @@ transfers:
     uv_threadpool_size: 7
     # redis_host: 'redis://$release_name-redis-master:6379'
     redis_host: 'redis://$release_name-redis-transfers-master:6379'
+    redis_expiration_in_sec: *redis_expiration_in_sec
     redis_duplicate_host: 'redis://$release_name-redis-master:6379'
     # Supported repo Types: memory, redis, cachedredis
     participants_repo_type: *participants_repo_type
