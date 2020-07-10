@@ -35,16 +35,32 @@
 'use strict'
 import base64url from 'base64url'
 import { IDomainMessage } from '@mojaloop-poc/lib-domain'
+import { getEnvValueOrDefault } from './index'
+import { Crypto } from './crypto'
+
+/* env variables are initiated when application reads the ".env" configs, so we delay that step */
+let isEnvInitiated = false
+let EVENT_SDK_VENDOR_PREFIX: string = 'acmevendor'
+
+const initEnvVars = (): void => {
+  if (!isEnvInitiated) {
+    EVENT_SDK_VENDOR_PREFIX = getEnvValueOrDefault('EVENT_SDK_VENDOR_PREFIX', 'acmevendor')
+    isEnvInitiated = true
+  }
+}
 
 export const extractTraceStateFromMessage = (message: IDomainMessage): any => {
   let theTraceState = null
+
+  initEnvVars()
 
   /* Get the trace state if present in the message */
   const traceState: string | undefined = message.traceInfo?.traceState
   if (traceState !== undefined) {
     /* expecting something like "acmevendor=eyJzcGF..." where "eyJzcGF" is base64 encoded msg */
-    if (traceState.includes('=')) {
-      const payloadEncoded = traceState.substr(traceState.indexOf('=') + 1)
+    const vendorWithSign = EVENT_SDK_VENDOR_PREFIX + '='
+    if (traceState.includes(vendorWithSign)) {
+      const payloadEncoded = traceState.substr(traceState.indexOf(vendorWithSign) + vendorWithSign.length)
       const payloadDecoded = base64url.toBuffer(payloadEncoded)
       try {
         theTraceState = JSON.parse(payloadDecoded.toString())
@@ -59,13 +75,16 @@ export const extractTraceStateFromMessage = (message: IDomainMessage): any => {
 }
 
 export const injectTraceStateToMessage = (message: IDomainMessage, toInject: any): void => {
-  const currentTraceState: string | undefined = message.traceInfo?.traceState
+  const payloadEncoded = base64url.encode(JSON.stringify(toInject))
+  const vendorWithSign = EVENT_SDK_VENDOR_PREFIX + '='
 
-  if (currentTraceState !== undefined) {
+  if (message.traceInfo != null) {
+    message.traceInfo.traceState = vendorWithSign + payloadEncoded
+  } else {
     /* expecting something like "acmevendor=eyJzcGF..." where "eyJzcGF" is base64 encoded msg */
-    if (currentTraceState.includes('=')) {
-      const payloadEncoded = base64url.encode(JSON.stringify(toInject))
-      message.traceInfo!.traceState = currentTraceState.substr(0, currentTraceState.indexOf('=')) + '=' + payloadEncoded
+    message.traceInfo = {
+      traceParent: `00-${Crypto.randomBytes(16)}-${Crypto.randomBytes(8)}-${Crypto.randomBytes(1)}`,
+      traceState: vendorWithSign + payloadEncoded
     }
   }
 }

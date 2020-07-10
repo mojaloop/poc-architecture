@@ -5,7 +5,7 @@ import {
 } from '@mojaloop-poc/lib-public-messages'
 import { v4 as uuidv4 } from 'uuid'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { MojaLogger } from '@mojaloop-poc/lib-utilities'
+import { MojaLogger, injectTraceStateToMessage } from '@mojaloop-poc/lib-utilities'
 import { getRandomFsps } from '../utilities/participant'
 
 /* eslint-disable @typescript-eslint/no-var-requires */
@@ -45,8 +45,7 @@ const send = async (): Promise<void> => {
     }
 
     const encodedPreparePayload = encodePayload(Buffer.from(JSON.stringify(preparePayload)), contentType)
-
-    evts.push(new TransferPrepareRequestedEvt({
+    const newEvent = new TransferPrepareRequestedEvt({
       transferId: preparePayload.transferId,
       payerId: preparePayload.payerFsp,
       payeeId: preparePayload.payeeFsp,
@@ -74,8 +73,10 @@ const send = async (): Promise<void> => {
         },
         payload: encodedPreparePayload
       }
-    }
-    ))
+    })
+    injectTraceStateToMessage(newEvent, { timeApiPrepare: Date.now() })
+
+    evts.push(newEvent)
   }
 
   const constructMsgsMs = Date.now() - startTime
