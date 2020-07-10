@@ -216,7 +216,7 @@ export class ParticipantEvtHandler implements IRunHandler {
         const errMsg: string = err?.message?.toString()
         logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
         logger.error(err)
-        histTimer({ success: 'false', error: err.message, evtname })
+        histTimer({ success: 'false', /* error: err.message, */ evtname })
       }
     }
 
