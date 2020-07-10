@@ -132,6 +132,8 @@ spec:
               value: {{ .Values.config.rdkafka_queue_buffering_max_us | quote }}
             - name: MEASURE_KAFKA_GROUP_ID
               value: {{ .Values.config.measure_kafka_group_id | quote }}
+            - name: EVENT_SDK_VENDOR_PREFIX
+              value: {{ .Values.config.event_trace_vendor | quote }}
             - name: UV_THREADPOOL_SIZE
               value: {{ .Values.config.uv_threadpool_size | quote }}
 

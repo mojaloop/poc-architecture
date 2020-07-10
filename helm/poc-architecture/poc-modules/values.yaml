@@ -31,6 +31,7 @@ config:
   redis_duplicate_host: 'redis://$release_name-redis-master:6379'
   # Supported repo Types: memory, redis, cachedredis
   participants_repo_type: redis
+  event_trace_vendor: mojaloop
   log_level: info
   log_filter: info
 
