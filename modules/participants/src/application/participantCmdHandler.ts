@@ -323,7 +323,7 @@ export class ParticipantCmdHandler implements IRunHandler {
     this._consumer = participantCmdConsumer
     logger.info('ParticipantCmdConsumer - Initializing participantCmdConsumer...')
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-    await participantCmdConsumer.init(participantCmdHandler)
+    await participantCmdConsumer.init(participantCmdHandler, null) // by design we're interested in all commands
   }
 
   async destroy (): Promise<void> {

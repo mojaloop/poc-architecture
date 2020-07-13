@@ -56,6 +56,7 @@ export class RDKafkaConsumer extends MessageConsumer {
   private readonly _options: RDKafkaConsumerOptions
   private readonly _env_name: string
   private _client!: RDKafka.KafkaConsumer
+  private _msgNames!: string[]
 
   constructor (options: RDKafkaConsumerOptions, logger?: ILogger) {
     super()
@@ -68,9 +69,16 @@ export class RDKafkaConsumer extends MessageConsumer {
     this._logger.info('RDKafkaConsumer instance created')
   }
 
-  async init (handlerCallback: (message: IDomainMessage) => Promise<void>): Promise<void> {
+  async init (handlerCallback: (message: IDomainMessage) => Promise<void>, msgNames: string[] | null): Promise<void> {
+    this._msgNames = msgNames == null ? [] : msgNames
+
     return await new Promise((resolve, reject) => {
       this._logger.info('RDKafkaConsumer initialising...')
+      if (this._msgNames.length > 0) {
+        this._logger.info(`RDKafkaConsumer filtering msg names to: ${this._msgNames.join(',')}`)
+      } else {
+        this._logger.info('RDKafkaConsumer not filtering msg names (all will be received)')
+      }
 
       /* Global config: Mix incoming config with default config */
       const defaultGlobalConfig: RDKafka.ConsumerGlobalConfig = {
@@ -109,19 +117,28 @@ export class RDKafkaConsumer extends MessageConsumer {
               const msg = messages[0]
               const msgValue = msg?.value
               if (msg != null && msgValue != null) {
-                const msgAsString = msgValue.toString()
-                let msgAsDomainMessage
-                try {
-                  msgAsDomainMessage = JSON.parse(msgAsString) as IDomainMessage
-                  if (msgAsDomainMessage.msgPartition == null) {
-                    msgAsDomainMessage.msgPartition = msg.partition
+                if (this._msgNames.length > 0 && msg.headers !== undefined && msg.headers.length > 0 && msg.headers[0].msgName != null) {
+                  const msgName: string = msg.headers[0].msgName.toString()
+                  if (this._msgNames.includes(msgName)) {
+                    this._logger.debug(`RDKafkaConsumer ignoring message with msgName: ${msgName} not in the consumer list of subscribed msgNames`)
                   }
-                } catch (err) {
-                  this._logger.error('RDKafkaConsumer Error when JSON.parse()-ing message')
-                }
-                if (msgAsDomainMessage != null) {
-                  await handlerCallback(msgAsDomainMessage)
+                } else {
+                  // msgName in the list ov subscribed names or list is empty
+                  const msgAsString = msgValue.toString()
+                  let msgAsDomainMessage
+                  try {
+                    msgAsDomainMessage = JSON.parse(msgAsString) as IDomainMessage
+                    if (msgAsDomainMessage.msgPartition == null) {
+                      msgAsDomainMessage.msgPartition = msg.partition
+                    }
+                  } catch (err) {
+                    this._logger.error('RDKafkaConsumer Error when JSON.parse()-ing message')
+                  }
 
+                  if (msgAsDomainMessage != null) {
+                    await handlerCallback(msgAsDomainMessage)
+                  }
+                  // commit even if we couldn't parse it
                   if (autoCommitEnabled !== true) {
                     switch (commitWaitMode) {
                       case RdKafkaCommitMode.RDKAFKA_COMMIT_NO_WAIT:
@@ -136,10 +153,11 @@ export class RDKafkaConsumer extends MessageConsumer {
                   }
                 }
               } else {
-                this._logger.error('RDKafkaConsumer Received message with value==NULL.')
+                this._logger.warn('RDKafkaConsumer Received message with value==NULL.')
               }
             }
           }
+          // TODO - consider putting this in a setImmediate or process.nextTick (pedro)
           consumeRecursiveWrapper()
         })
       }

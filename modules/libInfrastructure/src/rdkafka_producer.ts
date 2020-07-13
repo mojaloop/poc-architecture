@@ -71,7 +71,7 @@ export class RDKafkaProducer extends MessageProducer {
   protected _logger: ILogger
   private readonly _options: RDKafkaProducerOptions
   private readonly _env_name: string
-  private _client!: RDKafka.Producer
+  private _client!: RDKafka.HighLevelProducer
 
   constructor (options: RDKafkaProducerOptions, logger?: ILogger) {
     super()
@@ -184,6 +184,10 @@ export class RDKafkaProducer extends MessageProducer {
       kafkaMessages.forEach((kafkaMsg: IMessage) => {
         const msg = JSON.stringify(kafkaMsg)
         const partition = (kafkaMsg.msgPartition !== null) ? kafkaMsg.msgPartition : null
+        const headers = {
+          msgType: kafkaMsg.msgType === undefined ? '' : kafkaMsg.msgType.toString(),
+          msgName: kafkaMsg.msgName === undefined ? '' : kafkaMsg.msgName
+        }
         try {
           this._client.produce(
             /* topic name */
@@ -196,6 +200,8 @@ export class RDKafkaProducer extends MessageProducer {
             kafkaMsg.msgKey,
             /* timestamp */
             null,
+            /* headers */
+            [headers],
             /* callback */
             (err: any, _offset?: NumberNullUndefined) => {
               if (err !== null) {

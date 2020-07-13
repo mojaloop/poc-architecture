@@ -296,8 +296,16 @@ export class TransferEvtHandler implements IRunHandler {
 
     this._consumer = transferEvtConsumer
     logger.info('TransferEvtConsumer - Initializing transferCmdConsumer...')
+
+    const subscribedMsgNames = [
+      'PayerFundsReservedEvt',
+      'PayeeFundsCommittedEvt',
+      'TransferPrepareRequestedEvt',
+      'TransferFulfilRequestedEvt'
+    ]
+
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-    await transferEvtConsumer.init(transferEvtHandler)
+    await transferEvtConsumer.init(transferEvtHandler, subscribedMsgNames)
   }
 
   async destroy (): Promise<void> {

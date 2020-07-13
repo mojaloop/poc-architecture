@@ -53,6 +53,7 @@ export type TTraceInfo = {
 
 export interface IMessage{
   msgType: MessageTypes
+  msgName: string // name of the event or command
   msgId: string // unique per message
   msgTimestamp: number
   msgKey: string // usually the id of the aggregate (used for partitioning)
@@ -76,7 +77,6 @@ export interface IMessage{
 // domain specific
 
 export interface IDomainMessage extends IMessage{
-  msgName: string // name of the event or command
 
   aggregateName: string // name of the source/target aggregate (source if event, target if command)
   aggregateId: string // id of the source/target aggregate (source if event, target if command)

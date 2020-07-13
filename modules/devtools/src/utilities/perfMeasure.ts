@@ -279,7 +279,7 @@ const start = async () => {
   }
   // const kafkaEvtConsumer = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(kafkaConsumerOptions, logger)
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-  await kafkaEvtConsumer.init(handlerForFulfilEvt)
+  await kafkaEvtConsumer.init(handlerForFulfilEvt, ['TransferFulfilledEvt'])
 
   const kafkaEvtConsumerMl = await CreateConsumer(MLTopics.Events)
   if (kafkaEvtConsumerMl === undefined) {
@@ -287,7 +287,7 @@ const start = async () => {
   }
   // const kafkaEvtConsumerMl = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(kafkaConsumerOptionsMl, logger)
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-  await kafkaEvtConsumerMl.init(handlerForInitialReqEvt)
+  await kafkaEvtConsumerMl.init(handlerForInitialReqEvt, ['TransferPrepareRequestedEvt'])
 
   // start only API
   const args = { // TODO: do a proper args parsing instead of hard-coded const

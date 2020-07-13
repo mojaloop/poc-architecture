@@ -323,8 +323,14 @@ export class SimulatorEvtHandler implements IRunHandler {
 
     this._consumer = simulatorEvtConsumer
     logger.info('SimulatorEvtHandler - Initializing transferCmdConsumer...')
+
+    const subscribedMsgNames = [
+      'TransferPreparedEvt',
+      'TransferFulfilledEvt'
+    ]
+
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-    await simulatorEvtConsumer.init(simulatorEvtHandler)
+    await simulatorEvtConsumer.init(simulatorEvtHandler, subscribedMsgNames)
   }
 
   async destroy (): Promise<void> {

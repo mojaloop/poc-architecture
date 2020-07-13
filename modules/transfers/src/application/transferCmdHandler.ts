@@ -296,7 +296,7 @@ export class TransferCmdHandler implements IRunHandler {
 
     logger.info('TransferCmdHandler - Initializing transferCmdConsumer...')
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-    await transferCmdConsumer.init(transferCmdHandler)
+    await transferCmdConsumer.init(transferCmdHandler, null) // by design we're interested in all commands
   }
 
   async destroy (): Promise<void> {

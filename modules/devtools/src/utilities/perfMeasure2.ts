@@ -277,7 +277,7 @@ const start = async () => {
   }
   // const kafkaEvtConsumer = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(kafkaConsumerOptions, logger)
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-  await kafkaEvtConsumer.init(handlerForFulfilEvt)
+  await kafkaEvtConsumer.init(handlerForFulfilEvt, ['TransferFulfilledEvt'])
 
   // start only API
   const args = { // TODO: do a proper args parsing instead of hard-coded const

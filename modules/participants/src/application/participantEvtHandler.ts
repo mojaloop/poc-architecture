@@ -303,8 +303,14 @@ export class ParticipantEvtHandler implements IRunHandler {
 
     this._consumer = participantEvtConsumer
     logger.info('ParticipantEvtHandler - Initializing participantCmdConsumer...')
+
+    const subscribedMsgNames = [
+      'TransferPrepareAcceptedEvt',
+      'TransferFulfilAcceptedEvt'
+    ]
+
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-    await participantEvtConsumer.init(participantEvtHandler)
+    await participantEvtConsumer.init(participantEvtHandler, subscribedMsgNames)
   }
 
   async destroy (): Promise<void> {
