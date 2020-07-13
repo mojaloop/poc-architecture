@@ -66,18 +66,18 @@ export class RDKafkaConsumer extends MessageConsumer {
 
     this._logger = logger ?? new ConsoleLogger()
 
-    this._logger.info('RDKafkaConsumer instance created')
+    this._logger.isInfoEnabled() && this._logger.info('RDKafkaConsumer instance created')
   }
 
   async init (handlerCallback: (message: IDomainMessage) => Promise<void>, msgNames: string[] | null): Promise<void> {
     this._msgNames = msgNames == null ? [] : msgNames
 
     return await new Promise((resolve, reject) => {
-      this._logger.info('RDKafkaConsumer initialising...')
+    this._logger.isInfoEnabled() && this._logger.info('RDKafkaConsumer initialising...')
       if (this._msgNames.length > 0) {
-        this._logger.info(`RDKafkaConsumer filtering msg names to: ${this._msgNames.join(',')}`)
+        this._logger.isInfoEnabled() && this._logger.info(`RDKafkaConsumer filtering msg names to: ${this._msgNames.join(',')}`)
       } else {
-        this._logger.info('RDKafkaConsumer not filtering msg names (all will be received)')
+        this._logger.isInfoEnabled() && this._logger.info('RDKafkaConsumer not filtering msg names (all will be received)')
       }
 
       /* Global config: Mix incoming config with default config */
@@ -104,16 +104,16 @@ export class RDKafkaConsumer extends MessageConsumer {
       const commitWaitMode = this._options.client.rdKafkaCommitWaitMode
 
       /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-      this._logger.info(`RDKafkaConsumer autoCommitEnabled is ${autoCommitEnabled}, commitWaitMode is ${commitWaitMode}`)
+      this._logger.isInfoEnabled() && this._logger.info(`RDKafkaConsumer autoCommitEnabled is ${autoCommitEnabled}, commitWaitMode is ${commitWaitMode}`)
 
       const consumeRecursiveWrapper = (): void => {
         /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
         this._client.consume(1, async (err: RDKafka.LibrdKafkaError, messages: RDKafka.Message[]) => {
           if (err !== null) {
-            this._logger.error('RDKafkaConsumer got callback with err:', JSON.stringify(err))
+            this._logger.isErrorEnabled() && this._logger.error('RDKafkaConsumer got callback with err:', JSON.stringify(err))
           } else {
             if (messages.length > 0) {
-              // this._logger.info(`RDKafkaConsumer got callback with data: ${JSON.stringify(messages)}`)
+              // this._logger.isInfoEnabled() && this._logger.info(`RDKafkaConsumer got callback with data: ${JSON.stringify(messages)}`)
               const msg = messages[0]
               const msgValue = msg?.value
               if (msg != null && msgValue != null) {
@@ -132,9 +132,8 @@ export class RDKafkaConsumer extends MessageConsumer {
                       msgAsDomainMessage.msgPartition = msg.partition
                     }
                   } catch (err) {
-                    this._logger.error('RDKafkaConsumer Error when JSON.parse()-ing message')
+                    this._logger.isErrorEnabled() && this._logger.error('RDKafkaConsumer Error when JSON.parse()-ing message')
                   }
-
                   if (msgAsDomainMessage != null) {
                     await handlerCallback(msgAsDomainMessage)
                   }
@@ -148,12 +147,12 @@ export class RDKafkaConsumer extends MessageConsumer {
                         this._client.commitMessageSync(messages[0])
                         break
                       default:
-                        this._logger.error('RDKafkaConsumer unknown commitWaitMode - no commits will happen!')
+                        this._logger.isErrorEnabled() && this._logger.error('RDKafkaConsumer unknown commitWaitMode - no commits will happen!')
                     }
                   }
                 }
               } else {
-                this._logger.warn('RDKafkaConsumer Received message with value==NULL.')
+                this._logger.isErrorEnabled() && this._logger.error('RDKafkaConsumer Received message with value==NULL.')
               }
             }
           }
@@ -163,8 +162,8 @@ export class RDKafkaConsumer extends MessageConsumer {
       }
 
       this._client.on('ready', () => {
-        this._logger.info('RDKafkaConsumer ...connected !')
-        this._logger.info(`RDKafkaConsumer Subscribing to topics ${JSON.stringify(this._options.topics)}`)
+        this._logger.isInfoEnabled() && this._logger.info('RDKafkaConsumer ...connected !')
+        this._logger.isInfoEnabled() && this._logger.info(`RDKafkaConsumer Subscribing to topics ${JSON.stringify(this._options.topics)}`)
         if (Array.isArray(this._options.topics)) {
           this._client.subscribe(this._options.topics)
         } else if (typeof this._options.topics === 'string') {
@@ -178,10 +177,10 @@ export class RDKafkaConsumer extends MessageConsumer {
 
   async destroy (forceCommit: boolean): Promise<void> {
     return await new Promise((resolve, reject) => {
-      this._logger.info('RDKafkaConsumer disconnect()-ing...')
+      this._logger.isInfoEnabled() && this._logger.info('RDKafkaConsumer disconnect()-ing...')
       this._client.disconnect((err: any, _data: RDKafka.ClientMetrics) => {
         if (err !== null) {
-          this._logger.error('RDKafkaConsumer disconnect() failed', err)
+          this._logger.isErrorEnabled() && this._logger.error('RDKafkaConsumer disconnect() failed', err)
           reject(err)
         } else {
           resolve()

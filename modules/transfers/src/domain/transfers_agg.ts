@@ -94,7 +94,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       }
 
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
-      this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      this._logger.isWarnEnabled() && this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
       return false
     }
 
@@ -130,7 +130,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       }
 
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
-      this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      this._logger.isWarnEnabled() && this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
       return false
     }
 
@@ -159,7 +159,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
       invalidTransferEvtPayload.reason = `${err.constructor.name} ${err.message}`
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
-      this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      this._logger.isWarnEnabled() && this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
       return false
     }
 
@@ -190,7 +190,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       }
 
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
-      this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      this._logger.isWarnEnabled() && this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
       return false
     }
 

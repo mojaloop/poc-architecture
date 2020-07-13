@@ -66,11 +66,11 @@ export class TransferEvtHandler implements IRunHandler {
   private _publisher: IMessagePublisher
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
-    logger.info(`TransferEvtHandler::start - appConfig=${JSON.stringify(appConfig)}`)
+    logger.isInfoEnabled() && logger.info(`TransferEvtHandler::start - appConfig=${JSON.stringify(appConfig)}`)
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`Creating ${appConfig.kafka.producer} transferEvtHandler.kafkaMsgPublisher...`)
+    logger.isInfoEnabled() && logger.info(`Creating ${appConfig.kafka.producer} transferEvtHandler.kafkaMsgPublisher...`)
     let clientId = `transferEvtHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_KAFKA_STREAM):
@@ -132,12 +132,12 @@ export class TransferEvtHandler implements IRunHandler {
         break
       }
       default: {
-        logger.warn('TransferEvtConsumer - Unable to find a Kafka Producer implementation!')
+        logger.isWarnEnabled() && logger.warn('TransferEvtConsumer - Unable to find a Kafka Producer implementation!')
         throw new Error('transferEvtHandler.kafkaMsgPublisher was not created!')
       }
     }
 
-    logger.info(`TransferEvtConsumer - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`TransferEvtConsumer - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
 
     this._publisher = kafkaMsgPublisher
     await kafkaMsgPublisher.init()
@@ -152,7 +152,7 @@ export class TransferEvtHandler implements IRunHandler {
       const histTimer = histoTransferEvtHandlerMetric.startTimer()
       const evtname = message.msgName ?? 'unknown'
       try {
-        logger.info(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+        logger.isInfoEnabled() && logger.info(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
         let transferEvt: DomainEventMsg | undefined
         let transferCmd: CommandMsg | null = null
         // # Transform messages into correct Command
@@ -190,33 +190,33 @@ export class TransferEvtHandler implements IRunHandler {
             break
           }
           case TransferPrepareAcceptedEvt.name: {
-            // logger.info(`EVENT:Type TransferPrepareAcceptedEvt ignored for now... TODO: refactor the topic names`)
+            // logger.isInfoEnabled() && logger.info(`EVENT:Type TransferPrepareAcceptedEvt ignored for now... TODO: refactor the topic names`)
             break
           }
           default: {
-            logger.debug(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+            logger.isDebugEnabled() && logger.debug(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
             histTimer({ success: 'true', evtname })
             return
           }
         }
 
         if (transferCmd != null) {
-          logger.info(`TransferEvtConsumer - publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${transferCmd?.msgName}:${transferCmd?.msgId}`)
+          logger.isInfoEnabled() && logger.info(`TransferEvtConsumer - publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${transferCmd?.msgName}:${transferCmd?.msgId}`)
           await kafkaMsgPublisher!.publish(transferCmd)
-          logger.info(`TransferEvtConsumer - publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+          logger.isInfoEnabled() && logger.info(`TransferEvtConsumer - publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
         }
         histTimer({ success: 'true', evtname })
       } catch (err) {
         const errMsg: string = err?.message?.toString()
-        logger.warn(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
-        logger.error(err)
+        logger.isWarnEnabled() && logger.warn(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+        logger.isErrorEnabled() && logger.error(err)
         histTimer({ success: 'false', error: err.message, evtname })
       }
     }
 
     let transferEvtConsumer: MessageConsumer | undefined
 
-    logger.info(`TransferEvtConsumer - Creating ${appConfig.kafka.consumer as string} transferEvtConsumer...`)
+    logger.isInfoEnabled() && logger.info(`TransferEvtConsumer - Creating ${appConfig.kafka.consumer as string} transferEvtConsumer...`)
     clientId = `transferEvtConsumer-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.consumer) {
       case (KafkaInfraTypes.NODE_KAFKA): {
@@ -288,14 +288,14 @@ export class TransferEvtHandler implements IRunHandler {
         break
       }
       default: {
-        logger.warn('TransferEvtConsumer - Unable to find a Kafka consumer implementation!')
+        logger.isWarnEnabled() && logger.warn('TransferEvtConsumer - Unable to find a Kafka consumer implementation!')
         throw new Error('transferEvtConsumer was not created!')
       }
     }
-    logger.info(`TransferEvtConsumer - Created kafkaConsumer of type ${transferEvtConsumer.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`TransferEvtConsumer - Created kafkaConsumer of type ${transferEvtConsumer.constructor.name}`)
 
     this._consumer = transferEvtConsumer
-    logger.info('TransferEvtConsumer - Initializing transferCmdConsumer...')
+    logger.isInfoEnabled() && logger.info('TransferEvtConsumer - Initializing transferCmdConsumer...')
 
     const subscribedMsgNames = [
       'PayerFundsReservedEvt',

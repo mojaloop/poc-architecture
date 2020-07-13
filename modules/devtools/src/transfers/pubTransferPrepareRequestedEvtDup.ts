@@ -67,6 +67,6 @@ const start = async () => {
 }
 
 start().catch((err) => {
-  logger.error(err)
+  logger.isErrorEnabled() && logger.error(err)
 }).finally(() => {
 })

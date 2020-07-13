@@ -20,18 +20,18 @@ export class InMemMessagePublisher implements IMessagePublisher {
 
 
   async init (): Promise<void> {
-    this._logger.debug(`InMemPublisher message published initialised`)
+    this._logger.isDebugEnabled() && logger.debug(`InMemPublisher message published initialised`)
     return Promise.resolve()
   }
 
   async destroy (): Promise<void> {
-    this._logger.debug(`InMemPublisher message published destroyed`)
+    this._logger.isDebugEnabled() && logger.debug(`InMemPublisher message published destroyed`)
     return Promise.resolve()
   }
 
   async publish (message: IMessage): Promise<void> {
     this._messages.push(message);
-    this._logger.debug(`InMemPublisher message published to topic: ${message.msgTopic} `)
+    this._logger.isDebugEnabled() && logger.debug(`InMemPublisher message published to topic: ${message.msgTopic} `)
     return Promise.resolve();
   }
 

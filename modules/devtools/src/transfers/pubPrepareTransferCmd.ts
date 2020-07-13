@@ -47,12 +47,12 @@ const start = async () => {
   }
   const reservePayerFundsCmd = new PrepareTransferCmd(prepareTransferCmdPayload)
 
-  logger.info('Publishing prepareTransferCmd')
+  logger.isInfoEnabled() && logger.info('Publishing prepareTransferCmd')
   await Publisher.publishMessage(reservePayerFundsCmd)
   process.exit(0)
 }
 
 start().catch((err) => {
-  logger.error(err)
+  logger.isErrorEnabled() && logger.error(err)
 }).finally(() => {
 })

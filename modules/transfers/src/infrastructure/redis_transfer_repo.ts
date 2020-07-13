@@ -61,7 +61,7 @@ export class RedisTransferStateRepo implements ITransfersRepo {
       this._redisClient = redis.createClient({ url: this._redisConnStr })
 
       this._redisClient.on('ready', () => {
-        this._logger.info('Redis client ready')
+        this._logger.isInfoEnabled() && this._logger.info('Redis client ready')
         if (this._initialized) { return }
 
         this._initialized = true
@@ -69,7 +69,7 @@ export class RedisTransferStateRepo implements ITransfersRepo {
       })
 
       this._redisClient.on('error', (err) => {
-        this._logger.error(err, 'A redis error has occurred:')
+        this._logger.isErrorEnabled() && this._logger.error(err, 'A redis error has occurred:')
         if (!this._initialized) { return reject(err) }
       })
     })
@@ -93,18 +93,18 @@ export class RedisTransferStateRepo implements ITransfersRepo {
 
       this._redisClient.get(key, (err: Error | null, result: string | null) => {
         if (err != null) {
-          this._logger.error(err, 'Error fetching entity state from redis - for key: ' + key)
+          this._logger.isErrorEnabled() && this._logger.error(err, 'Error fetching entity state from redis - for key: ' + key)
           return reject(err)
         }
         if (result == null) {
-          this._logger.debug('Entity state not found in redis - for key: ' + key)
+          this._logger.isDebugEnabled() && this._logger.debug('Entity state not found in redis - for key: ' + key)
           return resolve(null)
         }
         try {
           const state: TransferState = JSON.parse(result)
           return resolve(state)
         } catch (err) {
-          this._logger.error(err, 'Error parsing entity state from redis - for key: ' + key)
+          this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state from redis - for key: ' + key)
           return reject(err)
         }
       })
@@ -119,11 +119,11 @@ export class RedisTransferStateRepo implements ITransfersRepo {
 
       this._redisClient.del(key, (err?: Error|null, result?: number) => {
         if (err != null) {
-          this._logger.error(err, 'Error removing entity state from redis - for key: ' + key)
+          this._logger.isErrorEnabled() && this._logger.error(err, 'Error removing entity state from redis - for key: ' + key)
           return reject(err)
         }
         if (result !== 1) {
-          this._logger.debug('Entity state not found in redis - for key: ' + key)
+          this._logger.isDebugEnabled() && this._logger.debug('Entity state not found in redis - for key: ' + key)
           return resolve()
         }
 
@@ -142,17 +142,17 @@ export class RedisTransferStateRepo implements ITransfersRepo {
       try {
         stringValue = JSON.stringify(entityState)
       } catch (err) {
-        this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
+        this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
         return reject(err)
       }
 
       this._redisClient.setex(key, this._expirationInSeconds, stringValue, (err: Error | null, reply: string) => {
         if (err != null) {
-          this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
+          this._logger.isErrorEnabled() && this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
           return reject(err)
         }
         if (reply !== 'OK') {
-          this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
+          this._logger.isErrorEnabled() && this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
           return reject(err)
         }
         return resolve()

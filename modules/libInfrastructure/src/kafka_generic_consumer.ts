@@ -60,18 +60,18 @@ export class KafkaGenericConsumer extends MessageConsumer {
 
     this._logger = logger ?? new ConsoleLogger()
 
-    this._logger.info('instance created')
+    this._logger.isInfoEnabled() && this._logger.info('instance created')
   }
 
   static Create<tOptions> (options: tOptions, logger: ILogger): MessageConsumer {
     const consumer = Reflect.construct(this, arguments)
 
     consumer.on('error', (err: Error): void => {
-      logger.error(`event::error - ${JSON.stringify(err)}`)
+      logger.isErrorEnabled() && logger.error(`event::error - ${JSON.stringify(err)}`)
     })
 
     // consumer.on('commit', (msgMetaData:any) => {
-    //   logger.info(`event::commit - ${JSON.stringify(msgMetaData)}`)
+    //   logger.isInfoEnabled() && logger.info(`event::commit - ${JSON.stringify(msgMetaData)}`)
     // })
 
     return consumer
@@ -92,7 +92,7 @@ export class KafkaGenericConsumer extends MessageConsumer {
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
   async init (handlerCallback: (message: IDomainMessage) => Promise<void>): Promise<void> {
     return await new Promise((resolve, reject) => {
-      this._logger.info('initialising...')
+      this._logger.isInfoEnabled() && this._logger.info('initialising...')
 
       this._handlerCallback = handlerCallback
 
@@ -131,21 +131,21 @@ export class KafkaGenericConsumer extends MessageConsumer {
       // override any values with the options given to the client
       Object.assign(consumerGroupOptions, this._options.client)
 
-      this._logger.debug(`options: \n${JSON.stringify(consumerGroupOptions)}`)
+      this._logger.isDebugEnabled() && this._logger.debug(`options: \n${JSON.stringify(consumerGroupOptions)}`)
 
       this._consumerGroup = new kafka.ConsumerGroup(
         consumerGroupOptions as kafka.ConsumerGroupOptions, this._topics
       )
 
       this._consumerGroup.on('error', (err: Error) => {
-        this._logger.error(err, ' - consumer error')
+        this._logger.isErrorEnabled() && this._logger.error(err, ' - consumer error')
         process.nextTick(() => {
           this.emit('error', err)
         })
       })
 
       this._consumerGroup.on('offsetOutOfRange', (err) => {
-        this._logger.error(err, ' - offsetOutOfRange consumer error')
+        this._logger.isErrorEnabled() && this._logger.error(err, ' - offsetOutOfRange consumer error')
         process.nextTick(() => {
           this.emit('error', err)
         })
@@ -153,27 +153,27 @@ export class KafkaGenericConsumer extends MessageConsumer {
 
       this._consumerGroup.on('connect', () => {
         if (!this._initialized) {
-          this._logger.info('first on connect')
+          this._logger.isInfoEnabled() && this._logger.info('first on connect')
 
           this._initialized = true
           process.nextTick(() => {
             resolve()
           })
         } else {
-          this._logger.info('on connect - (re)connected')
+          this._logger.isInfoEnabled() && this._logger.info('on connect - (re)connected')
         }
       })
 
       this._consumerGroup.client.on('ready', () => {
-        this._logger.info('on ready')
+        this._logger.isInfoEnabled() && this._logger.info('on ready')
       })
 
       this._consumerGroup.client.on('reconnect', () => {
-        this._logger.info('on reconnect')
+        this._logger.isInfoEnabled() && this._logger.info('on reconnect')
       })
 
       // this.on('commit', (data) => {
-      //   this._logger.info(`commit - ${JSON.stringify(data)}`)
+      //   this._logger.isInfoEnabled() && this._logger.info(`commit - ${JSON.stringify(data)}`)
       // })
 
       // hook on message
@@ -181,20 +181,20 @@ export class KafkaGenericConsumer extends MessageConsumer {
 
       this._consumerGroup.on('message', (message: any) => {
         const logger = this._logger
-        // this._logger.info(`MESSAGE:${JSON.stringify(message)}`)
+        // this._logger.isInfoEnabled() && this._logger.info(`MESSAGE:${JSON.stringify(message)}`)
         if (this._syncQueue == null) throw new Error('Async queue has not been defined!')
         this._syncQueue.push({ message }, function (err) {
           if (err != null) {
-            logger.error(`Consumer::_consumePoller()::syncQueue.push - error: ${JSON.stringify(err)}`)
+            logger.isErrorEnabled() && logger.error(`Consumer::_consumePoller()::syncQueue.push - error: ${JSON.stringify(err)}`)
           }
         })
       })
-      this._logger.info('async queue created')
+      this._logger.isInfoEnabled() && this._logger.info('async queue created')
 
       /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
       this._syncQueue = async.queue(async (message) => {
         this._processing = true
-        // this._logger.debug(`async::queue() - message: ${JSON.stringify(message)}`)
+        // this._logger.isDebugEnabled() && logger.debug(`async::queue() - message: ${JSON.stringify(message)}`)
 
         const msgMetaData = {
           key: message?.message?.key,

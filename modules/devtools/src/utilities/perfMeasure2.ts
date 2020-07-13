@@ -67,7 +67,7 @@ const CreateConsumer = async (topic: string): Promise<MessageConsumer | undefine
   let consumer: MessageConsumer | undefined
 
   /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-  logger.info(`perfMeasure - Creating ${appConfig.kafka.consumer} perfMeasure for topic: ${topic}...`)
+  logger.isInfoEnabled() && logger.info(`perfMeasure - Creating ${appConfig.kafka.consumer} perfMeasure for topic: ${topic}...`)
   const clientId = `perfMeasure-${appConfig.kafka.consumer}-${Crypto.randomBytes(8)}`
   // const groupId = 'perf_measure_consumer' + Date.now().toString()
   // const groupId = 'perf_measure_consumer'
@@ -146,12 +146,12 @@ const CreateConsumer = async (topic: string): Promise<MessageConsumer | undefine
       break
     }
     default: {
-      logger.warn(`perfMeasure - Unable to find a Kafka consumer implementation for topic: ${topic}!`)
+      logger.isWarnEnabled() && logger.warn(`perfMeasure - Unable to find a Kafka consumer implementation for topic: ${topic}!`)
       throw new Error(`perfMeasure was not created for topic: ${topic}!`)
     }
   }
 
-  logger.info(`perfMeasure - Created kafkaConsumer of type ${consumer.constructor.name} for topic: ${topic}`)
+  logger.isInfoEnabled() && logger.info(`perfMeasure - Created kafkaConsumer of type ${consumer.constructor.name} for topic: ${topic}`)
   return consumer
 }
 
@@ -305,7 +305,7 @@ const start = async () => {
 }
 
 start().catch((err) => {
-  logger.error(err)
+  logger.isErrorEnabled() && logger.error(err)
 }).finally(() => {
   // process.exit(0)
 })

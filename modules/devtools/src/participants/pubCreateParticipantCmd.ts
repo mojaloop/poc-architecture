@@ -28,7 +28,7 @@ const start = async () => {
     }
     const participantId = fsp
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`Creating ParticipantCmdPayload for ${participantId} for partition:'${partition}'`)
+    logger.isInfoEnabled() && logger.info(`Creating ParticipantCmdPayload for ${participantId} for partition:'${partition}'`)
     const createParticipantCmdPayloadFSP: CreateParticipantCmdPayload = {
       participant: {
         id: participantId,
@@ -79,6 +79,6 @@ const start = async () => {
 }
 
 start().catch((err) => {
-  logger.error(err)
+  logger.isErrorEnabled() && logger.error(err)
 }).finally(() => {
 })

@@ -75,7 +75,7 @@ export class TransferCmdHandler implements IRunHandler {
   private readonly _duplicateRepo: IDupTransferRepo
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
-    logger.info(`TransferCmdHandler::start - appConfig=${JSON.stringify(appConfig)}`)
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler::start - appConfig=${JSON.stringify(appConfig)}`)
     // const repo: IEntityStateRepository<TransferState> = new InMemoryTransferStateRepo()
     const stateRepo: ITransfersRepo = new RedisTransferStateRepo(appConfig.redis.host, logger, appConfig.redis.expirationInSeconds)
     // https://hur.st/bloomfilter/?n=100000000&p=1.0E-7&m=&k=
@@ -87,7 +87,7 @@ export class TransferCmdHandler implements IRunHandler {
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`TransferCmdHandler - Creating ${appConfig.kafka.producer} transferCmdHandler.kafkaMsgPublisher...`)
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating ${appConfig.kafka.producer} transferCmdHandler.kafkaMsgPublisher...`)
     let clientId = `transferCmdHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_KAFKA_STREAM):
@@ -149,12 +149,12 @@ export class TransferCmdHandler implements IRunHandler {
         break
       }
       default: {
-        logger.warn('TransferCmdHandler - Unable to find a Kafka Producer implementation!')
+        logger.isWarnEnabled() && logger.warn('TransferCmdHandler - Unable to find a Kafka Producer implementation!')
         throw new Error('transferCmdHandler.kafkaMsgPublisher was not created!')
       }
     }
 
-    logger.info(`TransferCmdHandler - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
 
     this._publisher = kafkaMsgPublisher
     await kafkaMsgPublisher.init()
@@ -172,7 +172,7 @@ export class TransferCmdHandler implements IRunHandler {
       const histTimer = histoTransferCmdHandlerMetric.startTimer()
       const evtname = message.msgName ?? 'unknown'
       try {
-        logger.info(`TransferCmdHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+        logger.isInfoEnabled() && logger.info(`TransferCmdHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
         let transferCmd: CommandMsg | undefined
         // Transform messages into correct Command
         switch (message.msgName) {
@@ -193,7 +193,7 @@ export class TransferCmdHandler implements IRunHandler {
             break
           }
           default: {
-            logger.warn(`TransferCmdHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+            logger.isWarnEnabled() && logger.warn(`TransferCmdHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
             break
           }
         }
@@ -201,19 +201,19 @@ export class TransferCmdHandler implements IRunHandler {
         if (transferCmd != null) {
           processCommandResult = await agg.processCommand(transferCmd)
         } else {
-          logger.warn('TransferCmdHandler - is Unable to process command')
+          logger.isWarnEnabled() && logger.warn('TransferCmdHandler - is Unable to process command')
         }
-        logger.info(`TransferCmdHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
+        logger.isInfoEnabled() && logger.info(`TransferCmdHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
         histTimer({ success: 'true', evtname })
       } catch (err) {
-        logger.error(err)
+        logger.isErrorEnabled() && logger.error(err)
         histTimer({ success: 'false', error: err.message, evtname })
       }
     }
 
     let transferCmdConsumer: MessageConsumer | undefined
 
-    logger.info(`TransferCmdHandler - Creating ${appConfig.kafka.consumer as string} transferCmdConsumer...`)
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating ${appConfig.kafka.consumer as string} transferCmdConsumer...`)
     clientId = `transferCmdConsumer-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.consumer) {
       case (KafkaInfraTypes.NODE_KAFKA): {
@@ -285,16 +285,16 @@ export class TransferCmdHandler implements IRunHandler {
         break
       }
       default: {
-        logger.warn('TransferCmdHandler - Unable to find a Kafka consumer implementation!')
+        logger.isWarnEnabled() && logger.warn('TransferCmdHandler - Unable to find a Kafka consumer implementation!')
         throw new Error('transferCmdConsumer was not created!')
       }
     }
 
-    logger.info(`TransferCmdHandler - Created kafkaConsumer of type ${transferCmdConsumer.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created kafkaConsumer of type ${transferCmdConsumer.constructor.name}`)
 
     this._consumer = transferCmdConsumer
 
-    logger.info('TransferCmdHandler - Initializing transferCmdConsumer...')
+    logger.isInfoEnabled() && logger.info('TransferCmdHandler - Initializing transferCmdConsumer...')
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     await transferCmdConsumer.init(transferCmdHandler, null) // by design we're interested in all commands
   }

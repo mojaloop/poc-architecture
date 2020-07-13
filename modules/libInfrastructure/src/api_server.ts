@@ -76,7 +76,7 @@ export class ApiServer {
     // override any values with the options given to the client
     Object.assign(this._serverOptions, this._options)
 
-    this._logger.info(`Http Server starting with opts: ${JSON.stringify(this._serverOptions)}`)
+    this._logger.isInfoEnabled() && this._logger.info(`Http Server starting with opts: ${JSON.stringify(this._serverOptions)}`)
 
     const routeHealthOpts: RouteShorthandOptions = {
       schema: {
@@ -101,7 +101,7 @@ export class ApiServer {
 
     this._server.get('/health', routeHealthOpts, async (request, reply) => {
       // console.log(reply.res) // this is the http.ServerResponse with correct typings!
-      // this._logger.debug(JSON.stringify(reply.res))
+      // this._logger.isDebugEnabled() && this._logger.debug(JSON.stringify(reply.res))
       const response = await this._serverOptions.healthCallback()
       await reply.code(200).send(response)
     })
@@ -118,7 +118,7 @@ export class ApiServer {
 
     this._server.get('/metrics', routeMetricOpts, async (request, reply) => {
       // console.log(reply.res) // this is the http.ServerResponse with correct typings!
-      // this._logger.debug(JSON.stringify(reply.res))
+      // this._logger.isDebugEnabled() && logger.debug(JSON.stringify(reply.res))
       const response = await this._serverOptions.metricCallback()
       await reply.code(200).send(response)
     })
@@ -126,15 +126,15 @@ export class ApiServer {
     // Run the server!
     await this._server.listen(this._serverOptions.port, this._serverOptions.host)
 
-    this._logger.info(`Http Server start on port:${this._serverOptions.port}, host: ${this._serverOptions.host}`)
+    this._logger.isInfoEnabled() && this._logger.info(`Http Server start on port:${this._serverOptions.port}, host: ${this._serverOptions.host}`)
 
     // Run the server!
     // this._server..listen(this._options.port, this._options.host, function (err, address) {
     //   if (err) {
-    //    this._logger.error(err)
+    //    this._logger.isErrorEnabled() && logger.error(err)
     //     process.exit(1)
     //   }
-    //   this._logger.info(`server listening on ${address}`)
+    //   this._logger.isInfoEnabled() && logger.info(`server listening on ${address}`)
     // })
   }
 
