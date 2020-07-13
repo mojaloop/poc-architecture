@@ -130,6 +130,10 @@ spec:
               value: {{ .Values.config.rdkafka_batch_num_messages | quote }}
             - name: RDKAFKA_QUEUE_BUFFERING_MAX_US
               value: {{ .Values.config.rdkafka_queue_buffering_max_us | quote }}
+            - name: KAFKA_FETCH_MIN_BYTES
+              value: {{ .Values.config.kafka_fetch_min_bytes | quote }}
+            - name: KAFKA_FETCH_WAIT_MAX_MS
+              value: {{ .Values.config.kafka_fetch_wait_max_ms | quote }}
             - name: MEASURE_KAFKA_GROUP_ID
               value: {{ .Values.config.measure_kafka_group_id | quote }}
             - name: EVENT_SDK_VENDOR_PREFIX
