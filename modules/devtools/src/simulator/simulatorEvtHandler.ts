@@ -303,7 +303,9 @@ export class SimulatorEvtHandler implements IRunHandler {
               'group.id': 'simulatorEvtGroup',
               'enable.auto.commit': appConfig.kafka.autocommit,
               'auto.commit.interval.ms': appConfig.kafka.autoCommitInterval,
-              'socket.keepalive.enable': true
+              'socket.keepalive.enable': true,
+              'fetch.min.bytes': appConfig.kafka.fetchMinBytes,
+              'fetch.wait.max.ms': appConfig.kafka.fetchWaitMaxMs
             },
             topicConfig: {},
             rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode
@@ -322,17 +324,14 @@ export class SimulatorEvtHandler implements IRunHandler {
     logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - Created kafkaConsumer of type ${simulatorEvtConsumer.constructor.name}`)
 
     this._consumer = simulatorEvtConsumer
-<<<<<<< HEAD
-    logger.info('SimulatorEvtHandler - Initializing transferCmdConsumer...')
+    logger.isInfoEnabled() && logger.info('SimulatorEvtHandler - Initializing transferCmdConsumer...')
 
     const subscribedMsgNames = [
       'TransferPreparedEvt',
       'TransferFulfilledEvt'
     ]
 
-=======
     logger.isInfoEnabled() && logger.info('SimulatorEvtHandler - Initializing transferCmdConsumer...')
->>>>>>> 01cb9ecda6a9c2026b3b7e44a485d478e8877dd7
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     await simulatorEvtConsumer.init(simulatorEvtHandler, subscribedMsgNames)
   }

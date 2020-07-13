@@ -277,7 +277,9 @@ export class TransferEvtHandler implements IRunHandler {
               'enable.auto.commit': appConfig.kafka.autocommit,
               'auto.commit.interval.ms': appConfig.kafka.autoCommitInterval,
               'client.id': clientId,
-              'socket.keepalive.enable': true
+              'socket.keepalive.enable': true,
+              'fetch.min.bytes': appConfig.kafka.fetchMinBytes,
+              'fetch.wait.max.ms': appConfig.kafka.fetchWaitMaxMs
             },
             topicConfig: {},
             rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode

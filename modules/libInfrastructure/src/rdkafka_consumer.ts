@@ -73,7 +73,7 @@ export class RDKafkaConsumer extends MessageConsumer {
     this._msgNames = msgNames == null ? [] : msgNames
 
     return await new Promise((resolve, reject) => {
-    this._logger.isInfoEnabled() && this._logger.info('RDKafkaConsumer initialising...')
+      this._logger.isInfoEnabled() && this._logger.info('RDKafkaConsumer initialising...')
       if (this._msgNames.length > 0) {
         this._logger.isInfoEnabled() && this._logger.info(`RDKafkaConsumer filtering msg names to: ${this._msgNames.join(',')}`)
       } else {
