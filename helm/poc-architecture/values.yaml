@@ -5,7 +5,7 @@ global: {}
 
 parameters:
   poc_architecture_image : &poc_architecture_image "mojaloop/poc-architecture"
-  poc_architecture_tag : &poc_architecture_tag "v0.28"
+  poc_architecture_tag : &poc_architecture_tag "v0.39"
   kafka_autocommit: &kafka_autocommit true
   kafka_producer_gzip: &kafka_producer_gzip true
   kafka_replicas: &kafka_replicas 1
