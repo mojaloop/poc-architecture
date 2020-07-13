@@ -82,7 +82,7 @@ const start = async () => {
   const transferFulfilRequestedEvtPayload: TransferFulfilRequestedEvtPayload = msgFulfilParams
   const transferFulfilRequestedEvt = new TransferFulfilRequestedEvt(transferFulfilRequestedEvtPayload)
 
-  logger.info(`Sending Transfer ${msgPrepareParams.transferId}`)
+  logger.isInfoEnabled() && logger.info(`Sending Transfer ${msgPrepareParams.transferId}`)
   await Publisher.publishMessage(transferPrepareRequestedEvt)
   await delay(1000)
   await Publisher.publishMessage(transferFulfilRequestedEvt)
@@ -90,6 +90,6 @@ const start = async () => {
 }
 
 start().catch((err) => {
-  logger.error(err)
+  logger.isErrorEnabled() && logger.error(err)
 }).finally(() => {
 })

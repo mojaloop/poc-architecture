@@ -48,18 +48,18 @@ export class KafkaStreamConsumer extends MessageConsumer {
 
     this._logger = logger ?? new ConsoleLogger()
 
-    this._logger.info('instance created')
+    this._logger.isInfoEnabled() && this._logger.info('instance created')
   }
 
   static Create<tOptions> (options: tOptions, logger: ILogger): MessageConsumer {
     const consumer = Reflect.construct(this, arguments)
 
     consumer.on('error', (err: Error): void => {
-      logger.error(`event::error - ${JSON.stringify(err)}`)
+      logger.isErrorEnabled() && logger.error(`event::error - ${JSON.stringify(err)}`)
     })
 
     // consumer.on('commit', (msgMetaData:any) => {
-    //   logger.info(`event::commit - ${JSON.stringify(msgMetaData)}`)
+    //   logger.isInfoEnabled() && logger.info(`event::commit - ${JSON.stringify(msgMetaData)}`)
     // })
 
     return consumer
@@ -80,7 +80,7 @@ export class KafkaStreamConsumer extends MessageConsumer {
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
   async init (handlerCallback: (message: IDomainMessage) => Promise<void>): Promise<void> {
     return await new Promise((resolve, reject) => {
-      this._logger.info('initialising...')
+      this._logger.isInfoEnabled() && this._logger.info('initialising...')
 
       this._handlerCallback = handlerCallback
 
@@ -115,15 +115,15 @@ export class KafkaStreamConsumer extends MessageConsumer {
         // @ts-expect-error
         onRebalance: (isAlreadyMember: boolean, callback: () => void): void => {
           // TODO wait until we ar enot processing and everything is commited before returning
-          this._logger.info(`Rebalance received - isAlreadyMember: ${isAlreadyMember ? 'true' : 'false'} - AutoCommit: ${this._autoCommit ? 'true' : 'false'}`)
+          this._logger.isInfoEnabled() && this._logger.info(`Rebalance received - isAlreadyMember: ${isAlreadyMember ? 'true' : 'false'} - AutoCommit: ${this._autoCommit ? 'true' : 'false'}`)
 
           if (!isAlreadyMember || this._autoCommit) {
-            this._logger.info('Rebalance - not already a member or autocommit is true, ignoring')
+            this._logger.isInfoEnabled() && this._logger.info('Rebalance - not already a member or autocommit is true, ignoring')
             return callback()
           }
 
           if (!this._processing) {
-            this._logger.info('Rebalance - not processing, ignoring')
+            this._logger.isInfoEnabled() && this._logger.info('Rebalance - not processing, ignoring')
             return callback()
           }
 
@@ -135,10 +135,10 @@ export class KafkaStreamConsumer extends MessageConsumer {
             const sleep = async (m: number) => await new Promise(r => setTimeout(r, m))
 
             while (this._processing) {
-              this._logger.warn('Rebalance - processing active, waiting...')
+              this._logger.isWarnEnabled() && this._logger.warn('Rebalance - processing active, waiting...')
               await sleep(200)
             }
-            this._logger.warn('Rebalance - processing complete, calling callback ...')
+            this._logger.isWarnEnabled() && this._logger.warn('Rebalance - processing complete, calling callback ...')
             // now we can resume
             this._pauseForRebalanceRequested = false
             this._consumerGroup.resume()
@@ -154,21 +154,21 @@ export class KafkaStreamConsumer extends MessageConsumer {
 
       this._autoCommit = consumerGroupOptions.autoCommit ?? false
 
-      this._logger.debug(`options: \n${JSON.stringify(consumerGroupOptions)}`)
+      this._logger.isDebugEnabled() && this._logger.debug(`options: \n${JSON.stringify(consumerGroupOptions)}`)
 
       this._consumerGroup = new kafka.ConsumerGroupStream(
         consumerGroupOptions as kafka.ConsumerGroupOptions, this._topics
       )
 
       this._consumerGroup.on('error', (err: Error) => {
-        this._logger.error(err, ' - consumer error')
+        this._logger.isErrorEnabled() && this._logger.error(err, ' - consumer error')
         process.nextTick(() => {
           this.emit('error', err)
         })
       })
 
       this._consumerGroup.on('offsetOutOfRange', (err) => {
-        this._logger.error(err, ' - offsetOutOfRange consumer error')
+        this._logger.isErrorEnabled() && this._logger.error(err, ' - offsetOutOfRange consumer error')
         process.nextTick(() => {
           this.emit('error', err)
         })
@@ -176,32 +176,32 @@ export class KafkaStreamConsumer extends MessageConsumer {
 
       this._consumerGroup.on('connect', () => {
         if (!this._initialized) {
-          this._logger.info('first on connect')
+          this._logger.isInfoEnabled() && this._logger.info('first on connect')
         } else {
-          this._logger.info('on connect - (re)connected')
+          this._logger.isInfoEnabled() && this._logger.info('on connect - (re)connected')
         }
       })
 
       this._consumerGroup.consumerGroup.client.on('ready', () => {
-        this._logger.info('on ready')
+        this._logger.isInfoEnabled() && this._logger.info('on ready')
         if (!this._initialized) {
-          this._logger.info('first on ready')
+          this._logger.isInfoEnabled() && this._logger.info('first on ready')
 
           this._initialized = true
           process.nextTick(() => {
             resolve()
           })
         } else {
-          this._logger.info('on ready - (re)ready')
+          this._logger.isInfoEnabled() && this._logger.info('on ready - (re)ready')
         }
       })
 
       this._consumerGroup.consumerGroup.client.on('reconnect', () => {
-        this._logger.info('on reconnect')
+        this._logger.isInfoEnabled() && this._logger.info('on reconnect')
       })
 
       // this.on('commit', (data) => {
-      //   this._logger.info(`commit - ${JSON.stringify(data)}`)
+      //   this._logger.isInfoEnabled() && logger.info(`commit - ${JSON.stringify(data)}`)
       // })
 
       // hook on message
@@ -250,7 +250,7 @@ export class KafkaStreamConsumer extends MessageConsumer {
         domainMessage.msgPartition = msgMetaData.partition
       }
     } catch (err) {
-      this._logger.error(err, 'Error parsing kafka message')
+      this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing kafka message')
       this.emit('error', err)
 
       this._processing = false
@@ -265,13 +265,13 @@ export class KafkaStreamConsumer extends MessageConsumer {
       // eslint-disable-next-line no-debugger
       // debugger
     }).catch((err: Error) => {
-      this._logger.error(err, 'Error handing message')
+      this._logger.isErrorEnabled() && this._logger.error(err, 'Error handing message')
     }).finally(() => {
       if (!this._autoCommit) {
         // there should never be a pending commit, so we can call force commit
         this._consumerGroup.commit(message, true, (err: any) => {
           if (err != null) {
-            this._logger.error(err)
+            this._logger.isErrorEnabled() && this._logger.error(err)
           } else {
             this.emit('commit', msgMetaData)
           }

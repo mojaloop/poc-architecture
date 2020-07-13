@@ -114,7 +114,7 @@ Program.command('handler')
     const metrics = new Metrics(metricsConfig)
     await metrics.init()
 
-    logger.debug(`appConfig=${JSON.stringify(appConfig)}`)
+    logger.isDebugEnabled() && logger.debug(`appConfig=${JSON.stringify(appConfig)}`)
 
     // list of all handlers
     const runHandlerList: IRunHandler[] = []
@@ -164,20 +164,20 @@ Program.command('handler')
     // lets clean up all consumers here
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     const killProcess = async (): Promise<void> => {
-      logger.info('Exiting process...')
-      logger.info('Destroying handlers...')
+      logger.isInfoEnabled() && logger.info('Exiting process...')
+      logger.isInfoEnabled() && logger.info('Destroying handlers...')
       /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
       runHandlerList.forEach(async (handler) => {
-        logger.info(`\tDestroying handler...${handler.constructor.name}`)
+        logger.isInfoEnabled() && logger.info(`\tDestroying handler...${handler.constructor.name}`)
         await handler.destroy()
       })
 
       if (apiServer != null) {
-        logger.info('Destroying API server...')
+        logger.isInfoEnabled() && logger.info('Destroying API server...')
         await apiServer.destroy()
       }
 
-      logger.info('Exit complete!')
+      logger.isInfoEnabled() && logger.info('Exit complete!')
       process.exit(0)
     }
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */

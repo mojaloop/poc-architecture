@@ -91,7 +91,7 @@ const send = async (): Promise<void> => {
 
 /* eslint-disable-next-line @typescript-eslint/explicit-function-return-type */
 const start = async () => {
-  logger.info('Starting pubPrepareMultipleTransferEvt publisher!')
+  logger.isInfoEnabled() && logger.info('Starting pubPrepareMultipleTransferEvt publisher!')
   await Publisher.init()
   await Publisher.publishMessageMultipleInit()
   while (true) {
@@ -102,17 +102,17 @@ const start = async () => {
 // lets clean up all consumers here
 /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
 const killProcess = async (): Promise<void> => {
-  logger.info('Exiting process...')
-  logger.info('Destroying handlers...')
+  logger.isInfoEnabled() && logger.info('Exiting process...')
+  logger.isInfoEnabled() && logger.info('Destroying handlers...')
   await Publisher.publishMessageMultipleDestroy()
 
-  logger.info('Exit complete!')
+  logger.isInfoEnabled() && logger.info('Exit complete!')
   process.exit(0)
 }
 /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
 process.on('SIGINT', killProcess)
 
 start().catch((err) => {
-  logger.error(err)
+  logger.isErrorEnabled() && logger.error(err)
 }).finally(() => {
 })

@@ -77,15 +77,15 @@ Program.command('handler')
       }
     }
 
-    logger.debug(`appConfig=${JSON.stringify(appConfig)}`)
+    logger.isDebugEnabled() && logger.debug(`appConfig=${JSON.stringify(appConfig)}`)
 
     // TODO: add logic here to handle pub tool commands
 
     // lets clean up all consumers here
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     const killProcess = async (): Promise<void> => {
-      logger.info('Exiting process...')
-      logger.info('Exit complete!')
+      logger.isInfoEnabled() && logger.info('Exiting process...')
+      logger.isInfoEnabled() && logger.info('Exit complete!')
       process.exit(2)
     }
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */

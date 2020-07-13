@@ -90,7 +90,7 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
 
   //       // until we have full event sourcing we have to persist
   //       if (!result) {
-  //         this._logger.info(`Command '${commandMsg.msgName}' execution failed`)
+  //         this._logger.isInfoEnabled() && logger.info(`Command '${commandMsg.msgName}' execution failed`)
   //         return reject(new Error(`Command '${commandMsg.msgName}' execution failed`))
   //       }
 
@@ -99,11 +99,11 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
   //       } else {
   //         return reject(new Error(`Aggregate doesn't have a valid state to process command with name ${commandMsg.msgName}`))
   //       }
-  //       this._logger.info(`Aggregate state persisted to repository at the end of command: ${commandMsg.msgName}`)
+  //       this._logger.isInfoEnabled() && logger.info(`Aggregate state persisted to repository at the end of command: ${commandMsg.msgName}`)
   //       return resolve(true)
   //     }).catch(async (err: any) => {
   //       await this.commit() // we still send out the unpublished events
-  //       this._logger.error(err, `Aggregate state persited to repoistory at the end of command: ${commandMsg.msgName}`)
+  //       this._logger.isErrorEnabled() && logger.error(err, `Aggregate state persited to repoistory at the end of command: ${commandMsg.msgName}`)
 
   //       reject(err)
   //     })
@@ -126,7 +126,7 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
 
       // until we have full event sourcing we have to persist
       if (!result) {
-        this._logger.info(`Command '${commandMsg.msgName}' execution failed`)
+        this._logger.isInfoEnabled() && this._logger.info(`Command '${commandMsg.msgName}' execution failed`)
         return false
       }
 
@@ -135,11 +135,11 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
       } else {
         throw new Error(`Aggregate doesn't have a valid state to process command with name ${commandMsg.msgName}`)
       }
-      this._logger.info(`Aggregate state persisted to repository at the end of command: ${commandMsg.msgName}`)
+      this._logger.isInfoEnabled() && this._logger.info(`Aggregate state persisted to repository at the end of command: ${commandMsg.msgName}`)
       return true
     }).catch(async (err: any) => {
       await this.commit() // we still send out the unpublished events
-      this._logger.error(err, `Aggregate state persited to repoistory at the end of command: ${commandMsg.msgName}`)
+      this._logger.isErrorEnabled() && this._logger.error(err, `Aggregate state persited to repoistory at the end of command: ${commandMsg.msgName}`)
       throw err
     })
   }
@@ -187,13 +187,13 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
   //     // TODO implement load from snapshot events and state events, using a state events repository
 
   //     if (this._entity_state_repo.canCall() == null) {
-  //       this._logger.error('Aggregate repository not available to be called')
+  //       this._logger.isErrorEnabled() && logger.error('Aggregate repository not available to be called')
   //       return reject(new Error('Aggregate repository not available to be called')) // TODO typify these errors
   //     }
 
   //     const entityState = await this._entity_state_repo.load(aggregateId)
   //     if (entityState == null && throwOnNotFound) {
-  //       this._logger.debug(`Aggregate with id: ${aggregateId} not found`)
+  //       this._logger.isDebugEnabled() && logger.debug(`Aggregate with id: ${aggregateId} not found`)
   //       return reject(new Error('Aggregate not found')) // TODO typify these errors
   //     }
 
@@ -212,13 +212,13 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
     // TODO implement load from snapshot events and state events, using a state events repository
 
     if (this._entity_state_repo.canCall() == null) {
-      this._logger.error('Aggregate repository not available to be called')
+      this._logger.isErrorEnabled() && this._logger.error('Aggregate repository not available to be called')
       throw new Error('Aggregate repository not available to be called') // TODO typify these errors
     }
 
     const entityState = await this._entity_state_repo.load(aggregateId)
     if (entityState == null && throwOnNotFound) {
-      this._logger.debug(`Aggregate with id: ${aggregateId} not found`)
+      this._logger.isDebugEnabled() && this._logger.debug(`Aggregate with id: ${aggregateId} not found`)
       throw new Error('Aggregate not found') // TODO typify these errors
     }
 
@@ -238,7 +238,7 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
   // protected async commit (): Promise<void> {
   //   return await new Promise(async (resolve, reject) => {
   //     if (this._uncommittedEvents.length <= 0) {
-  //       this._logger.warn('Called aggregate commit without uncommitted events to commit')
+  //       this._logger.isWarnEnabled() && logger.warn('Called aggregate commit without uncommitted events to commit')
   //       return resolve()
   //     }
 
@@ -246,7 +246,7 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
 
   //     await this._msgPublisher.publishMany(this._uncommittedEvents)
 
-  //     this._logger.debug(`Aggregate committed ${this._uncommittedEvents.length} events - ${JSON.stringify(eventNames)}`)
+  //     this._logger.isDebugEnabled() && logger.debug(`Aggregate committed ${this._uncommittedEvents.length} events - ${JSON.stringify(eventNames)}`)
 
   //     this._uncommittedEvents = []
   //     resolve()
@@ -255,19 +255,19 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
 
   protected async commit (): Promise<void> {
     if (this._uncommittedEvents.length <= 0) {
-      this._logger.warn('Called aggregate commit without uncommitted events to commit')
+      this._logger.isWarnEnabled() && this._logger.warn('Called aggregate commit without uncommitted events to commit')
       return
     }
 
     const eventNames = this._uncommittedEvents.map(evt => evt.msgName)
 
     this._uncommittedEvents.forEach(evt => {
-      this._logger.debug(`Commiting name:'${evt.msgName}';key:'${evt.msgKey}';id:'${evt.msgId}'`)
+      this._logger.isDebugEnabled() && this._logger.debug(`Commiting name:'${evt.msgName}';key:'${evt.msgKey}';id:'${evt.msgId}'`)
     })
 
     await this._msgPublisher.publishMany(this._uncommittedEvents)
 
-    this._logger.debug(`Aggregate committed ${this._uncommittedEvents.length} events - ${JSON.stringify(eventNames)}`)
+    this._logger.isDebugEnabled() && this._logger.debug(`Aggregate committed ${this._uncommittedEvents.length} events - ${JSON.stringify(eventNames)}`)
 
     this._uncommittedEvents = []
   }

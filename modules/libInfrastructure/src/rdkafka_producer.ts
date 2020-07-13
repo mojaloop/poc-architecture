@@ -81,7 +81,7 @@ export class RDKafkaProducer extends MessageProducer {
 
     this._logger = logger ?? new ConsoleLogger()
 
-    this._logger.info('RDKafkaProducer instance created')
+    this._logger.isInfoEnabled() && this._logger.info('RDKafkaProducer instance created')
   }
 
   get envName (): string {
@@ -90,7 +90,7 @@ export class RDKafkaProducer extends MessageProducer {
 
   async init (): Promise<void> {
     return await new Promise((resolve, reject) => {
-      this._logger.info('RDKafkaProducer initialising...')
+      this._logger.isInfoEnabled() && this._logger.info('RDKafkaProducer initialising...')
 
       /* Global config: Mix incoming config with default config */
       const defaultGlobalConfig: RDKafka.ProducerGlobalConfig = {}
@@ -118,35 +118,35 @@ export class RDKafkaProducer extends MessageProducer {
         ...this._options.client.topicConfig
       }
 
-      this._logger.info(`RDKafkaProducer starting with following globalConfig: ${JSON.stringify(globalConfig)}`)
-      this._logger.info(`RDKafkaProducer starting with following topicConfig: ${JSON.stringify(topicConfig)}`)
+      this._logger.isInfoEnabled() && this._logger.info(`RDKafkaProducer starting with following globalConfig: ${JSON.stringify(globalConfig)}`)
+      this._logger.isInfoEnabled() && this._logger.info(`RDKafkaProducer starting with following topicConfig: ${JSON.stringify(topicConfig)}`)
 
       /* Start and connect the client */
       this._client = new RDKafka.HighLevelProducer(globalConfig, topicConfig)
       this._client.connect(undefined, (err: RDKafka.LibrdKafkaError | null, data: RDKafka.Metadata) => {
         if (err !== null) {
-          this._logger.info('RDKafkaProducer failed to connect with error:', err)
+          this._logger.isInfoEnabled() && this._logger.info('RDKafkaProducer failed to connect with error:', err)
           reject(err)
         }
       })
 
       this._client.on('ready', () => {
-        this._logger.info('RDKafkaProducer ...connected !')
+        this._logger.isInfoEnabled() && this._logger.info('RDKafkaProducer ...connected !')
         resolve()
       })
 
       this._client.on('event.error', () => {
-        this._logger.error('RDKafkaProducer ...error !')
+        this._logger.isErrorEnabled() && this._logger.error('RDKafkaProducer ...error !')
       })
     })
   }
 
   async destroy (): Promise<void> {
     return await new Promise((resolve, reject) => {
-      this._logger.info('RDKafkaProducer disconnect()-ing...')
+      this._logger.isInfoEnabled() && this._logger.info('RDKafkaProducer disconnect()-ing...')
       this._client.disconnect((err: any, _data: RDKafka.ClientMetrics) => {
         if (err !== null) {
-          this._logger.error('RDKafkaProducer disconnect() failed', err)
+          this._logger.isErrorEnabled() && this._logger.error('RDKafkaProducer disconnect() failed', err)
           reject(err)
         } else {
           resolve()
@@ -174,7 +174,7 @@ export class RDKafkaProducer extends MessageProducer {
   async send (kafkaMessages: IMessage | IMessage[] | any): Promise<void> {
     return await new Promise((resolve, reject) => {
       if ((Array.isArray(arguments[0])) && (kafkaMessages.length > 1)) {
-        this._logger.error('RDKafkaProducer::send() Sending more than 1 message in one go is not supported yet.')
+        this._logger.isErrorEnabled() && this._logger.error('RDKafkaProducer::send() Sending more than 1 message in one go is not supported yet.')
         throw new Error('RDKafkaProducer::send() Sending more than 1 message in one go is not supported yet.')
         /* TODO: the callback in produce() should be reworked, to call resolve() after receiving ACK-s for all messages. */
       }
@@ -206,7 +206,7 @@ export class RDKafkaProducer extends MessageProducer {
             }
           )
         } catch (err) {
-          this._logger.error('RDKafkaProducer::send ...error !', err)
+          this._logger.isErrorEnabled() && this._logger.error('RDKafkaProducer::send ...error !', err)
           throw err
         }
       })

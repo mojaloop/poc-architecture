@@ -27,7 +27,7 @@ export let appConfig: any | undefined
 export const init = async (): Promise<void> => {
   if (!isInit && kafkaMsgPublisher == null && logger == null) {
     logger = new MojaLogger()
-    logger.debug('initPublisher - initializing')
+    logger.isDebugEnabled() && logger.debug('initPublisher - initializing')
 
     appConfig = {
       kafka: {
@@ -43,10 +43,10 @@ export const init = async (): Promise<void> => {
       }
     }
 
-    logger.info('Running devtools Publisher!')
-    logger.info(`appConfig=${JSON.stringify(appConfig)}`)
+    logger.isInfoEnabled() && logger.info('Running devtools Publisher!')
+    logger.isInfoEnabled() && logger.info(`appConfig=${JSON.stringify(appConfig)}`)
 
-    logger.info(`Creating ${JSON.stringify(appConfig.kafka.producer)} participantCmdHandler.kafkaMsgPublisher...`)
+    logger.isInfoEnabled() && logger.info(`Creating ${JSON.stringify(appConfig.kafka.producer)} participantCmdHandler.kafkaMsgPublisher...`)
     const clientId = `kafkaMsgPublisher-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_KAFKA_STREAM):
@@ -108,38 +108,38 @@ export const init = async (): Promise<void> => {
         break
       }
       default: {
-        logger.warn('Unable to find a Kafka Producer implementation!')
+        logger.isWarnEnabled() && logger.warn('Unable to find a Kafka Producer implementation!')
         throw new Error('participantCmdHandler.kafkaMsgPublisher was not created!')
       }
     }
     await kafkaMsgPublisher.init()
     isInit = true
   } else {
-    logger.debug('initPublisher - publisher already initiated')
+    logger.isDebugEnabled() && logger.debug('initPublisher - publisher already initiated')
   }
 }
 
 export const publishMessage = async (message: IMessage): Promise<void> => {
   // await init()
-  // logger.debug(`publishMessage - message: ${JSON.stringify(message)}`)
+  // logger.isDebugEnabled() && logger.debug(`publishMessage - message: ${JSON.stringify(message)}`)
   await kafkaMsgPublisher!.publish(message)
   // await kafkaMsgPublisher!.destroy()
 }
 
 export const publishMessageMultipleInit = async (): Promise<void> => {
   await init()
-  logger.debug('publishMessageMultipleInit')
+  logger.isDebugEnabled() && logger.debug('publishMessageMultipleInit')
 }
 
 export const publishMessageMultipleDestroy = async (): Promise<void> => {
   // await init()
-  logger.debug('publishMessageMultipleDestroy')
+  logger.isDebugEnabled() && logger.debug('publishMessageMultipleDestroy')
   await kafkaMsgPublisher!.destroy()
 }
 
 export const publishMessageMultiple = async (messages: IMessage[]): Promise<void> => {
   // await init()
-  // logger.debug(`publishMessageMultiple - messages: ${JSON.stringify(messages)}`)
+  // logger.isDebugEnabled() && logger.debug(`publishMessageMultiple - messages: ${JSON.stringify(messages)}`)
   const promises = messages.map(async msg => await kafkaMsgPublisher!.publish(msg))
   await Promise.all(promises)
 }

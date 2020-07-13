@@ -91,14 +91,14 @@ export class KafkaGenericProducer extends MessageProducer {
 
     this._logger = logger ?? new ConsoleLogger()
 
-    this._logger.info('KafkaGenericProducer instance created')
+    this._logger.isInfoEnabled() && this._logger.info('KafkaGenericProducer instance created')
   }
 
   static Create<tOptions> (options: tOptions, logger: ILogger): iMessageProducer {
     const producer = Reflect.construct(this, arguments)
 
     producer.on('error', (err: Error): void => {
-      logger.error(`event::error - ${JSON.stringify(err)}`)
+      logger.isErrorEnabled() && logger.error(`event::error - ${JSON.stringify(err)}`)
     })
 
     return producer
@@ -112,7 +112,7 @@ export class KafkaGenericProducer extends MessageProducer {
 
   async init (): Promise<void> {
     return await new Promise((resolve, reject) => {
-      this._logger.info('initialising...')
+      this._logger.isInfoEnabled() && this._logger.info('initialising...')
 
       const defaultClientOptions: kafka.KafkaClientOptions = {
         connectTimeout: 10000, // in ms it takes to wait for a successful connection before moving to the next host default: 10000
@@ -132,7 +132,7 @@ export class KafkaGenericProducer extends MessageProducer {
       // override any values with the options given to the client
       Object.assign(clientOptions, this._options.client.kafka)
 
-      this._logger.debug(`clientOptions: \n${JSON.stringify(clientOptions)}`)
+      this._logger.isDebugEnabled() && this._logger.debug(`clientOptions: \n${JSON.stringify(clientOptions)}`)
 
       const defaultProducerOptions: kafka.ProducerOptions = {
         requireAcks: -1, // https://github.com/SOHU-Co/kafka-node/blob/master/lib/baseProducer.js#L44
@@ -145,7 +145,7 @@ export class KafkaGenericProducer extends MessageProducer {
       // override any values with the options given to the client
       Object.assign(producerOptions, this._options.client.producer)
 
-      this._logger.debug(`producerOptions: \n${JSON.stringify(producerOptions)}`)
+      this._logger.isDebugEnabled() && this._logger.debug(`producerOptions: \n${JSON.stringify(producerOptions)}`)
 
       // const kafkaClientOptions: kafka.KafkaClientOptions = {
       //   kafkaHost: this._kafka_conn_str,
@@ -158,14 +158,14 @@ export class KafkaGenericProducer extends MessageProducer {
       this._producer = new kafka.HighLevelProducer(this._client, producerOptions)
 
       this._producer.on('ready', async () => {
-        this._logger.info('KafkaProducer ready!')
+        this._logger.isInfoEnabled() && this._logger.info('KafkaProducer ready!')
 
         // force refresh metadata to avoid BrokerNotAvailableError on first request
         // https://www.npmjs.com/package/kafka-node#highlevelproducer-with-keyedpartitioner-errors-on-first-send
 
         this._client.refreshMetadata([], async (err: Error) => {
           if (err != null) {
-            this._logger.error(err, ' - error refreshMetadata()')
+            this._logger.isErrorEnabled() && this._logger.error(err, ' - error refreshMetadata()')
             return reject(err)
           }
 
@@ -174,7 +174,7 @@ export class KafkaGenericProducer extends MessageProducer {
       })
 
       this._producer.on('error', (err: Error) => {
-        this._logger.error(err, 'KafkaProducer on error')
+        this._logger.isErrorEnabled() && this._logger.error(err, 'KafkaProducer on error')
       })
     })
   }
@@ -211,14 +211,14 @@ export class KafkaGenericProducer extends MessageProducer {
         try {
           msg = JSON.stringify(kafkaMsg)
         } catch (e) {
-          this._logger.error(e, +' - error parsing message')
+          this._logger.isErrorEnabled() && this._logger.error(e, +' - error parsing message')
           return process.nextTick(() => {
             reject(new Error('KafkaProducer - Error parsing message'))
           })
         }
 
         if (msg == null) {
-          this._logger.error('invalid message in send_message')
+          this._logger.isErrorEnabled() && this._logger.error('invalid message in send_message')
           return process.nextTick(() => {
             reject(new Error('KafkaProducer - invalid or empty message'))
           })
@@ -233,10 +233,10 @@ export class KafkaGenericProducer extends MessageProducer {
 
       this._producer.send(payloads, (err?: Error | null, data?: any) => {
         if (err != null) {
-          this._logger.error(err, 'KafkaGenericProducer error sending message')
+          this._logger.isErrorEnabled() && this._logger.error(err, 'KafkaGenericProducer error sending message')
           return reject(err)
         }
-        this._logger.debug('KafkaGenericProducer sent message - response:', data)
+        this._logger.isDebugEnabled() && this._logger.debug('KafkaGenericProducer sent message - response:', data)
         resolve(data)
       })
     })
