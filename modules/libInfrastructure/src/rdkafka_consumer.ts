@@ -117,38 +117,45 @@ export class RDKafkaConsumer extends MessageConsumer {
               const msg = messages[0]
               const msgValue = msg?.value
               if (msg != null && msgValue != null) {
-                if (this._msgNames.length > 0 && msg.headers !== undefined && msg.headers.length > 0 && msg.headers[0].msgName != null) {
-                  const msgName: string = msg.headers[0].msgName.toString()
-                  if (this._msgNames.includes(msgName)) {
-                    this._logger.debug(`RDKafkaConsumer ignoring message with msgName: ${msgName} not in the consumer list of subscribed msgNames`)
-                  }
-                } else {
-                  // msgName in the list ov subscribed names or list is empty
-                  const msgAsString = msgValue.toString()
-                  let msgAsDomainMessage
-                  try {
-                    msgAsDomainMessage = JSON.parse(msgAsString) as IDomainMessage
-                    if (msgAsDomainMessage.msgPartition == null) {
-                      msgAsDomainMessage.msgPartition = msg.partition
+                if (this._msgNames.length > 0 && msg.headers !== undefined && msg.headers.length > 0) {
+                  // unpack headers
+                  const headersObj: { [key: string]: string } = {}
+                  msg.headers.forEach((h) => {
+                    for (const prop in h) {
+                      headersObj[prop] = h[prop].toString()
                     }
-                  } catch (err) {
-                    this._logger.isErrorEnabled() && this._logger.error('RDKafkaConsumer Error when JSON.parse()-ing message')
+                  })
+
+                  if (headersObj.msgName !== undefined && !this._msgNames.includes(headersObj.msgName)) {
+                    this._logger.debug(`RDKafkaConsumer ignoring message with msgName: ${headersObj.msgName} not in the consumer list of subscribed msgNames`)
+                    return consumeRecursiveWrapper()
                   }
-                  if (msgAsDomainMessage != null) {
-                    await handlerCallback(msgAsDomainMessage)
+                }
+                // msgName in the list ov subscribed names or list is empty
+                const msgAsString = msgValue.toString()
+                let msgAsDomainMessage
+                try {
+                  msgAsDomainMessage = JSON.parse(msgAsString) as IDomainMessage
+                  if (msgAsDomainMessage.msgPartition == null) {
+                    msgAsDomainMessage.msgPartition = msg.partition
                   }
-                  // commit even if we couldn't parse it
-                  if (autoCommitEnabled !== true) {
-                    switch (commitWaitMode) {
-                      case RdKafkaCommitMode.RDKAFKA_COMMIT_NO_WAIT:
-                        this._client.commitMessage(messages[0])
-                        break
-                      case RdKafkaCommitMode.RDKAFKA_COMMIT_MSG_SYNC:
-                        this._client.commitMessageSync(messages[0])
-                        break
-                      default:
-                        this._logger.isErrorEnabled() && this._logger.error('RDKafkaConsumer unknown commitWaitMode - no commits will happen!')
-                    }
+                } catch (err) {
+                  this._logger.isErrorEnabled() && this._logger.error('RDKafkaConsumer Error when JSON.parse()-ing message')
+                }
+                if (msgAsDomainMessage != null) {
+                  await handlerCallback(msgAsDomainMessage)
+                }
+                // commit even if we couldn't parse it
+                if (autoCommitEnabled !== true) {
+                  switch (commitWaitMode) {
+                    case RdKafkaCommitMode.RDKAFKA_COMMIT_NO_WAIT:
+                      this._client.commitMessage(messages[0])
+                      break
+                    case RdKafkaCommitMode.RDKAFKA_COMMIT_MSG_SYNC:
+                      this._client.commitMessageSync(messages[0])
+                      break
+                    default:
+                      this._logger.isErrorEnabled() && this._logger.error('RDKafkaConsumer unknown commitWaitMode - no commits will happen!')
                   }
                 }
               } else {
