@@ -6,7 +6,7 @@
 
 import { IDomainMessage, ILogger } from '@mojaloop-poc/lib-domain'
 import { KafkaGenericConsumer, KafkaGenericConsumerOptions, KafkaInfraTypes, MessageConsumer, RDKafkaConsumer, RDKafkaConsumerOptions, KafkaStreamConsumer, EnumOffset, KafkaJsConsumerOptions, KafkaJsConsumer, RdKafkaCommitMode, ApiServer, TApiServerOptions } from '@mojaloop-poc/lib-infrastructure'
-import { ConsoleLogger, Crypto, getEnvIntegerOrDefault, TMetricOptionsType, Metrics } from '@mojaloop-poc/lib-utilities'
+import { MojaLogger, Crypto, getEnvIntegerOrDefault, TMetricOptionsType, Metrics } from '@mojaloop-poc/lib-utilities'
 // import { ConsoleLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
 
 import * as dotenv from 'dotenv'
@@ -25,7 +25,7 @@ dotenv.config({ path: '../../.env' })
 let perfMetricsHisto: promclient.Histogram
 let perfMetricsPendingGauge: promclient.Gauge
 
-const logger: ILogger = new ConsoleLogger()
+const logger: ILogger = new MojaLogger()
 let metrics: Metrics
 let startTime = 0
 let requestedCounter = 0

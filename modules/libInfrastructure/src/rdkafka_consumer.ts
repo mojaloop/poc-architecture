@@ -127,7 +127,7 @@ export class RDKafkaConsumer extends MessageConsumer {
                   })
 
                   if (headersObj.msgName !== undefined && !this._msgNames.includes(headersObj.msgName)) {
-                    this._logger.debug(`RDKafkaConsumer ignoring message with msgName: ${headersObj.msgName} not in the consumer list of subscribed msgNames`)
+                    this._logger.isDebugEnabled() && this._logger.debug(`RDKafkaConsumer ignoring message with msgName: ${headersObj.msgName} not in the consumer list of subscribed msgNames`)
                     return consumeRecursiveWrapper()
                   }
                 }
