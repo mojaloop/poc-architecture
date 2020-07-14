@@ -191,7 +191,7 @@ function logRPS (): void {
   const avgFulfiled = Math.floor(fulfiledCounter / (elaspsed / 1000))
 
   // eslint-disable-next-line no-console
-  console.log(`\n *** ${counter} req/sec *** ${avg} avg ms *** ${evtMap.size} pending *** ${avgRequested}/${avgFulfiled} avg req/ful (all time) ***\n`)
+  logger.isInfoEnabled() && logger.info(`\n *** ${counter} req/sec *** ${avg} avg ms *** ${evtMap.size} pending *** ${avgRequested}/${avgFulfiled} avg req/ful (all time) ***\n`)
 
   if (buckets.has(lastSecond - 1)) {
     buckets.delete(lastSecond - 1)
@@ -322,12 +322,12 @@ start().catch((err) => {
 
 process.on('SIGINT', function () {
   // eslint-disable-next-line no-console
-  console.log('Ctrl-C... collecting pending...')
+  logger.isInfoEnabled() && logger.info('Ctrl-C... collecting pending...')
   const now = Date.now()
 
   evtMap.forEach((value, key) => {
     // eslint-disable-next-line no-console
-    console.log(`Pending transfer - ID: ${key} - Timestamp: ${value} - Age: ${now - value} ms`)
+    logger.isInfoEnabled() && logger.info(`Pending transfer - ID: ${key} - Timestamp: ${value} - Age: ${now - value} ms`)
   })
 
   process.exit(2)
