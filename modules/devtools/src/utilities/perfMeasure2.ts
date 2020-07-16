@@ -7,7 +7,7 @@
 
 import { IDomainMessage, ILogger } from '@mojaloop-poc/lib-domain'
 import { KafkaGenericConsumer, KafkaGenericConsumerOptions, KafkaInfraTypes, MessageConsumer, RDKafkaConsumer, RDKafkaConsumerOptions, KafkaStreamConsumer, EnumOffset, KafkaJsConsumerOptions, KafkaJsConsumer, RdKafkaCommitMode, ApiServer, TApiServerOptions } from '@mojaloop-poc/lib-infrastructure'
-import { ConsoleLogger, Crypto, getEnvIntegerOrDefault, TMetricOptionsType, Metrics, extractTraceStateFromMessage } from '@mojaloop-poc/lib-utilities'
+import { MojaLogger, Crypto, getEnvIntegerOrDefault, TMetricOptionsType, Metrics, extractTraceStateFromMessage } from '@mojaloop-poc/lib-utilities'
 // import { ConsoleLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
 
 import * as dotenv from 'dotenv'
@@ -30,7 +30,7 @@ const perfMetricsHisto: tperfMetricsHisto = {
   fulfill: null
 }
 
-const logger: ILogger = new ConsoleLogger()
+const logger: ILogger = new MojaLogger()
 let metrics: Metrics
 const startTime = 0
 const requestedCounter = 0
@@ -200,8 +200,7 @@ function logRPS (): void {
   const avgRequested = Math.floor(requestedCounter / (elaspsed / 1000))
   const avgFulfiled = Math.floor(fulfiledCounter / (elaspsed / 1000))
 
-  // eslint-disable-next-line no-console
-  console.log(`\n *** ${counter} req/sec *** ${avg} avg ms *** ${avgRequested}/${avgFulfiled} avg req/ful (all time) ***\n`)
+  logger.isInfoEnabled() && logger.info(`\n *** ${counter} req/sec *** ${avg} avg ms *** ${avgRequested}/${avgFulfiled} avg req/ful (all time) ***\n`)
 
   if (buckets.has(lastSecond - 1)) {
     buckets.delete(lastSecond - 1)
@@ -317,7 +316,6 @@ start().catch((err) => {
 })
 
 process.on('SIGINT', function () {
-  // eslint-disable-next-line no-console
-  console.log('Ctrl-C... collecting pending...')
+  logger.isInfoEnabled() && logger.info('Ctrl-C... collecting pending...')
   process.exit(2)
 })

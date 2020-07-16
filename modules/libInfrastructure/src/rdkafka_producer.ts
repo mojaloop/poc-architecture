@@ -184,10 +184,10 @@ export class RDKafkaProducer extends MessageProducer {
       kafkaMessages.forEach((kafkaMsg: IMessage) => {
         const msg = JSON.stringify(kafkaMsg)
         const partition = (kafkaMsg.msgPartition !== null) ? kafkaMsg.msgPartition : null
-        const headers = {
-          msgType: kafkaMsg.msgType === undefined ? '' : kafkaMsg.msgType.toString(),
-          msgName: kafkaMsg.msgName === undefined ? '' : kafkaMsg.msgName
-        }
+        const headers = [
+          { msgType: kafkaMsg.msgType === undefined ? '' : kafkaMsg.msgType.toString() },
+          { msgName: kafkaMsg.msgName === undefined ? '' : kafkaMsg.msgName }
+        ]
         try {
           this._client.produce(
             /* topic name */
@@ -201,7 +201,8 @@ export class RDKafkaProducer extends MessageProducer {
             /* timestamp */
             null,
             /* headers */
-            [headers],
+            // @ts-expect-error
+            headers,
             /* callback */
             (err: any, _offset?: NumberNullUndefined) => {
               if (err !== null) {
