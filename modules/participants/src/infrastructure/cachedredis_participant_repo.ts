@@ -163,7 +163,7 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
 
       resolve()
 
-      let stringValue: string | null = null
+      /* let stringValue: string | null = null
       try {
         stringValue = JSON.stringify(entityState)
       } catch (err) {
@@ -181,7 +181,7 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
         if (reply !== 'OK') {
           this._logger.isErrorEnabled() && this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
         }
-      })
+      }) */
     })
   }
 
