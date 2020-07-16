@@ -170,8 +170,9 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
         this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
       }
 
-      if (stringValue === null)
+      if (stringValue === null) {
         return
+      }
 
       this._redisClient.set(key, stringValue, (err: Error | null, reply: string) => {
         if (err != null) {
