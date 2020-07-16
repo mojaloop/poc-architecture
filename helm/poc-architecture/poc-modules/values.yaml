@@ -19,8 +19,8 @@ config:
   kafka_autocommit: false
   kafka_autocommit_interval: 100
   kafka_autocommit_threshold: 1000
-  kafka_fetch_min_bytes: 4096
-  kafka_fetch_wait_max_ms: 200
+  kafka_fetch_min_bytes: 1
+  kafka_fetch_wait_max_ms: 500
   # Supported commit modes: no-wait, commit-msg-sync (blocking)
   rdkafka_commit_wait_mode: commit-msg-sync
   rdkafka_batch_num_messages: null
