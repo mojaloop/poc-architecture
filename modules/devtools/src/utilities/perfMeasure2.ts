@@ -2,16 +2,17 @@
  * Created by pedrosousabarreto@gmail.com on 04/Jun/2020.
  */
 
+/* eslint-disable no-console */
 'use strict'
 
 import { IDomainMessage, ILogger } from '@mojaloop-poc/lib-domain'
 import { KafkaGenericConsumer, KafkaGenericConsumerOptions, KafkaInfraTypes, MessageConsumer, RDKafkaConsumer, RDKafkaConsumerOptions, KafkaStreamConsumer, EnumOffset, KafkaJsConsumerOptions, KafkaJsConsumer, RdKafkaCommitMode, ApiServer, TApiServerOptions } from '@mojaloop-poc/lib-infrastructure'
-import { MojaLogger, Crypto, getEnvIntegerOrDefault, TMetricOptionsType, Metrics } from '@mojaloop-poc/lib-utilities'
+import { MojaLogger, Crypto, getEnvIntegerOrDefault, TMetricOptionsType, Metrics, extractTraceStateFromMessage } from '@mojaloop-poc/lib-utilities'
 // import { ConsoleLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
 
 import * as dotenv from 'dotenv'
 import * as promclient from 'prom-client'
-import { TransfersTopics, MLTopics } from '@mojaloop-poc/lib-public-messages'
+import { TransfersTopics } from '@mojaloop-poc/lib-public-messages'
 
 /* eslint-disable-next-line @typescript-eslint/no-var-requires */
 const pckg = require('../../package.json')
@@ -22,13 +23,17 @@ const INTERVAL_MS = Number.parseInt(STR_INTERVAL_MS)
 // TODO: Figure a better way to handle env config here
 dotenv.config({ path: '../../.env' })
 
-let perfMetricsHisto: promclient.Histogram
-let perfMetricsPendingGauge: promclient.Gauge
+type tperfMetricsHisto = {[key: string]: promclient.Histogram | null}
+const perfMetricsHisto: tperfMetricsHisto = {
+  full: null,
+  prepare: null,
+  fulfill: null
+}
 
 const logger: ILogger = new MojaLogger()
 let metrics: Metrics
-let startTime = 0
-let requestedCounter = 0
+const startTime = 0
+const requestedCounter = 0
 let fulfiledCounter = 0
 
 // # setup application config
@@ -45,7 +50,10 @@ const appConfig = {
     autoCommitInterval: (process.env.KAFKA_AUTO_COMMIT_INTERVAL != null && !isNaN(Number(process.env.KAFKA_AUTO_COMMIT_INTERVAL)) && process.env.KAFKA_AUTO_COMMIT_INTERVAL?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_AUTO_COMMIT_INTERVAL) : null,
     autoCommitThreshold: (process.env.KAFKA_AUTO_COMMIT_THRESHOLD != null && !isNaN(Number(process.env.KAFKA_AUTO_COMMIT_THRESHOLD)) && process.env.KAFKA_AUTO_COMMIT_THRESHOLD?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_AUTO_COMMIT_THRESHOLD) : null,
     rdKafkaCommitWaitMode: (process.env.RDKAFKA_COMMIT_WAIT_MODE == null) ? RdKafkaCommitMode.RDKAFKA_COMMIT_MSG_SYNC : process.env.RDKAFKA_COMMIT_WAIT_MODE,
-    gzipCompression: (process.env.KAFKA_PRODUCER_GZIP === 'true')
+    gzipCompression: (process.env.KAFKA_PRODUCER_GZIP === 'true'),
+    fetchMinBytes: (process.env.KAFKA_FETCH_MIN_BYTES != null && !isNaN(Number(process.env.KAFKA_FETCH_MIN_BYTES)) && process.env.KAFKA_FETCH_MIN_BYTES?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_MIN_BYTES) : 1,
+    fetchWaitMaxMs: (process.env.KAFKA_FETCH_WAIT_MAX_MS != null && !isNaN(Number(process.env.KAFKA_FETCH_WAIT_MAX_MS)) && process.env.KAFKA_FETCH_WAIT_MAX_MS?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_WAIT_MAX_MS) : 100
+
   },
   redis: {
     host: process.env.REDIS_HOST
@@ -130,7 +138,10 @@ const CreateConsumer = async (topic: string): Promise<MessageConsumer | undefine
             'metadata.broker.list': appConfig.kafka.host,
             'group.id': groupId,
             'enable.auto.commit': appConfig.kafka.autocommit,
-            'auto.commit.interval.ms': (appConfig.kafka.autoCommitInterval != null) ? appConfig.kafka.autoCommitInterval : 200
+            'auto.commit.interval.ms': (appConfig.kafka.autoCommitInterval != null) ? appConfig.kafka.autoCommitInterval : 200,
+            'socket.keepalive.enable': true,
+            'fetch.min.bytes': appConfig.kafka.fetchMinBytes,
+            'fetch.wait.max.ms': appConfig.kafka.fetchWaitMaxMs
           },
           topicConfig: {},
           rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode as RdKafkaCommitMode
@@ -165,7 +176,6 @@ const CreateConsumer = async (topic: string): Promise<MessageConsumer | undefine
 // }
 
 const buckets: Map<number, {counter: number, totalTimeMs: number}> = new Map<number, {counter: number, totalTimeMs: number}>()
-const evtMap: Map<string, number> = new Map<string, number>()
 
 function logRPS (): void {
   const now = Date.now()
@@ -190,8 +200,7 @@ function logRPS (): void {
   const avgRequested = Math.floor(requestedCounter / (elaspsed / 1000))
   const avgFulfiled = Math.floor(fulfiledCounter / (elaspsed / 1000))
 
-  // eslint-disable-next-line no-console
-  logger.isInfoEnabled() && logger.info(`\n *** ${counter} req/sec *** ${avg} avg ms *** ${evtMap.size} pending *** ${avgRequested}/${avgFulfiled} avg req/ful (all time) ***\n`)
+  logger.isInfoEnabled() && logger.info(`\n *** ${counter} req/sec *** ${avg} avg ms *** ${avgRequested}/${avgFulfiled} avg req/ful (all time) ***\n`)
 
   if (buckets.has(lastSecond - 1)) {
     buckets.delete(lastSecond - 1)
@@ -214,32 +223,22 @@ function recordCompleted (timeMs: number, transferId: string): void {
 const handlerForFulfilEvt = async (message: IDomainMessage): Promise<void> => {
   if (message.msgName === 'TransferFulfilledEvt') {
     fulfiledCounter++
-    const reqReceivedAt = evtMap.get(message.aggregateId)
-    if (reqReceivedAt != null) {
-      const timeDelta = message.msgTimestamp - reqReceivedAt
-      // console.log(`Prepare leg completed for transfer id: ${message.aggregateId} took: - ${message.msgTimestamp - reqReceivedAt} ms`)
-      recordCompleted(timeDelta, message.aggregateId)
-      evtMap.delete(message.aggregateId)
 
-      perfMetricsHisto.observe({}, timeDelta / 1000)
+    /* Get the trace state if present in the message */
+    const traceStatePayload = extractTraceStateFromMessage(message)
+    if ((traceStatePayload?.timeApiPrepare != null) &&
+      (traceStatePayload?.timeApiFulfil != null)) {
+      /* calculate metrics */
+      const fullDelta = message.msgTimestamp - traceStatePayload?.timeApiPrepare
+      const prepareDelta = traceStatePayload?.timeApiFulfil - traceStatePayload?.timeApiPrepare
+      const fulfilDelta = message.msgTimestamp - traceStatePayload?.timeApiFulfil
+      recordCompleted(fullDelta, message.aggregateId)
+
+      /* report metrics */
+      perfMetricsHisto.full!.observe({}, fullDelta / 1000)
+      perfMetricsHisto.prepare!.observe({ payerId: message.payload.payerId }, prepareDelta / 1000)
+      perfMetricsHisto.fulfill!.observe({ payeeId: message.payload.payeeId }, fulfilDelta / 1000)
     }
-
-    // decrease even if we don't have it here in mem
-    perfMetricsPendingGauge.dec()
-  }
-}
-
-const handlerForInitialReqEvt = async (message: IDomainMessage): Promise<void> => {
-  if (message.msgName === 'TransferPrepareRequestedEvt') {
-    requestedCounter++
-    evtMap.set(message.aggregateId, message.msgTimestamp)
-
-    if (startTime === 0) {
-      startTime = Date.now()
-    } // delay until we actually receive the first req
-
-    perfMetricsPendingGauge.inc()
-    // console.log(`Prepare leg started for transfer id: ${message.aggregateId} at: - ${new Date(message.msgTimestamp).toISOString()}`)
   }
 }
 
@@ -260,16 +259,20 @@ const start = async () => {
   metrics = new Metrics(metricsConfig)
   await metrics.init()
 
-  perfMetricsHisto = metrics.getHistogram(
+  perfMetricsHisto.full = metrics.getHistogram(
     'tx_transfer',
     'Transaction metrics for Transfers',
     []
   )
-
-  perfMetricsPendingGauge = metrics.getGauge(
-    'tx_pending',
-    'Transaction metrics for pending transfers',
-    []
+  perfMetricsHisto.prepare = metrics.getHistogram(
+    'tx_transfer_prepare',
+    'Transaction metrics for Transfers',
+    ['payerId']
+  )
+  perfMetricsHisto.fulfill = metrics.getHistogram(
+    'tx_transfer_fulfil',
+    'Transaction metrics for Transfers',
+    ['payeeId']
   )
 
   // Kafka consumer
@@ -280,14 +283,6 @@ const start = async () => {
   // const kafkaEvtConsumer = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(kafkaConsumerOptions, logger)
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
   await kafkaEvtConsumer.init(handlerForFulfilEvt, ['TransferFulfilledEvt'])
-
-  const kafkaEvtConsumerMl = await CreateConsumer(MLTopics.Events)
-  if (kafkaEvtConsumerMl === undefined) {
-    throw Error('perfMeasure - Unabled to create kafkaEvtConsumerMl consumer')
-  }
-  // const kafkaEvtConsumerMl = await KafkaGenericConsumer.Create<KafkaGenericConsumerOptions>(kafkaConsumerOptionsMl, logger)
-  /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-  await kafkaEvtConsumerMl.init(handlerForInitialReqEvt, ['TransferPrepareRequestedEvt'])
 
   // start only API
   const args = { // TODO: do a proper args parsing instead of hard-coded const
@@ -321,14 +316,6 @@ start().catch((err) => {
 })
 
 process.on('SIGINT', function () {
-  // eslint-disable-next-line no-console
   logger.isInfoEnabled() && logger.info('Ctrl-C... collecting pending...')
-  const now = Date.now()
-
-  evtMap.forEach((value, key) => {
-    // eslint-disable-next-line no-console
-    logger.isInfoEnabled() && logger.info(`Pending transfer - ID: ${key} - Timestamp: ${value} - Age: ${now - value} ms`)
-  })
-
   process.exit(2)
 })

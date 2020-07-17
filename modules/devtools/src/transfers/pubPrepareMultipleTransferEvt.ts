@@ -5,7 +5,8 @@ import {
 } from '@mojaloop-poc/lib-public-messages'
 import { v4 as uuidv4 } from 'uuid'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { MojaLogger } from '@mojaloop-poc/lib-utilities'
+import { MojaLogger, injectTraceStateToMessage } from '@mojaloop-poc/lib-utilities'
+import { getRandomFsps } from '../utilities/participant'
 
 /* eslint-disable @typescript-eslint/no-var-requires */
 const encodePayload = require('@mojaloop/central-services-shared').Util.StreamingProtocol.encodePayload
@@ -17,15 +18,6 @@ const contentType = 'application/vnd.interoperability.transfers+json;version=1'
 
 const timeout = async (ms: number): Promise<void> => {
   return await new Promise(resolve => setTimeout(resolve, ms))
-}
-
-const getRandomFsps = (): string[] => {
-  const fspIds = ['fsp-1', 'fsp-2', 'fsp-3', 'fsp-4']
-  const random = Math.floor(Math.random() * Math.floor(fspIds.length))
-
-  const payer: string = fspIds[random]
-  const payee: string = random + 1 >= fspIds.length ? fspIds[0] : fspIds[random + 1]
-  return [payer, payee]
 }
 
 const send = async (): Promise<void> => {
@@ -53,8 +45,7 @@ const send = async (): Promise<void> => {
     }
 
     const encodedPreparePayload = encodePayload(Buffer.from(JSON.stringify(preparePayload)), contentType)
-
-    evts.push(new TransferPrepareRequestedEvt({
+    const newEvent = new TransferPrepareRequestedEvt({
       transferId: preparePayload.transferId,
       payerId: preparePayload.payerFsp,
       payeeId: preparePayload.payeeFsp,
@@ -82,8 +73,10 @@ const send = async (): Promise<void> => {
         },
         payload: encodedPreparePayload
       }
-    }
-    ))
+    })
+    injectTraceStateToMessage(newEvent, { timeApiPrepare: Date.now() })
+
+    evts.push(newEvent)
   }
 
   const constructMsgsMs = Date.now() - startTime
@@ -98,7 +91,7 @@ const send = async (): Promise<void> => {
 
 /* eslint-disable-next-line @typescript-eslint/explicit-function-return-type */
 const start = async () => {
-  logger.info('Starting pubPrepareMultipleTransferEvt publisher!')
+  logger.isInfoEnabled() && logger.info('Starting pubPrepareMultipleTransferEvt publisher!')
   await Publisher.init()
   await Publisher.publishMessageMultipleInit()
   while (true) {
@@ -109,17 +102,17 @@ const start = async () => {
 // lets clean up all consumers here
 /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
 const killProcess = async (): Promise<void> => {
-  logger.info('Exiting process...')
-  logger.info('Destroying handlers...')
+  logger.isInfoEnabled() && logger.info('Exiting process...')
+  logger.isInfoEnabled() && logger.info('Destroying handlers...')
   await Publisher.publishMessageMultipleDestroy()
 
-  logger.info('Exit complete!')
+  logger.isInfoEnabled() && logger.info('Exit complete!')
   process.exit(0)
 }
 /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
 process.on('SIGINT', killProcess)
 
 start().catch((err) => {
-  logger.error(err)
+  logger.isErrorEnabled() && logger.error(err)
 }).finally(() => {
 })

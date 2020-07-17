@@ -41,39 +41,48 @@
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransferPrepareAcceptedEvt, TransferFulfilAcceptedEvt, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
 import {
+  EnumOffset,
   IRunHandler,
   KafkaInfraTypes,
-  KafkaJsProducerOptions,
-  KafkajsMessagePublisher,
-  KafkaJsConsumer,
-  KafkaJsConsumerOptions,
-  MessageConsumer,
   KafkaMessagePublisher,
-  KafkaGenericConsumer,
-  EnumOffset,
-  KafkaGenericConsumerOptions,
-  KafkaGenericProducerOptions,
-  KafkaJsCompressionTypes,
-  KafkaStreamConsumerOptions,
-  KafkaStreamConsumer,
-  KafkaNodeCompressionTypes,
-  RDKafkaProducerOptions,
-  RDKafkaMessagePublisher
+  MessageConsumer,
+  // node-kafka imports
+  KafkaGenericConsumer, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, KafkaNodeCompressionTypes,
+  // node-kafka-stream imports
+  KafkaStreamConsumerOptions, KafkaStreamConsumer,
+  // kafkajs imports
+  KafkaJsCompressionTypes, KafkaJsConsumer, KafkaJsConsumerOptions, KafkajsMessagePublisher, KafkaJsProducerOptions,
+  // rdkafka imports
+  RDKafkaCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher, RDKafkaConsumerOptions, RDKafkaConsumer
 } from '@mojaloop-poc/lib-infrastructure'
 import { ReservePayerFundsCmd, ReservePayerFundsCmdPayload } from '../messages/reserve_payer_funds_cmd'
 import { CommitPayeeFundsCmd, CommitPayeeFundsCmdPayload } from '../messages/commit_payee_funds_cmd'
 import { InvalidParticipantEvtError } from './errors'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
+import { IParticipantRepo } from '../domain/participant_repo'
+import { CachedRedisParticipantStateRepo } from '../infrastructure/cachedredis_participant_repo'
 
 export class ParticipantEvtHandler implements IRunHandler {
   private _consumer: MessageConsumer
   private _publisher: IMessagePublisher
+  private _repo: IParticipantRepo
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
+    logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler::start - appConfig=${JSON.stringify(appConfig)}`)
+
+    logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Creating repo of type ${CachedRedisParticipantStateRepo.constructor.name}`)
+
+    const repo: IParticipantRepo = new CachedRedisParticipantStateRepo(appConfig.redis.host, logger)
+
+    this._repo = repo
+    await repo.init()
+
+    logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Created repo of type ${repo.constructor.name}`)
+
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
-    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`ParticipantEvtHandler - Creating ${appConfig.kafka.producer} participantEvtHandler.kafkaMsgPublisher...`)
+    logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Creating ${appConfig.kafka.producer as string} participantEvtHandler.kafkaMsgPublisher...`)
+    let clientId = `participantEvtHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
@@ -81,7 +90,7 @@ export class ParticipantEvtHandler implements IRunHandler {
           client: {
             kafka: {
               kafkaHost: appConfig.kafka.host,
-              clientId: `participantEvtHandler-${Crypto.randomBytes(8)}`
+              clientId
             },
             compression: appConfig.kafka.gzipCompression === true ? KafkaNodeCompressionTypes.GZIP : KafkaNodeCompressionTypes.None
           }
@@ -97,7 +106,7 @@ export class ParticipantEvtHandler implements IRunHandler {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: [appConfig.kafka.host],
-              clientId: `participantEvtHandler-${Crypto.randomBytes(8)}`
+              clientId
             },
             producer: { // https://kafka.js.org/docs/producing#options
               allowAutoTopicCreation: true,
@@ -117,9 +126,13 @@ export class ParticipantEvtHandler implements IRunHandler {
           client: {
             producerConfig: {
               'metadata.broker.list': appConfig.kafka.host,
-              'dr_cb': true
+              dr_cb: true,
+              'client.id': clientId,
+              'socket.keepalive.enable': true,
+              'compression.codec': appConfig.kafka.gzipCompression === true ? RDKafkaCompressionTypes.GZIP : RDKafkaCompressionTypes.NONE
             },
             topicConfig: {
+              // partitioner: RDKafkaPartioner.MURMUR2_RANDOM // default java algorithm, seems to have worse random distribution for hashing than rdkafka's default
             }
           }
         }
@@ -130,12 +143,12 @@ export class ParticipantEvtHandler implements IRunHandler {
         break
       }
       default: {
-        logger.warn('ParticipantEvtHandler - Unable to find a Kafka Producer implementation!')
+        logger.isWarnEnabled() && logger.warn('ParticipantEvtHandler - Unable to find a Kafka Producer implementation!')
         throw new Error('participantEvtHandler.kafkaMsgPublisher was not created!')
       }
     }
 
-    logger.info(`ParticipantEvtHandler - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
 
     this._publisher = kafkaMsgPublisher
     await kafkaMsgPublisher.init()
@@ -150,7 +163,7 @@ export class ParticipantEvtHandler implements IRunHandler {
       const histTimer = histoParticipantEvtHandlerMetric.startTimer()
       const evtname = message.msgName ?? 'unknown'
       try {
-        logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+        logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
         let participantEvt: DomainEventMsg | undefined
         let participantCmd: CommandMsg | undefined
         // # Transform messages into correct Command
@@ -161,6 +174,12 @@ export class ParticipantEvtHandler implements IRunHandler {
             const reservePayerFundsCmdPayload: ReservePayerFundsCmdPayload = participantEvt.payload
             participantCmd = new ReservePayerFundsCmd(reservePayerFundsCmdPayload)
             participantCmd.passTraceInfo(participantEvt)
+            // lets find and set the appropriate partition for the participant
+            const participant = await this._repo.load(participantCmd.msgKey)
+            if (participant == null) {
+              throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - Participant '${participantCmd.msgKey}' is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+            }
+            participantCmd.msgPartition = participant.partition
             break
           }
           case TransferFulfilAcceptedEvt.name: {
@@ -169,42 +188,48 @@ export class ParticipantEvtHandler implements IRunHandler {
             const commitPayeeFundsCmdPayload: CommitPayeeFundsCmdPayload = participantEvt.payload
             participantCmd = new CommitPayeeFundsCmd(commitPayeeFundsCmdPayload)
             participantCmd.passTraceInfo(participantEvt)
+            // lets find and set the appropriate partition for the participant
+            const participant = await this._repo.load(participantCmd.msgKey)
+            if (participant == null) {
+              throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - Participant '${participantCmd.msgKey}' is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+            }
+            participantCmd.msgPartition = participant.partition
             break
           }
           default: {
-            logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+            logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
             histTimer({ success: 'true', evtname })
             return
           }
         }
 
         if (participantCmd != null) {
-          logger.info(`ParticipantEvtHandler - publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${participantCmd?.msgName}:${message?.msgKey}:${participantCmd?.msgId}`)
+          logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${participantCmd?.msgName}:${message?.msgKey}:${participantCmd?.msgId}`)
           await kafkaMsgPublisher!.publish(participantCmd)
         } else {
-          logger.warn(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
+          logger.isWarnEnabled() && logger.warn(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
         }
 
-        logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: true`)
+        logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: true`)
         histTimer({ success: 'true', evtname })
       } catch (err) {
         const errMsg: string = err?.message?.toString()
-        logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
-        logger.error(err)
-        histTimer({ success: 'false', error: err.message, evtname })
+        logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+        logger.isErrorEnabled() && logger.error(err)
+        histTimer({ success: 'false', /* error: err.message, */ evtname })
       }
     }
 
     let participantEvtConsumer: MessageConsumer | undefined
 
-    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`ParticipantEvtHandler - Creating ${appConfig.kafka.consumer} participantEvtConsumer...`)
+    logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Creating ${appConfig.kafka.consumer as string} participantEvtConsumer...`)
+    clientId = `participantEvtConsumer-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.consumer) {
       case (KafkaInfraTypes.NODE_KAFKA): {
         const participantEvtConsumerOptions: KafkaGenericConsumerOptions = {
           client: {
             kafkaHost: appConfig.kafka.host,
-            id: `participantEvtConsumer-${Crypto.randomBytes(8)}`,
+            id: clientId,
             groupId: 'participantEvtGroup',
             fromOffset: EnumOffset.LATEST,
             autoCommit: appConfig.kafka.autocommit
@@ -218,7 +243,7 @@ export class ParticipantEvtHandler implements IRunHandler {
         const participantEvtConsumerOptions: KafkaStreamConsumerOptions = {
           client: {
             kafkaHost: appConfig.kafka.host,
-            id: `participantEvtConsumer-${Crypto.randomBytes(8)}`,
+            id: clientId,
             groupId: 'participantEvtGroup',
             fromOffset: EnumOffset.LATEST,
             autoCommit: appConfig.kafka.autocommit
@@ -233,7 +258,7 @@ export class ParticipantEvtHandler implements IRunHandler {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: [appConfig.kafka.host],
-              clientId: `participantEvtConsumer-${Crypto.randomBytes(8)}`
+              clientId
             },
             consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
               groupId: 'participantEvtGroup'
@@ -249,27 +274,50 @@ export class ParticipantEvtHandler implements IRunHandler {
         participantEvtConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
         break
       }
-      /* case (KafkaInfraTypes.NODE_RDKAFKA): {
-        // TODO_NODE_RDKAFKA
+      case (KafkaInfraTypes.NODE_RDKAFKA): {
+        const rdKafkaConsumerOptions: RDKafkaConsumerOptions = {
+          client: {
+            consumerConfig: {
+              'metadata.broker.list': appConfig.kafka.host,
+              'group.id': 'participantEvtGroup',
+              'enable.auto.commit': appConfig.kafka.autocommit,
+              'auto.commit.interval.ms': appConfig.kafka.autoCommitInterval,
+              'client.id': clientId,
+              'socket.keepalive.enable': true,
+              'fetch.min.bytes': appConfig.kafka.fetchMinBytes,
+              'fetch.wait.max.ms': appConfig.kafka.fetchWaitMaxMs
+            },
+            topicConfig: {},
+            rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode
+          },
+          topics: [TransfersTopics.DomainEvents]
+        }
+        participantEvtConsumer = new RDKafkaConsumer(rdKafkaConsumerOptions, logger)
         break
       }
-      */
       default: {
-        logger.warn('ParticipantEvtHandler - Unable to find a Kafka consumer implementation!')
+        logger.isWarnEnabled() && logger.warn('ParticipantEvtHandler - Unable to find a Kafka consumer implementation!')
         throw new Error('participantEvtConsumer was not created!')
       }
     }
 
-    logger.info(`ParticipantEvtHandler - Created kafkaConsumer of type ${participantEvtConsumer.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Created kafkaConsumer of type ${participantEvtConsumer.constructor.name}`)
 
     this._consumer = participantEvtConsumer
-    logger.info('ParticipantEvtHandler - Initializing participantCmdConsumer...')
+    logger.isInfoEnabled() && logger.info('ParticipantEvtHandler - Initializing participantCmdConsumer...')
+
+    const subscribedMsgNames = [
+      'TransferPrepareAcceptedEvt',
+      'TransferFulfilAcceptedEvt'
+    ]
+
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-    await participantEvtConsumer.init(participantEvtHandler)
+    await participantEvtConsumer.init(participantEvtHandler, subscribedMsgNames)
   }
 
   async destroy (): Promise<void> {
     await this._consumer.destroy(true)
     await this._publisher.destroy()
+    await this._repo.destroy()
   }
 }

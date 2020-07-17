@@ -41,6 +41,7 @@ import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg 
 import { TransferPrepareRequestedEvt, TransferFulfilRequestedEvt, TransferPreparedEvt, TransferFulfilledEvt, TransferFulfilRequestedEvtPayload, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
 import {
   IRunHandler,
+  KafkaJsCompressionTypes,
   KafkaInfraTypes,
   KafkaJsProducerOptions,
   KafkajsMessagePublisher,
@@ -52,13 +53,15 @@ import {
   EnumOffset,
   KafkaGenericConsumerOptions,
   KafkaGenericProducerOptions,
-  KafkaJsCompressionTypes,
   KafkaStreamConsumer,
   KafkaNodeCompressionTypes,
+  RDKafkaCompressionTypes,
   RDKafkaProducerOptions,
-  RDKafkaMessagePublisher
+  RDKafkaMessagePublisher,
+  RDKafkaConsumerOptions,
+  RDKafkaConsumer
 } from '@mojaloop-poc/lib-infrastructure'
-import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
+import { Crypto, IMetricsFactory, mergeObjectIntoTraceStateToMessage } from '@mojaloop-poc/lib-utilities'
 
 /* eslint-disable @typescript-eslint/no-var-requires */
 const encodePayload = require('@mojaloop/central-services-shared').Util.StreamingProtocol.encodePayload
@@ -69,10 +72,11 @@ export class SimulatorEvtHandler implements IRunHandler {
   private _publisher: IMessagePublisher
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
+    logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler::start - appConfig=${JSON.stringify(appConfig)}`)
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
-    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`SimulatorEvtHandler - Creating ${appConfig.kafka.producer} simulatorEvtHandler.kafkaMsgPublisher...`)
+    logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - Creating ${appConfig.kafka.producer as string} simulatorEvtHandler.kafkaMsgPublisher...`)
+    let clientId = `simulatorEvtHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
@@ -80,7 +84,7 @@ export class SimulatorEvtHandler implements IRunHandler {
           client: {
             kafka: {
               kafkaHost: appConfig.kafka.host,
-              clientId: `simulatorEvtHandler-${Crypto.randomBytes(8)}`
+              clientId
             },
             compression: appConfig.kafka.gzipCompression === true ? KafkaNodeCompressionTypes.GZIP : KafkaNodeCompressionTypes.None
           }
@@ -96,7 +100,7 @@ export class SimulatorEvtHandler implements IRunHandler {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: [appConfig.kafka.host],
-              clientId: `simulatorEvtHandler-${Crypto.randomBytes(8)}`
+              clientId
             },
             producer: { // https://kafka.js.org/docs/producing#options
               allowAutoTopicCreation: true,
@@ -116,9 +120,13 @@ export class SimulatorEvtHandler implements IRunHandler {
           client: {
             producerConfig: {
               'metadata.broker.list': appConfig.kafka.host,
-              'dr_cb': true
+              dr_cb: true,
+              'client.id': clientId,
+              'socket.keepalive.enable': true,
+              'compression.codec': appConfig.kafka.gzipCompression === true ? RDKafkaCompressionTypes.GZIP : RDKafkaCompressionTypes.NONE
             },
             topicConfig: {
+              // partitioner: RDKafkaPartioner.MURMUR2_RANDOM // default java algorithm, seems to have worse random distribution for hashing than rdkafka's default
             }
           }
         }
@@ -129,12 +137,12 @@ export class SimulatorEvtHandler implements IRunHandler {
         break
       }
       default: {
-        logger.warn('SimulatorEvtHandler - Unable to find a Kafka Producer implementation!')
+        logger.isWarnEnabled() && logger.warn('SimulatorEvtHandler - Unable to find a Kafka Producer implementation!')
         throw new Error('simulatorEvtHandler.kafkaMsgPublisher was not created!')
       }
     }
 
-    logger.info(`SimulatorEvtHandler - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
 
     this._publisher = kafkaMsgPublisher
     await kafkaMsgPublisher.init()
@@ -148,7 +156,7 @@ export class SimulatorEvtHandler implements IRunHandler {
     const simulatorEvtHandler = async (message: IDomainMessage): Promise<void> => {
       const histTimer = histoSimulatorEvtHandlerMetric.startTimer()
       try {
-        logger.info(`SimulatorEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+        logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
         let simulatorEvt: DomainEventMsg | undefined
         let transferEvt: CommandMsg | null = null
         // # Transform messages into correct Command
@@ -159,7 +167,7 @@ export class SimulatorEvtHandler implements IRunHandler {
             // const prepareTransferCmdPayload: PrepareTransferCmdPayload = simulatorEvt.payload
             // transferCmd = new PrepareTransferCmd(prepareTransferCmdPayload)
             /* eslint-disable @typescript-eslint/restrict-template-expressions */
-            logger.info(`SimulatorEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - ${TransferPreparedEvt.name} Received - transferId: ${simulatorEvt.payload.transferId}`)
+            logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - ${TransferPreparedEvt.name} Received - transferId: ${simulatorEvt.payload.transferId}`)
             const fulfilPayload = {
               completedTimestamp: (new Date()).toISOString(),
               transferState: 'COMMITTED',
@@ -198,6 +206,8 @@ export class SimulatorEvtHandler implements IRunHandler {
             }
 
             transferEvt = new TransferFulfilRequestedEvt(transferFulfilRequestedEvtPayload)
+            mergeObjectIntoTraceStateToMessage(message, { timeApiFulfil: Date.now() })
+            transferEvt.passTraceInfo(message)
 
             break
           }
@@ -205,26 +215,26 @@ export class SimulatorEvtHandler implements IRunHandler {
             simulatorEvt = TransferFulfilledEvt.fromIDomainMessage(message)
             /* eslint-disable @typescript-eslint/restrict-template-expressions */
             if (simulatorEvt == null) throw new Error(`simulatorEvtHandler is unable to process event - ${TransferFulfilRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
-            logger.info(`SimulatorEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - ${TransferFulfilRequestedEvt.name} Received - transferId: ${simulatorEvt.payload.transferId}`)
+            logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - ${TransferFulfilRequestedEvt.name} Received - transferId: ${simulatorEvt.payload.transferId}`)
             break
           }
           default: {
-            logger.debug(`SimulatorEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+            logger.isDebugEnabled() && logger.debug(`SimulatorEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
             histTimer({ success: 'true' })
             return
           }
         }
 
         if (transferEvt != null) {
-          logger.info(`SimulatorEvtHandler - publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${transferEvt?.msgName}:${transferEvt?.msgId}`)
+          logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${transferEvt?.msgName}:${transferEvt?.msgId}`)
           await kafkaMsgPublisher!.publish(transferEvt)
-          logger.info(`SimulatorEvtHandler - publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+          logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
         }
         histTimer({ success: 'true' })
       } catch (err) {
         const errMsg: string = err?.message?.toString()
-        logger.info(`SimulatorEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
-        logger.error(err)
+        logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+        logger.isErrorEnabled() && logger.error(err)
         histTimer({ success: 'false', error: err.message })
       }
     }
@@ -232,13 +242,14 @@ export class SimulatorEvtHandler implements IRunHandler {
     let simulatorEvtConsumer: MessageConsumer | undefined
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`SimulatorEvtHandler - Creating ${appConfig.kafka.consumer} simulatorEvtConsumer...`)
+    logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - Creating ${appConfig.kafka.consumer} simulatorEvtConsumer...`)
+    clientId = `simulatorEvtConsumer-${appConfig.kafka.consumer}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.consumer) {
       case (KafkaInfraTypes.NODE_KAFKA): {
         const simulatorEvtConsumerOptions: KafkaGenericConsumerOptions = {
           client: {
             kafkaHost: appConfig.kafka.host,
-            id: `simulatorEvtConsumer-${Crypto.randomBytes(8)}`,
+            id: clientId,
             groupId: 'simulatorEvtGroup',
             fromOffset: EnumOffset.LATEST,
             autoCommit: appConfig.kafka.autocommit
@@ -252,7 +263,7 @@ export class SimulatorEvtHandler implements IRunHandler {
         const simulatorEvtConsumerOptions: KafkaGenericConsumerOptions = {
           client: {
             kafkaHost: appConfig.kafka.host,
-            id: `simulatorEvtConsumer-${Crypto.randomBytes(8)}`,
+            id: clientId,
             groupId: 'simulatorEvtGroup',
             fromOffset: EnumOffset.LATEST,
             autoCommit: appConfig.kafka.autocommit
@@ -267,7 +278,7 @@ export class SimulatorEvtHandler implements IRunHandler {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: [appConfig.kafka.host],
-              clientId: `simulatorEvtConsumer-${Crypto.randomBytes(8)}`
+              clientId
             },
             consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
               groupId: 'simulatorEvtGroup'
@@ -283,22 +294,46 @@ export class SimulatorEvtHandler implements IRunHandler {
         simulatorEvtConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
         break
       }
-      /*case (KafkaInfraTypes.NODE_RDKAFKA): {
-        // TODO_NODE_RDKAFKA
+      case (KafkaInfraTypes.NODE_RDKAFKA): {
+        const rdKafkaConsumerOptions: RDKafkaConsumerOptions = {
+          client: {
+            consumerConfig: {
+              'client.id': clientId,
+              'metadata.broker.list': appConfig.kafka.host,
+              'group.id': 'simulatorEvtGroup',
+              'enable.auto.commit': appConfig.kafka.autocommit,
+              'auto.commit.interval.ms': appConfig.kafka.autoCommitInterval,
+              'socket.keepalive.enable': true,
+              'fetch.min.bytes': appConfig.kafka.fetchMinBytes,
+              'fetch.wait.max.ms': appConfig.kafka.fetchWaitMaxMs
+            },
+            topicConfig: {},
+            rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode
+          },
+          topics: [TransfersTopics.DomainEvents]
+        }
+        simulatorEvtConsumer = new RDKafkaConsumer(rdKafkaConsumerOptions, logger)
         break
-      }*/
+      }
       default: {
-        logger.warn('SimulatorEvtHandler - Unable to find a Kafka consumer implementation!')
+        logger.isWarnEnabled() && logger.warn('SimulatorEvtHandler - Unable to find a Kafka consumer implementation!')
         throw new Error('simulatorEvtConsumer was not created!')
       }
     }
 
-    logger.info(`SimulatorEvtHandler - Created kafkaConsumer of type ${simulatorEvtConsumer.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - Created kafkaConsumer of type ${simulatorEvtConsumer.constructor.name}`)
 
     this._consumer = simulatorEvtConsumer
-    logger.info('SimulatorEvtHandler - Initializing transferCmdConsumer...')
+    logger.isInfoEnabled() && logger.info('SimulatorEvtHandler - Initializing transferCmdConsumer...')
+
+    const subscribedMsgNames = [
+      'TransferPreparedEvt',
+      'TransferFulfilledEvt'
+    ]
+
+    logger.isInfoEnabled() && logger.info('SimulatorEvtHandler - Initializing transferCmdConsumer...')
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-    await simulatorEvtConsumer.init(simulatorEvtHandler)
+    await simulatorEvtConsumer.init(simulatorEvtHandler, subscribedMsgNames)
   }
 
   async destroy (): Promise<void> {

@@ -5,6 +5,7 @@ import { CurrencyTypes, TransferFulfilRequestedEvt, TransferFulfilRequestedEvtPa
 import { v4 as uuidv4 } from 'uuid'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { MojaLogger } from '@mojaloop-poc/lib-utilities'
+import { FspIds } from '../utilities/participant'
 
 const logger: ILogger = new MojaLogger()
 
@@ -18,8 +19,8 @@ const start = async () => {
   await Publisher.init()
   const msgPrepareParams = {
     transferId: uuidv4(),
-    payerId: 'fsp-1',
-    payeeId: 'fsp-2',
+    payerId: FspIds[0],
+    payeeId: FspIds[1],
     currency: CurrencyTypes.USD,
     amount: '1',
     expiration: '2020-06-08T10:25:26.575Z',
@@ -81,7 +82,7 @@ const start = async () => {
   const transferFulfilRequestedEvtPayload: TransferFulfilRequestedEvtPayload = msgFulfilParams
   const transferFulfilRequestedEvt = new TransferFulfilRequestedEvt(transferFulfilRequestedEvtPayload)
 
-  logger.info(`Sending Transfer ${msgPrepareParams.transferId}`)
+  logger.isInfoEnabled() && logger.info(`Sending Transfer ${msgPrepareParams.transferId}`)
   await Publisher.publishMessage(transferPrepareRequestedEvt)
   await delay(1000)
   await Publisher.publishMessage(transferFulfilRequestedEvt)
@@ -89,6 +90,6 @@ const start = async () => {
 }
 
 start().catch((err) => {
-  logger.error(err)
+  logger.isErrorEnabled() && logger.error(err)
 }).finally(() => {
 })

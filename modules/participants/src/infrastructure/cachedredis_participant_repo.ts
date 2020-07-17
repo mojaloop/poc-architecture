@@ -69,7 +69,7 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
       this._redisClient = redis.createClient({ url: this._redisConnStr })
 
       this._redisClient.on('ready', () => {
-        this._logger.info('Redis client ready')
+        this._logger.isInfoEnabled() && this._logger.info('Redis client ready')
         if (this._initialized) { return }
 
         this._initialized = true
@@ -77,7 +77,7 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
       })
 
       this._redisClient.on('error', (err) => {
-        this._logger.error(err, 'A redis error has occurred:')
+        this._logger.isErrorEnabled() && this._logger.error(err, 'A redis error has occurred:')
         if (!this._initialized) { return reject(err) }
       })
     })
@@ -103,20 +103,23 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
         return resolve(this._inMemorylist.get(key))
       }
 
-      this._redisClient.get(key, (err?: Error|null, result?: string) => {
+      this._redisClient.get(key, (err: Error | null, result: string | null) => {
         if (err != null) {
-          this._logger.error(err, 'Error fetching entity state from redis - for key: ' + key)
+          this._logger.isErrorEnabled() && this._logger.error(err, 'Error fetching entity state from redis - for key: ' + key)
           return reject(err)
         }
         if (result == null) {
-          this._logger.debug('Entity state not found in redis - for key: ' + key)
+          this._logger.isDebugEnabled() && this._logger.debug('Entity state not found in redis - for key: ' + key)
           return resolve(null)
         }
         try {
           const state: ParticipantState = JSON.parse(result)
+
+          this._inMemorylist.set(key, state)
+
           return resolve(state)
         } catch (err) {
-          this._logger.error(err, 'Error parsing entity state from redis - for key: ' + key)
+          this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state from redis - for key: ' + key)
           return reject(err)
         }
       })
@@ -135,11 +138,11 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
 
       this._redisClient.del(key, (err?: Error|null, result?: number) => {
         if (err != null) {
-          this._logger.error(err, 'Error removing entity state from redis - for key: ' + key)
+          this._logger.isErrorEnabled() && this._logger.error(err, 'Error removing entity state from redis - for key: ' + key)
           return reject(err)
         }
         if (result !== 1) {
-          this._logger.debug('Entity state not found in redis - for key: ' + key)
+          this._logger.isDebugEnabled() && this._logger.debug('Entity state not found in redis - for key: ' + key)
           return resolve()
         }
 
@@ -154,35 +157,31 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
 
       const key: string = this.keyWithPrefix(entityState.id)
 
-      if (this._inMemorylist.has(key)) {
-        this._logger.debug(`CachedRedisParticipantStateRepo::store - storing ${entityState.id} in-memory only, skipping redis for now!`)
-        this._inMemorylist.set(key, entityState)
-        return resolve()
-      }
-
-      this._logger.debug(`CachedRedisParticipantStateRepo::store - storing ${entityState.id} in-memory only, AND redis as we have not seen this participant before!`)
+      this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::store - storing ${entityState.id} in-memory only, AND redis as we have not seen this participant before!`)
 
       this._inMemorylist.set(key, entityState)
 
-      let stringValue: string
+      resolve()
+
+      /* let stringValue: string | null = null
       try {
         stringValue = JSON.stringify(entityState)
       } catch (err) {
-        this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
-        return reject(err)
+        this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
+      }
+
+      if (stringValue === null) {
+        return
       }
 
       this._redisClient.set(key, stringValue, (err: Error | null, reply: string) => {
         if (err != null) {
-          this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
-          return reject(err)
+          this._logger.isErrorEnabled() && this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
         }
         if (reply !== 'OK') {
-          this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
-          return reject(err)
+          this._logger.isErrorEnabled() && this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
         }
-        return resolve()
-      })
+      }) */
     })
   }
 

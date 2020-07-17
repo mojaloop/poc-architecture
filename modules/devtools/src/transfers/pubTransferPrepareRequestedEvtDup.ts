@@ -1,6 +1,5 @@
 import * as Publisher from '../utilities/publisher'
 import { CurrencyTypes, TransferPrepareRequestedEvt, TransferPrepareRequestedEvtPayload } from '@mojaloop-poc/lib-public-messages'
-import { v4 as uuidv4 } from 'uuid'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { MojaLogger } from '@mojaloop-poc/lib-utilities'
 import { FspIds } from '../utilities/participant'
@@ -16,7 +15,7 @@ const start = async () => {
   await Publisher.init()
 
   const preparePayload = {
-    transferId: uuidv4(),
+    transferId: 'caa51b85-a7af-4ea8-b205-ae6ee9d9183e',
     payerFsp: FspIds[0],
     payeeFsp: FspIds[1],
     amount: {

@@ -45,10 +45,10 @@
     "@mojaloop-poc/lib-domain": "^0.1.0",
     "@mojaloop-poc/lib-utilities": "^0.1.0",
     "@types/async": "^3.2.3",
-    "@types/jest": "^26.0.3",
+    "@types/jest": "^26.0.4",
     "@types/lodash": "^4.14.157",
     "async": "^3.2.0",
-    "fastify": "^2.15.1",
+    "fastify": "^3.0.0",
     "kafka-node": "^5.0.0",
     "kafkajs": "^1.12.0",
     "node-rdkafka": "^2.9.0",
@@ -56,8 +56,8 @@
   },
   "devDependencies": {
     "@types/kafka-node": "^3.0.0",
-    "@types/node": "^14.0.14",
-    "@types/redis": "^2.8.22",
+    "@types/node": "^14.0.20",
+    "@types/redis": "^2.8.24",
     "@types/uuid": "^8.0.0",
     "@typescript-eslint/eslint-plugin": "^3.4.0",
     "eslint": "^7.3.1",
@@ -76,6 +76,6 @@
     "pre-commit": "^1.2.2",
     "ts-jest": "^26.1.1",
     "typedoc": "^0.17.8",
-    "typescript": "^3.9.5"
+    "typescript": "^3.9.6"
   }
 }

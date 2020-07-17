@@ -7,6 +7,7 @@ import { CurrencyTypes } from '@mojaloop-poc/lib-public-messages'
 import { v4 as uuidv4 } from 'uuid'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { MojaLogger } from '@mojaloop-poc/lib-utilities'
+import { FspIds } from '../utilities/participant'
 
 const logger: ILogger = new MojaLogger()
 
@@ -14,8 +15,8 @@ const logger: ILogger = new MojaLogger()
 const start = async () => {
   await Publisher.init()
   const reservePayerFundsCmdPayload: ReservePayerFundsCmdPayload = {
-    payerId: 'fsp-1',
-    payeeId: 'fsp-2',
+    payerId: FspIds[0],
+    payeeId: FspIds[1],
     transferId: uuidv4(),
     currency: CurrencyTypes.USD,
     amount: '1'
@@ -26,6 +27,6 @@ const start = async () => {
 }
 
 start().catch((err) => {
-  logger.error(err)
+  logger.isErrorEnabled() && logger.error(err)
 }).finally(() => {
 })

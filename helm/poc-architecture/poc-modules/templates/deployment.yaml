@@ -1,7 +1,8 @@
 {{- $kafkaHost := ( .Values.config.kafka_host | replace "$release_name" .Release.Name ) -}}
 {{- $redisHost := ( .Values.config.redis_host | replace "$release_name" .Release.Name ) -}}
+{{- $redisDuplicateHost := ( .Values.config.redis_duplicate_host | replace "$release_name" .Release.Name ) -}}
 {{- $simulatorHost := ( .Values.config.simulator_host | replace "$release_name" .Release.Name ) -}}
-apiVersion: apps/v1
+apiVersion: {{ template "poc-modules.apiVersion.Deployment" . }}
 kind: Deployment
 metadata:
   name: {{ template "poc-modules.fullname" . }}
@@ -103,6 +104,10 @@ spec:
               value: "{{ $kafkaHost }}:{{ .Values.config.kafka_port }}"
             - name: REDIS_HOST
               value: {{ $redisHost | quote }}
+            - name: REDIS_EXPIRATION_IN_SEC
+              value: {{ .Values.config.redis_expiration_in_sec | quote }}
+            - name: REDIS_DUPL_HOST
+              value: {{ $redisDuplicateHost | quote }}
             - name: SIMULATOR_HOST
               value: {{ $simulatorHost | quote }}
             - name: PARTICIPANTS_REPO_TYPE
@@ -119,6 +124,20 @@ spec:
               value: {{ .Values.config.kafka_autocommit_interval | quote }}
             - name: KAFKA_AUTO_COMMIT_THRESHOLD
               value: {{ .Values.config.kafka_autocommit_threshold | quote }}
+            - name: RDKAFKA_COMMIT_WAIT_MODE
+              value: {{ .Values.config.rdkafka_commit_wait_mode | quote }}
+            - name: RDKAFKA_BATCH_NUM_MESSAGES
+              value: {{ .Values.config.rdkafka_batch_num_messages | quote }}
+            - name: RDKAFKA_QUEUE_BUFFERING_MAX_US
+              value: {{ .Values.config.rdkafka_queue_buffering_max_us | quote }}
+            - name: KAFKA_FETCH_MIN_BYTES
+              value: {{ .Values.config.kafka_fetch_min_bytes | quote }}
+            - name: KAFKA_FETCH_WAIT_MAX_MS
+              value: {{ .Values.config.kafka_fetch_wait_max_ms | quote }}
+            - name: MEASURE_KAFKA_GROUP_ID
+              value: {{ .Values.config.measure_kafka_group_id | quote }}
+            - name: EVENT_SDK_VENDOR_PREFIX
+              value: {{ .Values.config.event_trace_vendor | quote }}
             - name: UV_THREADPOOL_SIZE
               value: {{ .Values.config.uv_threadpool_size | quote }}
 

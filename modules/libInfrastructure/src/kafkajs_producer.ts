@@ -74,14 +74,14 @@ export class KafkajsProducer extends MessageProducer {
 
     this._logger = logger ?? new ConsoleLogger()
 
-    this._logger.info('KafkaJsProducer instance created')
+    this._logger.isInfoEnabled() && this._logger.info('KafkaJsProducer instance created')
   }
 
-  static Create<tOptions>(options: tOptions, logger: ILogger): iMessageProducer {
+  static Create<tOptions> (options: tOptions, logger: ILogger): iMessageProducer {
     const producer = Reflect.construct(this, arguments)
 
     producer.on('error', (err: Error): void => {
-      logger.error(`event::error - ${JSON.stringify(err)}`)
+      logger.isErrorEnabled() && logger.error(`event::error - ${JSON.stringify(err)}`)
     })
 
     return producer
@@ -94,7 +94,7 @@ export class KafkajsProducer extends MessageProducer {
   }
 
   async init (): Promise<void> {
-    this._logger.info('initialising...')
+    this._logger.isInfoEnabled() && this._logger.info('initialising...')
 
     const defaultKafkajsOptions: KafkajsConfig = {
       client: { // https://kafka.js.org/docs/configuration#options
@@ -127,7 +127,7 @@ export class KafkajsProducer extends MessageProducer {
 
     this._defaultedKafkajsConfig = Object.assign({}, KafkajsOptions)
 
-    this._logger.debug(`Producer options: \n${JSON.stringify(KafkajsOptions)}`)
+    this._logger.isDebugEnabled() && this._logger.debug(`Producer options: \n${JSON.stringify(KafkajsOptions)}`)
 
     this._client = new Kafkajs(KafkajsOptions.client)
     this._producer = this._client.producer()
@@ -151,15 +151,22 @@ export class KafkajsProducer extends MessageProducer {
           messages: []
         }
       }
-      payloadsForEachTopic[kafkaMsg.msgTopic].messages.push(
-        {
+      let message: any
+      if (kafkaMsg.msgPartition !== null) {
+        message = {
           key: kafkaMsg.msgKey,
-          value: JSON.stringify(kafkaMsg)
-          // partition?: number
+          value: JSON.stringify(kafkaMsg),
+          partition: kafkaMsg.msgPartition
           // headers?: IHeaders
           // timestamp?: string
         }
-      )
+      } else {
+        message = {
+          key: kafkaMsg.msgKey,
+          value: JSON.stringify(kafkaMsg)
+        }
+      }
+      payloadsForEachTopic[kafkaMsg.msgTopic].messages.push(message)
     })
 
     const topicMessages = Object.values(payloadsForEachTopic)

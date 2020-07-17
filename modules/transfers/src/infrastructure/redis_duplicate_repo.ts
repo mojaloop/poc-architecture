@@ -39,16 +39,14 @@
 
 import * as redis from 'redis'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { ParticipantState } from '../domain/participant_entity'
-import { IParticipantRepo } from '../domain/participant_repo'
-import { ParticipantAccountTypes, ParticipantEndpoint } from '@mojaloop-poc/lib-public-messages'
+import { IDupTransferRepo } from '../domain/transfers_duplicate_repo'
 
-export class RedisParticipantStateRepo implements IParticipantRepo {
+export class RedisTransferDuplicateRepo implements IDupTransferRepo {
   protected _redisClient!: redis.RedisClient
   private readonly _redisConnStr: string
   private readonly _logger: ILogger
   private _initialized: boolean = false
-  private readonly keyPrefix: string = 'participant_'
+  private readonly _setKey: string = 'transfers_duplicate'
 
   constructor (connStr: string, logger: ILogger) {
     this._redisConnStr = connStr
@@ -62,7 +60,6 @@ export class RedisParticipantStateRepo implements IParticipantRepo {
       this._redisClient.on('ready', () => {
         this._logger.isInfoEnabled() && this._logger.info('Redis client ready')
         if (this._initialized) { return }
-
         this._initialized = true
         return resolve()
       })
@@ -70,6 +67,57 @@ export class RedisParticipantStateRepo implements IParticipantRepo {
       this._redisClient.on('error', (err) => {
         this._logger.isErrorEnabled() && this._logger.error(err, 'A redis error has occurred:')
         if (!this._initialized) { return reject(err) }
+      })
+    })
+  }
+
+  async add (id: string): Promise<boolean> {
+    return await new Promise((resolve, reject) => {
+      if (!this.canCall()) return reject(new Error('Repository not ready'))
+      this._redisClient.sadd(this._setKey, id, (err: Error | null, result: number) => {
+        if (err != null) {
+          this._logger.isErrorEnabled() && this._logger.error(err, `Error storing '${id}' for set to redis: ${this._setKey}`)
+          return reject(err)
+        }
+        if (result === 1) {
+          return resolve(true)
+        } else {
+          return resolve(false)
+        }
+      })
+    })
+  }
+
+  async exists (id: string): Promise<boolean> {
+    return await new Promise((resolve, reject) => {
+      if (!this.canCall()) return reject(new Error('Repository not ready'))
+      this._redisClient.sismember(this._setKey, id, (err: Error | null, result: number) => {
+        if (err != null) {
+          this._logger.isErrorEnabled() && this._logger.error(err, `Error checking '${id}' for set to redis: ${this._setKey}`)
+          return reject(err)
+        }
+        if (result === 1) {
+          return resolve(true)
+        } else {
+          return resolve(false)
+        }
+      })
+    })
+  }
+
+  async remove (id: string): Promise<boolean> {
+    return await new Promise((resolve, reject) => {
+      if (!this.canCall()) return reject(new Error('Repository not ready'))
+      this._redisClient.srem(this._setKey, id, (err: Error | null, result: number) => {
+        if (err != null) {
+          this._logger.isErrorEnabled() && this._logger.error(err, `Error removing '${id}' from set to redis: ${this._setKey}`)
+          return reject(err)
+        }
+        if (result === 1) {
+          return resolve(true)
+        } else {
+          return resolve(false)
+        }
       })
     })
   }
@@ -82,93 +130,5 @@ export class RedisParticipantStateRepo implements IParticipantRepo {
 
   canCall (): boolean {
     return this._initialized // for now, no circuit breaker exists
-  }
-
-  async load (id: string): Promise<ParticipantState|null> {
-    return await new Promise((resolve, reject) => {
-      if (!this.canCall()) return reject(new Error('Repository not ready'))
-
-      const key: string = this.keyWithPrefix(id)
-
-      this._redisClient.get(key, (err: Error | null, result: string | null) => {
-        if (err != null) {
-          this._logger.isErrorEnabled() && this._logger.error(err, 'Error fetching entity state from redis - for key: ' + key)
-          return reject(err)
-        }
-        if (result == null) {
-          this._logger.isDebugEnabled() && this._logger.debug('Entity state not found in redis - for key: ' + key)
-          return resolve(null)
-        }
-        try {
-          const state: ParticipantState = JSON.parse(result)
-          return resolve(state)
-        } catch (err) {
-          this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state from redis - for key: ' + key)
-          return reject(err)
-        }
-      })
-    })
-  }
-
-  async remove (id: string): Promise<void> {
-    return await new Promise((resolve, reject) => {
-      if (!this.canCall()) return reject(new Error('Repository not ready'))
-
-      const key: string = this.keyWithPrefix(id)
-
-      this._redisClient.del(key, (err?: Error|null, result?: number) => {
-        if (err != null) {
-          this._logger.isErrorEnabled() && this._logger.error(err, 'Error removing entity state from redis - for key: ' + key)
-          return reject(err)
-        }
-        if (result !== 1) {
-          this._logger.isDebugEnabled() && this._logger.debug('Entity state not found in redis - for key: ' + key)
-          return resolve()
-        }
-
-        return resolve()
-      })
-    })
-  }
-
-  async store (entityState: ParticipantState): Promise<void> {
-    return await new Promise((resolve, reject) => {
-      if (!this.canCall()) return reject(new Error('Repository not ready'))
-
-      const key: string = this.keyWithPrefix(entityState.id)
-      let stringValue: string
-      try {
-        stringValue = JSON.stringify(entityState)
-      } catch (err) {
-        this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
-        return reject(err)
-      }
-
-      this._redisClient.set(key, stringValue, (err: Error | null, reply: string) => {
-        if (err != null) {
-          this._logger.isErrorEnabled() && this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
-          return reject(err)
-        }
-        if (reply !== 'OK') {
-          this._logger.isErrorEnabled() && this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
-          return reject(err)
-        }
-        return resolve()
-      })
-    })
-  }
-
-  private keyWithPrefix (key: string): string {
-    return this.keyPrefix + key
-  }
-
-  async hasAccount (participantId: string, accType: ParticipantAccountTypes, currency: string): Promise<boolean> {
-    const participant = await this.load(participantId)
-    return participant?.accounts?.find(account => account.type === accType && account.currency === currency) != null
-  }
-
-  async getEndPoints (participantId: string): Promise<ParticipantEndpoint[]|undefined> {
-    const participant = await this.load(participantId)
-    return participant?.endpoints
   }
 }

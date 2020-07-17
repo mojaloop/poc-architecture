@@ -22,9 +22,6 @@
  * Gates Foundation
  - Name Surname <name.surname@gatesfoundation.com>
 
- * Coil
- - Donovan Changfoot <donovan.changfoot@coil.com>
-
  * Crosslake
  - Pedro Sousa Barreto <pedrob@crosslaketech.com>
 
@@ -37,25 +34,26 @@
 
 'use strict'
 
-export enum KafkaInfraTypes {
-  NODE_KAFKA = 'node-kafka',
-  NODE_KAFKA_STREAM = 'node-kafka-stream',
-  KAFKAJS = 'kafkajs',
-  NODE_RDKAFKA = 'node-rdkafka'
+export const getEnvIntegerOrDefault = (key: string, defaultValue: any): any => {
+  const envValue = process.env[key]
+  let rv = defaultValue
+
+  if ((envValue != null) && !isNaN(Number.parseInt(envValue))) {
+    rv = Number.parseInt(envValue)
+  }
+
+  return rv
 }
 
-// Exports for Infrastructure
-export * from './kafka_generic_consumer'
-export * from './kafka_stream_consumer'
-export * from './kafkajs_consumer'
-export * from './kafka_generic_producer'
-export * from './kafka_message_publisher'
-export * from './kafkajs_consumer'
-export * from './kafkajs_producer'
-export * from './kafkajs_message_publisher'
-export * from './rdkafka_consumer'
-export * from './rdkafka_producer'
-export * from './rdkafka_message_publisher'
-export * from './imessage_consumer'
-export * from './irun_handler'
-export * from './api_server'
+export const getEnvValueOrDefault = (key: string, defaultValue: any): any => {
+  const envValue = process.env[key]
+  let rv
+
+  if (envValue != null) {
+    rv = envValue
+  } else {
+    rv = defaultValue
+  }
+
+  return rv
+}

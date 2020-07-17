@@ -40,23 +40,19 @@
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { MLTopics, ParticipantsTopics, PayerFundsReservedEvt, TransferPrepareRequestedEvt, TransferPrepareAcceptedEvt, TransferFulfilRequestedEvt, PayeeFundsCommittedEvt } from '@mojaloop-poc/lib-public-messages'
 import {
+  EnumOffset,
   IRunHandler,
   KafkaInfraTypes,
-  KafkaJsProducerOptions,
-  KafkajsMessagePublisher,
-  KafkaJsConsumer,
-  KafkaJsConsumerOptions,
-  MessageConsumer,
   KafkaMessagePublisher,
-  KafkaGenericConsumer,
-  EnumOffset,
-  KafkaGenericConsumerOptions,
-  KafkaGenericProducerOptions,
-  KafkaJsCompressionTypes,
+  MessageConsumer,
+  // node-kafka imports
+  KafkaGenericConsumer, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, KafkaNodeCompressionTypes,
+  // node-kafka-stream imports
   KafkaStreamConsumer,
-  KafkaNodeCompressionTypes,
-  RDKafkaProducerOptions,
-  RDKafkaMessagePublisher
+  // kafkajs imports
+  KafkaJsCompressionTypes, KafkaJsConsumer, KafkaJsConsumerOptions, KafkajsMessagePublisher, KafkaJsProducerOptions,
+  // rdkafka imports
+  RDKafkaCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher, RDKafkaConsumerOptions, RDKafkaConsumer
 } from '@mojaloop-poc/lib-infrastructure'
 import { AckPayerFundsReservedCmdPayload, AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { AckPayeeFundsCommittedCmdPayload, AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
@@ -70,10 +66,12 @@ export class TransferEvtHandler implements IRunHandler {
   private _publisher: IMessagePublisher
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
+    logger.isInfoEnabled() && logger.info(`TransferEvtHandler::start - appConfig=${JSON.stringify(appConfig)}`)
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`Creating ${appConfig.kafka.producer} transferEvtHandler.kafkaMsgPublisher...`)
+    logger.isInfoEnabled() && logger.info(`Creating ${appConfig.kafka.producer} transferEvtHandler.kafkaMsgPublisher...`)
+    let clientId = `transferEvtHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
@@ -81,7 +79,7 @@ export class TransferEvtHandler implements IRunHandler {
           client: {
             kafka: {
               kafkaHost: appConfig.kafka.host,
-              clientId: `transferEvtHandler-${Crypto.randomBytes(8)}`
+              clientId
             },
             compression: appConfig.kafka.gzipCompression === true ? KafkaNodeCompressionTypes.GZIP : KafkaNodeCompressionTypes.None
           }
@@ -97,7 +95,7 @@ export class TransferEvtHandler implements IRunHandler {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: [appConfig.kafka.host],
-              clientId: `transferEvtHandler-${Crypto.randomBytes(8)}`
+              clientId
             },
             producer: { // https://kafka.js.org/docs/producing#options
               allowAutoTopicCreation: true,
@@ -117,9 +115,13 @@ export class TransferEvtHandler implements IRunHandler {
           client: {
             producerConfig: {
               'metadata.broker.list': appConfig.kafka.host,
-              'dr_cb': true
+              dr_cb: true,
+              'client.id': clientId,
+              'socket.keepalive.enable': true,
+              'compression.codec': appConfig.kafka.gzipCompression === true ? RDKafkaCompressionTypes.GZIP : RDKafkaCompressionTypes.NONE
             },
             topicConfig: {
+              // partitioner: RDKafkaPartioner.MURMUR2_RANDOM // default java algorithm, seems to have worse random distribution for hashing than rdkafka's default
             }
           }
         }
@@ -130,12 +132,12 @@ export class TransferEvtHandler implements IRunHandler {
         break
       }
       default: {
-        logger.warn('TransferEvtConsumer - Unable to find a Kafka Producer implementation!')
+        logger.isWarnEnabled() && logger.warn('TransferEvtConsumer - Unable to find a Kafka Producer implementation!')
         throw new Error('transferEvtHandler.kafkaMsgPublisher was not created!')
       }
     }
 
-    logger.info(`TransferEvtConsumer - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`TransferEvtConsumer - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
 
     this._publisher = kafkaMsgPublisher
     await kafkaMsgPublisher.init()
@@ -150,7 +152,7 @@ export class TransferEvtHandler implements IRunHandler {
       const histTimer = histoTransferEvtHandlerMetric.startTimer()
       const evtname = message.msgName ?? 'unknown'
       try {
-        logger.info(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+        logger.isInfoEnabled() && logger.info(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
         let transferEvt: DomainEventMsg | undefined
         let transferCmd: CommandMsg | null = null
         // # Transform messages into correct Command
@@ -188,40 +190,40 @@ export class TransferEvtHandler implements IRunHandler {
             break
           }
           case TransferPrepareAcceptedEvt.name: {
-            // logger.info(`EVENT:Type TransferPrepareAcceptedEvt ignored for now... TODO: refactor the topic names`)
+            // logger.isInfoEnabled() && logger.info(`EVENT:Type TransferPrepareAcceptedEvt ignored for now... TODO: refactor the topic names`)
             break
           }
           default: {
-            logger.debug(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+            logger.isDebugEnabled() && logger.debug(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
             histTimer({ success: 'true', evtname })
             return
           }
         }
 
         if (transferCmd != null) {
-          logger.info(`TransferEvtConsumer - publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${transferCmd?.msgName}:${transferCmd?.msgId}`)
+          logger.isInfoEnabled() && logger.info(`TransferEvtConsumer - publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${transferCmd?.msgName}:${transferCmd?.msgId}`)
           await kafkaMsgPublisher!.publish(transferCmd)
-          logger.info(`TransferEvtConsumer - publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+          logger.isInfoEnabled() && logger.info(`TransferEvtConsumer - publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
         }
         histTimer({ success: 'true', evtname })
       } catch (err) {
         const errMsg: string = err?.message?.toString()
-        logger.warn(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
-        logger.error(err)
+        logger.isWarnEnabled() && logger.warn(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+        logger.isErrorEnabled() && logger.error(err)
         histTimer({ success: 'false', error: err.message, evtname })
       }
     }
 
     let transferEvtConsumer: MessageConsumer | undefined
 
-    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`TransferEvtConsumer - Creating ${appConfig.kafka.consumer} transferEvtConsumer...`)
+    logger.isInfoEnabled() && logger.info(`TransferEvtConsumer - Creating ${appConfig.kafka.consumer as string} transferEvtConsumer...`)
+    clientId = `transferEvtConsumer-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.consumer) {
       case (KafkaInfraTypes.NODE_KAFKA): {
         const transferEvtConsumerOptions: KafkaGenericConsumerOptions = {
           client: {
             kafkaHost: appConfig.kafka.host,
-            id: `transferEvtConsumer-${Crypto.randomBytes(8)}`,
+            id: clientId,
             groupId: 'transferEvtGroup',
             fromOffset: EnumOffset.LATEST,
             autoCommit: appConfig.kafka.autocommit
@@ -235,7 +237,7 @@ export class TransferEvtHandler implements IRunHandler {
         const transferEvtConsumerOptions: KafkaGenericConsumerOptions = {
           client: {
             kafkaHost: appConfig.kafka.host,
-            id: `transferEvtConsumer-${Crypto.randomBytes(8)}`,
+            id: clientId,
             groupId: 'transferEvtGroup',
             fromOffset: EnumOffset.LATEST,
             autoCommit: appConfig.kafka.autocommit
@@ -250,7 +252,7 @@ export class TransferEvtHandler implements IRunHandler {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: [appConfig.kafka.host],
-              clientId: `transferEvtConsumer-${Crypto.randomBytes(8)}`
+              clientId
             },
             consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
               groupId: 'transferEvtGroup'
@@ -266,22 +268,46 @@ export class TransferEvtHandler implements IRunHandler {
         transferEvtConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
         break
       }
-      /*case (KafkaInfraTypes.NODE_RDKAFKA): {
-        // TODO_NODE_RDKAFKA
+      case (KafkaInfraTypes.NODE_RDKAFKA): {
+        const rdKafkaConsumerOptions: RDKafkaConsumerOptions = {
+          client: {
+            consumerConfig: {
+              'metadata.broker.list': appConfig.kafka.host,
+              'group.id': 'transferEvtGroup',
+              'enable.auto.commit': appConfig.kafka.autocommit,
+              'auto.commit.interval.ms': appConfig.kafka.autoCommitInterval,
+              'client.id': clientId,
+              'socket.keepalive.enable': true,
+              'fetch.min.bytes': appConfig.kafka.fetchMinBytes,
+              'fetch.wait.max.ms': appConfig.kafka.fetchWaitMaxMs
+            },
+            topicConfig: {},
+            rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode
+          },
+          topics: [MLTopics.Events, ParticipantsTopics.DomainEvents]
+        }
+        transferEvtConsumer = new RDKafkaConsumer(rdKafkaConsumerOptions, logger)
         break
       }
-      */
       default: {
-        logger.warn('TransferEvtConsumer - Unable to find a Kafka consumer implementation!')
+        logger.isWarnEnabled() && logger.warn('TransferEvtConsumer - Unable to find a Kafka consumer implementation!')
         throw new Error('transferEvtConsumer was not created!')
       }
     }
-    logger.info(`TransferEvtConsumer - Created kafkaConsumer of type ${transferEvtConsumer.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`TransferEvtConsumer - Created kafkaConsumer of type ${transferEvtConsumer.constructor.name}`)
 
     this._consumer = transferEvtConsumer
-    logger.info('TransferEvtConsumer - Initializing transferCmdConsumer...')
+    logger.isInfoEnabled() && logger.info('TransferEvtConsumer - Initializing transferCmdConsumer...')
+
+    const subscribedMsgNames = [
+      'PayerFundsReservedEvt',
+      'PayeeFundsCommittedEvt',
+      'TransferPrepareRequestedEvt',
+      'TransferFulfilRequestedEvt'
+    ]
+
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-    await transferEvtConsumer.init(transferEvtHandler)
+    await transferEvtConsumer.init(transferEvtHandler, subscribedMsgNames)
   }
 
   async destroy (): Promise<void> {

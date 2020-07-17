@@ -42,17 +42,17 @@ import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
 import {
   EnumOffset,
   IRunHandler,
-  KafkaGenericConsumer,
-  KafkaGenericConsumerOptions,
-  KafkaGenericProducerOptions,
   KafkaInfraTypes,
-  KafkaJsConsumer,
-  KafkaJsConsumerOptions,
-  KafkajsMessagePublisher,
-  KafkaJsProducerOptions,
   KafkaMessagePublisher,
   MessageConsumer,
-  KafkaJsCompressionTypes, KafkaStreamConsumerOptions, KafkaStreamConsumer, KafkaNodeCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher
+  // node-kafka imports
+  KafkaGenericConsumer, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, KafkaNodeCompressionTypes,
+  // node-kafka-stream imports
+  KafkaStreamConsumerOptions, KafkaStreamConsumer,
+  // kafkajs imports
+  KafkaJsCompressionTypes, KafkaJsConsumer, KafkaJsConsumerOptions, KafkajsMessagePublisher, KafkaJsProducerOptions,
+  // rdkafka imports
+  RDKafkaCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher, RDKafkaConsumerOptions, RDKafkaConsumer
 } from '@mojaloop-poc/lib-infrastructure'
 import { ParticpantsAgg } from '../domain/participants_agg'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
@@ -71,9 +71,10 @@ export class ParticipantCmdHandler implements IRunHandler {
   private _repo: IParticipantRepo
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
+    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler::start - appConfig=${JSON.stringify(appConfig)}`)
     let repo: IParticipantRepo
 
-    logger.info(`ParticipantCmdHandler - Creating repo of type ${appConfig.repo.type as string}`)
+    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Creating repo of type ${appConfig.repo.type as string}`)
     switch (appConfig.repo.type) {
       case RepoInfraTypes.REDIS: {
         repo = new RedisParticipantStateRepo(appConfig.redis.host, logger)
@@ -89,15 +90,15 @@ export class ParticipantCmdHandler implements IRunHandler {
     }
     // const repo: IEntityStateRepository<ParticipantState> = new InMemoryParticipantStateRepo();
     // const repo: IParticipantRepo = new RedisParticipantStateRepo(appConfig.redis.host, logger)
-    logger.info(`ParticipantCmdHandler - Created repo of type ${repo.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Created repo of type ${repo.constructor.name}`)
 
     this._repo = repo
     await repo.init()
 
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
-    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`ParticipantCmdHandler - Creating ${appConfig.kafka.producer} participantCmdHandler.kafkaMsgPublisher...`)
+    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Creating ${appConfig.kafka.producer as string} participantCmdHandler.kafkaMsgPublisher...`)
+    let clientId = `participantCmdHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_KAFKA_STREAM):
       case (KafkaInfraTypes.NODE_KAFKA): {
@@ -105,7 +106,7 @@ export class ParticipantCmdHandler implements IRunHandler {
           client: {
             kafka: {
               kafkaHost: appConfig.kafka.host,
-              clientId: `participantCmdHandler-${Crypto.randomBytes(8)}`
+              clientId
             },
             compression: appConfig.kafka.gzipCompression === true ? KafkaNodeCompressionTypes.GZIP : KafkaNodeCompressionTypes.None
           }
@@ -121,7 +122,7 @@ export class ParticipantCmdHandler implements IRunHandler {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: [appConfig.kafka.host],
-              clientId: `participantCmdHandler-${Crypto.randomBytes(8)}`
+              clientId
             },
             producer: { // https://kafka.js.org/docs/producing#options
               allowAutoTopicCreation: true,
@@ -141,9 +142,13 @@ export class ParticipantCmdHandler implements IRunHandler {
           client: {
             producerConfig: {
               'metadata.broker.list': appConfig.kafka.host,
-              'dr_cb': true
+              dr_cb: true,
+              'client.id': clientId,
+              'socket.keepalive.enable': true,
+              'compression.codec': appConfig.kafka.gzipCompression === true ? RDKafkaCompressionTypes.GZIP : RDKafkaCompressionTypes.NONE
             },
             topicConfig: {
+              // partitioner: RDKafkaPartioner.MURMUR2_RANDOM // default java algorithm, seems to have worse random distribution for hashing than rdkafka's default
             }
           }
         }
@@ -154,11 +159,11 @@ export class ParticipantCmdHandler implements IRunHandler {
         break
       }
       default: {
-        logger.warn('ParticipantCmdConsumer - Unable to find a Kafka Producer implementation!')
+        logger.isWarnEnabled() && logger.warn('ParticipantCmdConsumer - Unable to find a Kafka Producer implementation!')
         throw new Error('participantCmdHandler.kafkaMsgPublisher was not created!')
       }
     }
-    logger.info(`ParticipantCmdHandler - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
 
     await kafkaMsgPublisher.init()
 
@@ -196,7 +201,7 @@ export class ParticipantCmdHandler implements IRunHandler {
       const histTimer = histoParticipantCmdHandlerMetric.startTimer()
       const evtname = message.msgName ?? 'unknown'
       try {
-        logger.info(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+        logger.isInfoEnabled() && logger.info(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
         let participantCmd: CommandMsg | undefined
         // # Transform messages into correct Command
         switch (message.msgName) {
@@ -213,7 +218,7 @@ export class ParticipantCmdHandler implements IRunHandler {
             break
           }
           default: {
-            logger.warn(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+            logger.isWarnEnabled() && logger.warn(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
             break
           }
         }
@@ -221,14 +226,14 @@ export class ParticipantCmdHandler implements IRunHandler {
         if (participantCmd != null) {
           processCommandResult = await agg.processCommand(participantCmd)
         } else {
-          logger.warn(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
+          logger.isWarnEnabled() && logger.warn(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
         }
-        logger.info(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
+        logger.isInfoEnabled() && logger.info(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
         histTimer({ success: 'true', evtname })
       } catch (err) {
         const errMsg: string = err?.message?.toString()
-        logger.info(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
-        logger.error(err)
+        logger.isInfoEnabled() && logger.info(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+        logger.isErrorEnabled() && logger.error(err)
         histTimer({ success: 'false', error: err.message, evtname })
       }
     }
@@ -236,14 +241,14 @@ export class ParticipantCmdHandler implements IRunHandler {
     this._publisher = kafkaMsgPublisher
     let participantCmdConsumer: MessageConsumer | undefined
 
-    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.info(`ParticipantCmdConsumer - Creating ${appConfig.kafka.consumer} participantCmdConsumer...`)
+    logger.isInfoEnabled() && logger.info(`ParticipantCmdConsumer - Creating ${appConfig.kafka.consumer as string} participantCmdConsumer...`)
+    clientId = `participantCmdConsumer-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.consumer) {
       case (KafkaInfraTypes.NODE_KAFKA): {
         const participantCmdConsumerOptions: KafkaGenericConsumerOptions = {
           client: {
             kafkaHost: appConfig.kafka.host,
-            id: `participantCmdConsumer-${Crypto.randomBytes(8)}`,
+            id: clientId,
             groupId: 'participantCmdGroup',
             fromOffset: EnumOffset.LATEST,
             autoCommit: appConfig.kafka.autocommit
@@ -257,7 +262,7 @@ export class ParticipantCmdHandler implements IRunHandler {
         const participantCmdConsumerOptions: KafkaStreamConsumerOptions = {
           client: {
             kafkaHost: appConfig.kafka.host,
-            id: `participantCmdConsumer-${Crypto.randomBytes(8)}`,
+            id: clientId,
             groupId: 'participantCmdGroup',
             fromOffset: EnumOffset.LATEST,
             autoCommit: appConfig.kafka.autocommit
@@ -272,7 +277,7 @@ export class ParticipantCmdHandler implements IRunHandler {
           client: {
             client: { // https://kafka.js.org/docs/configuration#options
               brokers: [appConfig.kafka.host],
-              clientId: `participantCmdConsumer-${Crypto.randomBytes(8)}`
+              clientId: clientId
             },
             consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
               groupId: 'participantCmdGroup'
@@ -288,23 +293,39 @@ export class ParticipantCmdHandler implements IRunHandler {
         participantCmdConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
         break
       }
-      /* case (KafkaInfraTypes.NODE_RDKAFKA): {
-        // TODO_NODE_RDKAFKA
+      case (KafkaInfraTypes.NODE_RDKAFKA): {
+        const rdKafkaConsumerOptions: RDKafkaConsumerOptions = {
+          client: {
+            consumerConfig: {
+              'metadata.broker.list': appConfig.kafka.host,
+              'group.id': 'participantCmdGroup',
+              'enable.auto.commit': appConfig.kafka.autocommit,
+              'auto.commit.interval.ms': appConfig.kafka.autoCommitInterval,
+              'client.id': clientId,
+              'socket.keepalive.enable': true,
+              'fetch.min.bytes': appConfig.kafka.fetchMinBytes,
+              'fetch.wait.max.ms': appConfig.kafka.fetchWaitMaxMs
+            },
+            topicConfig: {},
+            rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode
+          },
+          topics: [ParticipantsTopics.Commands]
+        }
+        participantCmdConsumer = new RDKafkaConsumer(rdKafkaConsumerOptions, logger)
         break
       }
-      */
       default: {
-        logger.warn('ParticipantCmdConsumer - Unable to find a Kafka consumer implementation!')
+        logger.isWarnEnabled() && logger.warn('ParticipantCmdConsumer - Unable to find a Kafka consumer implementation!')
         throw new Error('participantCmdConsumer was not created!')
       }
     }
 
-    logger.info(`ParticipantCmdConsumer - Created kafkaConsumer of type ${participantCmdConsumer.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`ParticipantCmdConsumer - Created kafkaConsumer of type ${participantCmdConsumer.constructor.name}`)
 
     this._consumer = participantCmdConsumer
-    logger.info('ParticipantCmdConsumer - Initializing participantCmdConsumer...')
+    logger.isInfoEnabled() && logger.info('ParticipantCmdConsumer - Initializing participantCmdConsumer...')
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-    await participantCmdConsumer.init(participantCmdHandler)
+    await participantCmdConsumer.init(participantCmdHandler, null) // by design we're interested in all commands
   }
 
   async destroy (): Promise<void> {
