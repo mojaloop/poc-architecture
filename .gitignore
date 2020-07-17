@@ -142,3 +142,7 @@ dist/
 
 # clinic
 **/.clinic
+
+**/test/**/**.js
+**/test/**/**.js.map
+**/test/**/**.d.ts

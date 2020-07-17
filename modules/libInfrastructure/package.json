@@ -35,6 +35,7 @@
     "test:unit": "jest --testMatch '**/test/unit/**/*.test.ts'",
     "test:coverage": "jest --coverage --coverageThreshold='{}' --testMatch '**/test/unit/**/*.test.ts'",
     "test:coverage-check": "jest --coverage --testMatch '**/test/unit/**/*.test.ts'",
+    "test:integration": "jest --runInBand --testMatch '**/test/integration/**/*.test.ts'",
     "audit:resolve": "SHELL=sh resolve-audit",
     "audit:check": "SHELL=sh check-audit",
     "dep:check": "npx ncu -e 2",

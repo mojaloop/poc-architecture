@@ -58,7 +58,7 @@ export class KafkaJsConsumer extends MessageConsumer {
 
     this._logger = logger ?? new ConsoleLogger()
 
-    this._logger.info('instance created')
+    this._logger.info('KafkaJs consumer instance created')
   }
 
   async destroy (forceCommit: boolean = false): Promise<void> {

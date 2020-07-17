@@ -38,6 +38,7 @@
 'use strict'
 
 // Exports for Domain
+
 export * from './base_aggregate'
 export * from './base_entity'
 export * from './base_entity_state'
