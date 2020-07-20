@@ -136,6 +136,8 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
 
     /* TODO: validation of incoming payload */
 
+    // TODO validate the participants are the same, so we can remove the validation from the commitCmd on the participants
+
     // # Lets try fulfilling transfer
     try {
       const transferFulfilRequestData: FulfilTransferData = {

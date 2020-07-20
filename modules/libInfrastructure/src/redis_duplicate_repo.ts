@@ -33,24 +33,23 @@
  - Roman Pietrzak <roman.pietrzak@modusbox.com>
 
  --------------
-******/
-
+ ******/
 'use strict'
 
 import * as redis from 'redis'
 import { ILogger, IEntityDuplicateRepository } from '@mojaloop-poc/lib-domain'
-import { IDupTransferRepo } from '../domain/transfers_duplicate_repo'
 
-export class RedisTransferDuplicateRepo implements IDupTransferRepo, IEntityDuplicateRepository {
+export class RedisDuplicateRepo implements IEntityDuplicateRepository {
   protected _redisClient!: redis.RedisClient
   private readonly _redisConnStr: string
   private readonly _logger: ILogger
   private _initialized: boolean = false
-  private readonly _setKey: string = 'transfers_duplicate'
+  private readonly _setKey: string
 
-  constructor (connStr: string, logger: ILogger) {
+  constructor (connStr: string, setKey: string, logger: ILogger) {
     this._redisConnStr = connStr
     this._logger = logger
+    this._setKey = setKey
   }
 
   async init (): Promise<void> {
@@ -58,14 +57,14 @@ export class RedisTransferDuplicateRepo implements IDupTransferRepo, IEntityDupl
       this._redisClient = redis.createClient({ url: this._redisConnStr })
 
       this._redisClient.on('ready', () => {
-        this._logger.isInfoEnabled() && this._logger.info('Redis client ready')
+        this._logger.info('Redis client ready')
         if (this._initialized) { return }
         this._initialized = true
         return resolve()
       })
 
       this._redisClient.on('error', (err) => {
-        this._logger.isErrorEnabled() && this._logger.error(err, 'A redis error has occurred:')
+        this._logger.error(err, 'A redis error has occurred:')
         if (!this._initialized) { return reject(err) }
       })
     })
@@ -76,7 +75,7 @@ export class RedisTransferDuplicateRepo implements IDupTransferRepo, IEntityDupl
       if (!this.canCall()) return reject(new Error('Repository not ready'))
       this._redisClient.sadd(this._setKey, id, (err: Error | null, result: number) => {
         if (err != null) {
-          this._logger.isErrorEnabled() && this._logger.error(err, `Error storing '${id}' for set to redis: ${this._setKey}`)
+          this._logger.error(err, `Error storing '${id}' for set to redis: ${this._setKey}`)
           return reject(err)
         }
         if (result === 1) {
@@ -93,7 +92,7 @@ export class RedisTransferDuplicateRepo implements IDupTransferRepo, IEntityDupl
       if (!this.canCall()) return reject(new Error('Repository not ready'))
       this._redisClient.sismember(this._setKey, id, (err: Error | null, result: number) => {
         if (err != null) {
-          this._logger.isErrorEnabled() && this._logger.error(err, `Error checking '${id}' for set to redis: ${this._setKey}`)
+          this._logger.error(err, `Error checking '${id}' for set to redis: ${this._setKey}`)
           return reject(err)
         }
         if (result === 1) {
@@ -110,7 +109,7 @@ export class RedisTransferDuplicateRepo implements IDupTransferRepo, IEntityDupl
       if (!this.canCall()) return reject(new Error('Repository not ready'))
       this._redisClient.srem(this._setKey, id, (err: Error | null, result: number) => {
         if (err != null) {
-          this._logger.isErrorEnabled() && this._logger.error(err, `Error removing '${id}' from set to redis: ${this._setKey}`)
+          this._logger.error(err, `Error removing '${id}' from set to redis: ${this._setKey}`)
           return reject(err)
         }
         if (result === 1) {
@@ -123,7 +122,17 @@ export class RedisTransferDuplicateRepo implements IDupTransferRepo, IEntityDupl
   }
 
   async getAll (): Promise<string[]> {
-    throw new Error('Not implemented - should not be calling RedisTransferDuplicateRepo.getAll() for transfers')
+    return await new Promise((resolve, reject) => {
+      if (!this.canCall()) return reject(new Error('Repository not ready'))
+      this._redisClient.smembers(this._setKey, (err: Error | null, result: string[]) => {
+        if (err != null) {
+          this._logger.error(err, `Error retrieving all members of redis set: ${this._setKey}`)
+          return reject(err)
+        }
+
+        return resolve(result)
+      })
+    })
   }
 
   async destroy (): Promise<void> {

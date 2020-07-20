@@ -33,16 +33,36 @@
  - Roman Pietrzak <roman.pietrzak@modusbox.com>
 
  --------------
-******/
+ ******/
 
 'use strict'
 
-// Exports for Utilities
-export * from './logger_console'
-export * from './logger_moja'
-export * from './crypto'
-export * from './crypto'
-export * from './metrics'
-export * from './env_tools'
-export * from './trace_tools'
-export * from './timeutils'
+import { StateEventMsg } from '@mojaloop-poc/lib-domain'
+import { CurrencyTypes, ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
+
+export type ParticipantPositionChangedStateEvtPayload = {
+  participant: {
+    id: string
+    currency: CurrencyTypes
+    currentPosition: string
+  }
+}
+
+export class ParticipantPositionChangedStateEvt extends StateEventMsg {
+  msgKey: string // usually the id of the aggregate (used for partitioning)
+  msgTopic: string = ParticipantsTopics.StateEvents
+
+  aggregateId: string
+  aggregateName: string = 'Participants'
+
+  payload: ParticipantPositionChangedStateEvtPayload
+
+  constructor (payload: ParticipantPositionChangedStateEvtPayload) {
+    super()
+
+    this.aggregateId = this.msgKey = payload?.participant?.id
+    this.payload = payload
+  }
+
+  validatePayload (): void{ }
+}

@@ -33,16 +33,40 @@
  - Roman Pietrzak <roman.pietrzak@modusbox.com>
 
  --------------
-******/
+ ******/
 
 'use strict'
 
-// Exports for Utilities
-export * from './logger_console'
-export * from './logger_moja'
-export * from './crypto'
-export * from './crypto'
-export * from './metrics'
-export * from './env_tools'
-export * from './trace_tools'
-export * from './timeutils'
+import { StateEventMsg } from '@mojaloop-poc/lib-domain'
+import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
+import { ParticipantAccountState, ParticipantEndpointState } from '../domain/participant_entity'
+
+export type ParticipantCreatedStateEvtPayload = {
+  participant: {
+    id: string
+    name: string
+    accounts: ParticipantAccountState[]
+    endpoints: ParticipantEndpointState[]
+    partition: number | null
+  }
+}
+
+export class ParticipantCreatedStateEvt extends StateEventMsg {
+  msgKey: string // usually the id of the aggregate (used for partitioning)
+  msgTopic: string = ParticipantsTopics.StateEvents
+
+  aggregateId: string
+  aggregateName: string = 'Participants'
+
+  payload: ParticipantCreatedStateEvtPayload
+
+  constructor (payload: ParticipantCreatedStateEvtPayload) {
+    super()
+
+    this.aggregateId = this.msgKey = payload?.participant?.id
+
+    this.payload = payload
+  }
+
+  validatePayload (): void{ }
+}

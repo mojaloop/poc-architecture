@@ -45,7 +45,8 @@ export enum MLTopics {
 export enum ParticipantsTopics {
   'Commands' = 'ParticipantCommands',
   'DomainEvents' = 'ParticipantDomainEvents',
-  // "StateEvents" = "ParticipantStateEvents"
+  'StateEvents' = 'ParticipantStateEvents',
+  'SnapshotEvents' = 'ParticipantSnapshotEvents'
 }
 
 export enum ParticipantAccountTypes {

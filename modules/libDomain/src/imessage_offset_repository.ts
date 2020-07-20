@@ -37,12 +37,19 @@
 
 'use strict'
 
-// Exports for Utilities
-export * from './logger_console'
-export * from './logger_moja'
-export * from './crypto'
-export * from './crypto'
-export * from './metrics'
-export * from './env_tools'
-export * from './trace_tools'
-export * from './timeutils'
+export type TEventStoreMessageOffset = {
+  aggregateId: string
+  topic: string
+  partition: number
+  offset: number
+}
+
+export interface IMessageOffsetRepo{
+  init: () => Promise<void>
+  destroy: () => Promise<void>
+  canCall: () => boolean // for circuit breaker
+
+  load: (aggregateId: string) => Promise<TEventStoreMessageOffset | null>
+  store: (offset: TEventStoreMessageOffset) => Promise<void>
+  remove: (aggregateId: string) => Promise<void>
+}

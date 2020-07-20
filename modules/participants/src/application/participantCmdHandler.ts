@@ -37,22 +37,12 @@
 
 'use strict'
 // import { v4 as uuidv4 } from 'uuid'
-import { CommandMsg, IDomainMessage, ILogger, IMessagePublisher } from '@mojaloop-poc/lib-domain'
+import { CommandMsg, IDomainMessage, ILogger, IMessagePublisher, IEntityDuplicateRepository, IESourcingStateRepository } from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
 import {
-  EnumOffset,
   IRunHandler,
-  KafkaInfraTypes,
-  KafkaMessagePublisher,
   MessageConsumer,
-  // node-kafka imports
-  KafkaGenericConsumer, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, KafkaNodeCompressionTypes,
-  // node-kafka-stream imports
-  KafkaStreamConsumerOptions, KafkaStreamConsumer,
-  // kafkajs imports
-  KafkaJsCompressionTypes, KafkaJsConsumer, KafkaJsConsumerOptions, KafkajsMessagePublisher, KafkaJsProducerOptions,
-  // rdkafka imports
-  RDKafkaCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher, RDKafkaConsumerOptions, RDKafkaConsumer
+  RDKafkaCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher, RDKafkaConsumerOptions, RDKafkaConsumer, RedisDuplicateRepo
 } from '@mojaloop-poc/lib-infrastructure'
 import { ParticpantsAgg } from '../domain/participants_agg'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
@@ -60,277 +50,143 @@ import { CreateParticipantCmd } from '../messages/create_participant_cmd'
 import { CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'
 import { IParticipantRepo } from '../domain/participant_repo'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
-import { RepoInfraTypes } from '../infrastructure'
-import { InMemoryParticipantStateRepo } from '../infrastructure/inmemory_participant_repo'
-import { RedisParticipantStateRepo } from '../infrastructure/redis_participant_repo'
 import { CachedRedisParticipantStateRepo } from '../infrastructure/cachedredis_participant_repo'
+import { EventSourcingParticipantRepo } from '../infrastructure/eventsourcing_participant_repo'
 
 export class ParticipantCmdHandler implements IRunHandler {
+  private _logger: ILogger
   private _consumer: MessageConsumer
   private _publisher: IMessagePublisher
-  private _repo: IParticipantRepo
+  private _stateCacheRepo: IParticipantRepo
+  private _duplicateRepo: IEntityDuplicateRepository
+  private _eventSourcingRepo: IESourcingStateRepository
+  private _histoParticipantCmdHandlerMetric: any
+  private _participantAgg: ParticpantsAgg
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
-    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler::start - appConfig=${JSON.stringify(appConfig)}`)
+    this._logger = logger
+    this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdHandler::start - appConfig=${JSON.stringify(appConfig)}`)
     let repo: IParticipantRepo
 
-    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Creating repo of type ${appConfig.repo.type as string}`)
-    switch (appConfig.repo.type) {
-      case RepoInfraTypes.REDIS: {
-        repo = new RedisParticipantStateRepo(appConfig.redis.host, logger)
-        break
-      }
-      case RepoInfraTypes.CACHEDREDIS: {
-        repo = new CachedRedisParticipantStateRepo(appConfig.redis.host, logger)
-        break
-      }
-      default: { // defaulting to In-Memory
-        repo = new InMemoryParticipantStateRepo()
-      }
-    }
-    // const repo: IEntityStateRepository<ParticipantState> = new InMemoryParticipantStateRepo();
-    // const repo: IParticipantRepo = new RedisParticipantStateRepo(appConfig.redis.host, logger)
-    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Created repo of type ${repo.constructor.name}`)
+    this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdHandler - Creating repo of type ${appConfig.repo.type as string}`)
 
-    this._repo = repo
-    await repo.init()
+    // TODO change to multiple redis host settings
+    this._stateCacheRepo = new CachedRedisParticipantStateRepo(appConfig.redis.host, logger)
+    this._duplicateRepo = new RedisDuplicateRepo(appConfig.redis.host, 'participants_duplicate', logger) // TODO move to config
+    this._eventSourcingRepo = new EventSourcingParticipantRepo(appConfig.redis.host, appConfig.kafka.host, ParticipantsTopics.SnapshotEvents, ParticipantsTopics.StateEvents, logger)
 
-    let kafkaMsgPublisher: IMessagePublisher | undefined
-
-    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Creating ${appConfig.kafka.producer as string} participantCmdHandler.kafkaMsgPublisher...`)
+    this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdHandler - Creating ${appConfig.kafka.producer as string} participantCmdHandler.kafkaMsgPublisher...`)
     let clientId = `participantCmdHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
-    switch (appConfig.kafka.producer) {
-      case (KafkaInfraTypes.NODE_KAFKA_STREAM):
-      case (KafkaInfraTypes.NODE_KAFKA): {
-        const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
-          client: {
-            kafka: {
-              kafkaHost: appConfig.kafka.host,
-              clientId
-            },
-            compression: appConfig.kafka.gzipCompression === true ? KafkaNodeCompressionTypes.GZIP : KafkaNodeCompressionTypes.None
-          }
+    const rdKafkaProducerOptions: RDKafkaProducerOptions = {
+      client: {
+        producerConfig: {
+          'metadata.broker.list': appConfig.kafka.host,
+          dr_cb: true,
+          'client.id': clientId,
+          'socket.keepalive.enable': true,
+          'compression.codec': appConfig.kafka.gzipCompression === true ? RDKafkaCompressionTypes.GZIP : RDKafkaCompressionTypes.NONE
+        },
+        topicConfig: {
+          // partitioner: RDKafkaPartioner.MURMUR2_RANDOM // default java algorithm, seems to have worse random distribution for hashing than rdkafka's default
         }
-        kafkaMsgPublisher = new KafkaMessagePublisher(
-          kafkaGenericProducerOptions,
-          logger
-        )
-        break
-      }
-      case (KafkaInfraTypes.KAFKAJS): {
-        const kafkaJsProducerOptions: KafkaJsProducerOptions = {
-          client: {
-            client: { // https://kafka.js.org/docs/configuration#options
-              brokers: [appConfig.kafka.host],
-              clientId
-            },
-            producer: { // https://kafka.js.org/docs/producing#options
-              allowAutoTopicCreation: true,
-              transactionTimeout: 60000
-            },
-            compression: appConfig.kafka.gzipCompression === true ? KafkaJsCompressionTypes.GZIP : KafkaJsCompressionTypes.None
-          }
-        }
-        kafkaMsgPublisher = new KafkajsMessagePublisher(
-          kafkaJsProducerOptions,
-          logger
-        )
-        break
-      }
-      case (KafkaInfraTypes.NODE_RDKAFKA): {
-        const rdKafkaProducerOptions: RDKafkaProducerOptions = {
-          client: {
-            producerConfig: {
-              'metadata.broker.list': appConfig.kafka.host,
-              dr_cb: true,
-              'client.id': clientId,
-              'socket.keepalive.enable': true,
-              'compression.codec': appConfig.kafka.gzipCompression === true ? RDKafkaCompressionTypes.GZIP : RDKafkaCompressionTypes.NONE
-            },
-            topicConfig: {
-              // partitioner: RDKafkaPartioner.MURMUR2_RANDOM // default java algorithm, seems to have worse random distribution for hashing than rdkafka's default
-            }
-          }
-        }
-        kafkaMsgPublisher = new RDKafkaMessagePublisher(
-          rdKafkaProducerOptions,
-          logger
-        )
-        break
-      }
-      default: {
-        logger.isWarnEnabled() && logger.warn('ParticipantCmdConsumer - Unable to find a Kafka Producer implementation!')
-        throw new Error('participantCmdHandler.kafkaMsgPublisher was not created!')
       }
     }
-    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
+    this._publisher = new RDKafkaMessagePublisher(rdKafkaProducerOptions, logger)
 
-    await kafkaMsgPublisher.init()
+    this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdHandler - Created kafkaMsgPublisher of type ${this._publisher.constructor.name}`)
 
-    const agg: ParticpantsAgg = new ParticpantsAgg(repo, kafkaMsgPublisher, logger)
+    await this._stateCacheRepo.init()
+    await this._duplicateRepo.init()
+    await this._eventSourcingRepo.init()
+    await this._publisher.init()
 
-    // ## Local Test
-    // // const payerId: string = '47fca31d-6784-4ac2-afd2-03af341df7e1' // Use this to validate duplicate insert logic for participants
-    // const payerId: string = uuidv4() // Use this to create a new participant record
+    this._participantAgg = new ParticpantsAgg(this._stateCacheRepo, this._duplicateRepo, this._eventSourcingRepo, this._publisher, logger)
 
-    // const transferId: string = uuidv4()
-
-    // const createParticipantCmd: CreateParticipantCmd = new CreateParticipantCmd({
-    //   id: payerId,
-    //   name: 'participant 1',
-    //   limit: 1000,
-    //   initialPosition: 100
-    // })
-    // await agg.processCommand(createParticipantCmd)
-
-    // const reserveCmd: ReservePayerFundsCmd = new ReservePayerFundsCmd({
-    //   payerId,
-    //   transferId: transferId,
-    //   amount: 50
-    // })
-    // await agg.processCommand(reserveCmd)
-
-    const histoParticipantCmdHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+    this._histoParticipantCmdHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
       'participantCmdHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
       'Instrumentation for participantCmdHandler', // Description of metric
       ['success', 'error', 'evtname'] // Define a custom label 'success'
     )
 
-    // ## Setup participantCmdConsumer
-    const participantCmdHandler = async (message: IDomainMessage): Promise<void> => {
-      const histTimer = histoParticipantCmdHandlerMetric.startTimer()
-      const evtname = message.msgName ?? 'unknown'
-      try {
-        logger.isInfoEnabled() && logger.info(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
-        let participantCmd: CommandMsg | undefined
-        // # Transform messages into correct Command
-        switch (message.msgName) {
-          case CreateParticipantCmd.name: {
-            participantCmd = CreateParticipantCmd.fromIDomainMessage(message)
-            break
-          }
-          case ReservePayerFundsCmd.name: {
-            participantCmd = ReservePayerFundsCmd.fromIDomainMessage(message)
-            break
-          }
-          case CommitPayeeFundsCmd.name: {
-            participantCmd = CommitPayeeFundsCmd.fromIDomainMessage(message)
-            break
-          }
-          default: {
-            logger.isWarnEnabled() && logger.warn(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
-            break
-          }
-        }
-        let processCommandResult: boolean = false
-        if (participantCmd != null) {
-          processCommandResult = await agg.processCommand(participantCmd)
-        } else {
-          logger.isWarnEnabled() && logger.warn(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
-        }
-        logger.isInfoEnabled() && logger.info(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
-        histTimer({ success: 'true', evtname })
-      } catch (err) {
-        const errMsg: string = err?.message?.toString()
-        logger.isInfoEnabled() && logger.info(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
-        logger.isErrorEnabled() && logger.error(err)
-        histTimer({ success: 'false', error: err.message, evtname })
-      }
-    }
-
-    this._publisher = kafkaMsgPublisher
-    let participantCmdConsumer: MessageConsumer | undefined
-
     logger.isInfoEnabled() && logger.info(`ParticipantCmdConsumer - Creating ${appConfig.kafka.consumer as string} participantCmdConsumer...`)
     clientId = `participantCmdConsumer-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
-    switch (appConfig.kafka.consumer) {
-      case (KafkaInfraTypes.NODE_KAFKA): {
-        const participantCmdConsumerOptions: KafkaGenericConsumerOptions = {
-          client: {
-            kafkaHost: appConfig.kafka.host,
-            id: clientId,
-            groupId: 'participantCmdGroup',
-            fromOffset: EnumOffset.LATEST,
-            autoCommit: appConfig.kafka.autocommit
-          },
-          topics: [ParticipantsTopics.Commands]
-        }
-        participantCmdConsumer = new KafkaGenericConsumer(participantCmdConsumerOptions, logger)
-        break
-      }
-      case (KafkaInfraTypes.NODE_KAFKA_STREAM): {
-        const participantCmdConsumerOptions: KafkaStreamConsumerOptions = {
-          client: {
-            kafkaHost: appConfig.kafka.host,
-            id: clientId,
-            groupId: 'participantCmdGroup',
-            fromOffset: EnumOffset.LATEST,
-            autoCommit: appConfig.kafka.autocommit
-          },
-          topics: [ParticipantsTopics.Commands]
-        }
-        participantCmdConsumer = new KafkaStreamConsumer(participantCmdConsumerOptions, logger)
-        break
-      }
-      case (KafkaInfraTypes.KAFKAJS): {
-        const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
-          client: {
-            client: { // https://kafka.js.org/docs/configuration#options
-              brokers: [appConfig.kafka.host],
-              clientId: clientId
-            },
-            consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
-              groupId: 'participantCmdGroup'
-            },
-            consumerRunConfig: {
-              autoCommit: appConfig.kafka.autocommit,
-              autoCommitInterval: appConfig.kafka.autoCommitInterval,
-              autoCommitThreshold: appConfig.kafka.autoCommitThreshold
-            }
-          },
-          topics: [ParticipantsTopics.Commands]
-        }
-        participantCmdConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
-        break
-      }
-      case (KafkaInfraTypes.NODE_RDKAFKA): {
-        const rdKafkaConsumerOptions: RDKafkaConsumerOptions = {
-          client: {
-            consumerConfig: {
-              'metadata.broker.list': appConfig.kafka.host,
-              'group.id': 'participantCmdGroup',
-              'enable.auto.commit': appConfig.kafka.autocommit,
-              'auto.commit.interval.ms': appConfig.kafka.autoCommitInterval,
-              'client.id': clientId,
-              'socket.keepalive.enable': true,
-              'fetch.min.bytes': appConfig.kafka.fetchMinBytes,
-              'fetch.wait.max.ms': appConfig.kafka.fetchWaitMaxMs
-            },
-            topicConfig: {},
-            rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode
-          },
-          topics: [ParticipantsTopics.Commands]
-        }
-        participantCmdConsumer = new RDKafkaConsumer(rdKafkaConsumerOptions, logger)
-        break
-      }
-      default: {
-        logger.isWarnEnabled() && logger.warn('ParticipantCmdConsumer - Unable to find a Kafka consumer implementation!')
-        throw new Error('participantCmdConsumer was not created!')
-      }
+
+    const rdKafkaConsumerOptions: RDKafkaConsumerOptions = {
+      client: {
+        consumerConfig: {
+          'metadata.broker.list': appConfig.kafka.host,
+          'group.id': 'participantCmdGroup',
+          'enable.auto.commit': appConfig.kafka.autocommit,
+          'auto.commit.interval.ms': appConfig.kafka.autoCommitInterval,
+          'client.id': clientId,
+          'socket.keepalive.enable': true,
+          'fetch.min.bytes': appConfig.kafka.fetchMinBytes,
+          'fetch.wait.max.ms': appConfig.kafka.fetchWaitMaxMs
+        },
+        topicConfig: {},
+        rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode
+      },
+      topics: [ParticipantsTopics.Commands]
     }
+    this._consumer = new RDKafkaConsumer(rdKafkaConsumerOptions, logger)
 
-    logger.isInfoEnabled() && logger.info(`ParticipantCmdConsumer - Created kafkaConsumer of type ${participantCmdConsumer.constructor.name}`)
+    this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - Created kafkaConsumer of type ${this._consumer.constructor.name}`)
 
-    this._consumer = participantCmdConsumer
-    logger.isInfoEnabled() && logger.info('ParticipantCmdConsumer - Initializing participantCmdConsumer...')
+    this._logger.isInfoEnabled() && this._logger.info('ParticipantCmdConsumer - Initializing participantCmdConsumer...')
+
+    // load all participants to mem
+    await this._participantAgg.loadAllToInMemoryCache()
+
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-    await participantCmdConsumer.init(participantCmdHandler, null) // by design we're interested in all commands
+    await this._consumer.init(this._cmdHandler.bind(this), null) // by design we're interested in all commands
+  }
+
+  private async _cmdHandler (message: IDomainMessage): Promise<void> {
+    const histTimer = this._histoParticipantCmdHandlerMetric.startTimer()
+    const evtname = message.msgName ?? 'unknown'
+    try {
+      this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+      let participantCmd: CommandMsg | undefined
+      // # Transform messages into correct Command
+      switch (message.msgName) {
+        case CreateParticipantCmd.name: {
+          participantCmd = CreateParticipantCmd.fromIDomainMessage(message)
+          break
+        }
+        case ReservePayerFundsCmd.name: {
+          participantCmd = ReservePayerFundsCmd.fromIDomainMessage(message)
+          break
+        }
+        case CommitPayeeFundsCmd.name: {
+          participantCmd = CommitPayeeFundsCmd.fromIDomainMessage(message)
+          break
+        }
+        default: {
+          this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+          break
+        }
+      }
+      let processCommandResult: boolean = false
+      if (participantCmd != null) {
+        processCommandResult = await this._participantAgg.processCommand(participantCmd)
+      } else {
+        this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
+      }
+      this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
+      histTimer({ success: 'true', evtname })
+    } catch (err) {
+      const errMsg: string = err?.message?.toString()
+      this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+      this._logger.isErrorEnabled() && this._logger.error(err)
+      histTimer({ success: 'false', error: err.message, evtname })
+    }
   }
 
   async destroy (): Promise<void> {
     await this._consumer.destroy(true)
     await this._publisher.destroy()
-    await this._repo.destroy()
+    await this._stateCacheRepo.destroy()
+    await this._duplicateRepo.destroy()
+    await this._eventSourcingRepo.destroy()
   }
 }

@@ -44,3 +44,8 @@ import { ParticipantState } from './participant_entity'
 export type IParticipantRepo = {
   hasAccount: (participantId: string, accType: ParticipantAccountTypes, currency: string) => Promise<boolean>
 } & IEntityStateRepository<ParticipantState>
+
+export interface IDupParticipantRepo{
+  add: (participantId: string) => Promise<void>
+  exists: (participantId: string) => Promise<boolean>
+}

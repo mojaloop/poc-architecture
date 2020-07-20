@@ -33,24 +33,23 @@
  - Roman Pietrzak <roman.pietrzak@modusbox.com>
 
  --------------
-******/
-
+ ******/
 'use strict'
 
 import * as redis from 'redis'
-import { ILogger, IEntityDuplicateRepository } from '@mojaloop-poc/lib-domain'
-import { IDupTransferRepo } from '../domain/transfers_duplicate_repo'
+import { ILogger, IMessageOffsetRepo, TEventStoreMessageOffset } from '@mojaloop-poc/lib-domain'
 
-export class RedisTransferDuplicateRepo implements IDupTransferRepo, IEntityDuplicateRepository {
+export class RedisMessageOffsetRepo implements IMessageOffsetRepo {
   protected _redisClient!: redis.RedisClient
   private readonly _redisConnStr: string
   private readonly _logger: ILogger
   private _initialized: boolean = false
-  private readonly _setKey: string = 'transfers_duplicate'
+  private readonly _keyPrefix: string
 
-  constructor (connStr: string, logger: ILogger) {
+  constructor (connStr: string, keyPrefix: string, logger: ILogger) {
     this._redisConnStr = connStr
     this._logger = logger
+    this._keyPrefix = keyPrefix
   }
 
   async init (): Promise<void> {
@@ -58,72 +57,92 @@ export class RedisTransferDuplicateRepo implements IDupTransferRepo, IEntityDupl
       this._redisClient = redis.createClient({ url: this._redisConnStr })
 
       this._redisClient.on('ready', () => {
-        this._logger.isInfoEnabled() && this._logger.info('Redis client ready')
+        this._logger.info('Redis client ready')
         if (this._initialized) { return }
         this._initialized = true
         return resolve()
       })
 
       this._redisClient.on('error', (err) => {
-        this._logger.isErrorEnabled() && this._logger.error(err, 'A redis error has occurred:')
+        this._logger.error(err, 'A redis error has occurred:')
         if (!this._initialized) { return reject(err) }
       })
     })
   }
 
-  async add (id: string): Promise<boolean> {
+  async load (aggregateId: string): Promise<TEventStoreMessageOffset|null> {
     return await new Promise((resolve, reject) => {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
-      this._redisClient.sadd(this._setKey, id, (err: Error | null, result: number) => {
+
+      const key: string = this.keyWithPrefix(aggregateId)
+
+      this._redisClient.get(key, (err: Error | null, result: string | null) => {
         if (err != null) {
-          this._logger.isErrorEnabled() && this._logger.error(err, `Error storing '${id}' for set to redis: ${this._setKey}`)
+          this._logger.isErrorEnabled() && this._logger.error(err, 'Error fetching message offset from redis - for key: ' + key)
           return reject(err)
         }
-        if (result === 1) {
-          return resolve(true)
-        } else {
-          return resolve(false)
+        if (result == null) {
+          this._logger.isDebugEnabled() && this._logger.debug('Message offset not found in redis - for key: ' + key)
+          return resolve(null)
+        }
+        try {
+          const obj: TEventStoreMessageOffset = JSON.parse(result)
+          return resolve(obj)
+        } catch (err) {
+          this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing message offset from redis - for key: ' + key)
+          return reject(err)
         }
       })
     })
   }
 
-  async exists (id: string): Promise<boolean> {
+  async remove (aggregateId: string): Promise<void> {
     return await new Promise((resolve, reject) => {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
-      this._redisClient.sismember(this._setKey, id, (err: Error | null, result: number) => {
+
+      const key: string = this.keyWithPrefix(aggregateId)
+
+      this._redisClient.del(key, (err?: Error|null, result?: number) => {
         if (err != null) {
-          this._logger.isErrorEnabled() && this._logger.error(err, `Error checking '${id}' for set to redis: ${this._setKey}`)
+          this._logger.isErrorEnabled() && this._logger.error(err, 'Error removing message offset from redis - for key: ' + key)
           return reject(err)
         }
-        if (result === 1) {
-          return resolve(true)
-        } else {
-          return resolve(false)
+        if (result !== 1) {
+          this._logger.isDebugEnabled() && this._logger.debug('Message offset not found in redis - for key: ' + key)
+          return resolve()
         }
+
+        return resolve()
       })
     })
   }
 
-  async remove (id: string): Promise<boolean> {
+  async store (entityState: TEventStoreMessageOffset): Promise<void> {
     return await new Promise((resolve, reject) => {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
-      this._redisClient.srem(this._setKey, id, (err: Error | null, result: number) => {
+
+      const key: string = this.keyWithPrefix(entityState.aggregateId)
+      // const expireStateInSec: number = (entityState != null && entityState?.expireStateInSec > 0) ? entityState.expireStateInSec : -1
+      let stringValue: string
+      try {
+        stringValue = JSON.stringify(entityState)
+      } catch (err) {
+        this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing message offset JSON - for key: ' + key)
+        return reject(err)
+      }
+
+      this._redisClient.set(key, stringValue, (err: Error | null, reply: string) => {
         if (err != null) {
-          this._logger.isErrorEnabled() && this._logger.error(err, `Error removing '${id}' from set to redis: ${this._setKey}`)
+          this._logger.isErrorEnabled() && this._logger.error(err, 'Error storing message offset to redis - for key: ' + key)
           return reject(err)
         }
-        if (result === 1) {
-          return resolve(true)
-        } else {
-          return resolve(false)
+        if (reply !== 'OK') {
+          this._logger.isErrorEnabled() && this._logger.error('Unsuccessful attempt to store the message offset in redis - for key: ' + key)
+          return reject(err)
         }
+        return resolve()
       })
     })
-  }
-
-  async getAll (): Promise<string[]> {
-    throw new Error('Not implemented - should not be calling RedisTransferDuplicateRepo.getAll() for transfers')
   }
 
   async destroy (): Promise<void> {
@@ -134,5 +153,9 @@ export class RedisTransferDuplicateRepo implements IDupTransferRepo, IEntityDupl
 
   canCall (): boolean {
     return this._initialized // for now, no circuit breaker exists
+  }
+
+  private keyWithPrefix (key: string): string {
+    return this._keyPrefix + key
   }
 }

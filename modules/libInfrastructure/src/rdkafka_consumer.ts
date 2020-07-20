@@ -136,9 +136,11 @@ export class RDKafkaConsumer extends MessageConsumer {
                 let msgAsDomainMessage
                 try {
                   msgAsDomainMessage = JSON.parse(msgAsString) as IDomainMessage
-                  if (msgAsDomainMessage.msgPartition == null) {
-                    msgAsDomainMessage.msgPartition = msg.partition
-                  }
+
+                  // if (msgAsDomainMessage.msgPartition == null) { // this doesn't make sense, should always be the partition we're getting it from
+                  msgAsDomainMessage.msgPartition = msg.partition
+                  // }
+                  msgAsDomainMessage.msgOffset = msg.offset
                 } catch (err) {
                   this._logger.isErrorEnabled() && this._logger.error('RDKafkaConsumer Error when JSON.parse()-ing message')
                 }

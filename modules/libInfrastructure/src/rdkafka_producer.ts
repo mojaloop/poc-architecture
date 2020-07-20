@@ -173,22 +173,28 @@ export class RDKafkaProducer extends MessageProducer {
 
   async send (kafkaMessages: IMessage | IMessage[] | any): Promise<void> {
     return await new Promise((resolve, reject) => {
+      /*
       if ((Array.isArray(arguments[0])) && (kafkaMessages.length > 1)) {
         this._logger.isErrorEnabled() && this._logger.error('RDKafkaProducer::send() Sending more than 1 message in one go is not supported yet.')
         throw new Error('RDKafkaProducer::send() Sending more than 1 message in one go is not supported yet.')
-        /* TODO: the callback in produce() should be reworked, to call resolve() after receiving ACK-s for all messages. */
+        // DONE: the callback in produce() should be reworked, to call resolve() after receiving ACK-s for all messages.
       }
+      */
+      const messages: IMessage[] = !Array.isArray(arguments[0]) ? [arguments[0]] as IMessage[] : arguments[0]
 
-      if (!Array.isArray(arguments[0])) { kafkaMessages = [arguments[0]] as IMessage[] }
+      let rejected = false
+      let acksRemaining: number = messages.length
 
-      kafkaMessages.forEach((kafkaMsg: IMessage) => {
-        const msg = JSON.stringify(kafkaMsg)
-        const partition = (kafkaMsg.msgPartition !== null) ? kafkaMsg.msgPartition : null
-        const headers = [
-          { msgType: kafkaMsg.msgType === undefined ? '' : kafkaMsg.msgType.toString() },
-          { msgName: kafkaMsg.msgName === undefined ? '' : kafkaMsg.msgName }
-        ]
+      messages.forEach((kafkaMsg: IMessage) => {
         try {
+          const msg = JSON.stringify(kafkaMsg)
+          const partition = (kafkaMsg.msgPartition !== null) ? kafkaMsg.msgPartition : null
+          const headers = [
+            { msgType: kafkaMsg.msgType === undefined ? '' : kafkaMsg.msgType.toString() },
+            { msgName: kafkaMsg.msgName === undefined ? '' : kafkaMsg.msgName },
+            { msgKey: kafkaMsg.msgKey === undefined ? '' : kafkaMsg.msgKey }
+          ]
+
           this._client.produce(
             /* topic name */
             kafkaMsg.msgTopic,
@@ -206,9 +212,16 @@ export class RDKafkaProducer extends MessageProducer {
             /* callback */
             (err: any, _offset?: NumberNullUndefined) => {
               if (err !== null) {
-                reject(err)
+                this._logger.isErrorEnabled() && this._logger.error(err, 'Error getting aks from publisher')
+                if (!rejected) {
+                  rejected = true
+                  reject(err)
+                }
               } else {
-                resolve()
+                acksRemaining--
+                if (acksRemaining <= 0) {
+                  resolve()
+                }
               }
             }
           )
