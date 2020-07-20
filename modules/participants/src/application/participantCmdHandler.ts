@@ -42,7 +42,7 @@ import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
 import {
   IRunHandler,
   MessageConsumer,
-  RDKafkaCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher, RDKafkaConsumerOptions, RDKafkaConsumer, RedisDuplicateRepo
+  RDKafkaCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher, RDKafkaConsumerOptions, RDKafkaConsumer, RedisDuplicateRepo, EventSourcingStateRepo
 } from '@mojaloop-poc/lib-infrastructure'
 import { ParticpantsAgg } from '../domain/participants_agg'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
@@ -51,7 +51,6 @@ import { CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'
 import { IParticipantRepo } from '../domain/participant_repo'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 import { CachedRedisParticipantStateRepo } from '../infrastructure/cachedredis_participant_repo'
-import { EventSourcingParticipantRepo } from '../infrastructure/eventsourcing_participant_repo'
 
 export class ParticipantCmdHandler implements IRunHandler {
   private _logger: ILogger
@@ -73,7 +72,7 @@ export class ParticipantCmdHandler implements IRunHandler {
     // TODO change to multiple redis host settings
     this._stateCacheRepo = new CachedRedisParticipantStateRepo(appConfig.redis.host, logger)
     this._duplicateRepo = new RedisDuplicateRepo(appConfig.redis.host, 'participants_duplicate', logger) // TODO move to config
-    this._eventSourcingRepo = new EventSourcingParticipantRepo(appConfig.redis.host, appConfig.kafka.host, ParticipantsTopics.SnapshotEvents, ParticipantsTopics.StateEvents, logger)
+    this._eventSourcingRepo = new EventSourcingStateRepo(appConfig.redis.host, appConfig.kafka.host, 'Participant', ParticipantsTopics.SnapshotEvents, ParticipantsTopics.StateEvents, logger)
 
     this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdHandler - Creating ${appConfig.kafka.producer as string} participantCmdHandler.kafkaMsgPublisher...`)
     let clientId = `participantCmdHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`

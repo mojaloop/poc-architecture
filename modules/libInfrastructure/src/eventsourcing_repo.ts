@@ -38,13 +38,15 @@
 'use strict'
 
 import { ILogger, IESourcingStateRepository, TESourcingState, IMessageFetcher, IMessageOffsetRepo, TEventStoreMessageOffset, StateSnapshotMsg, StateEventMsg } from '@mojaloop-poc/lib-domain'
-import { RDKafkaFetcher, RedisMessageOffsetRepo } from '@mojaloop-poc/lib-infrastructure'
+import { RDKafkaFetcher } from './rdkafka_fetcher'
+import { RedisMessageOffsetRepo } from './redis_messageoffset_repo'
 
-export class EventSourcingParticipantRepo implements IESourcingStateRepository {
+export class EventSourcingStateRepo implements IESourcingStateRepository {
   private readonly _redisConnStr: string
   private readonly _kafkahost: string
   private readonly _logger: ILogger
 
+  private readonly _aggregateName: string
   private readonly _snapshotsTopic: string
   private readonly _eventsTopic: string
 
@@ -53,16 +55,17 @@ export class EventSourcingParticipantRepo implements IESourcingStateRepository {
   protected _redisOffsetRepo!: IMessageOffsetRepo
   protected _kafkaMsgFetcher!: IMessageFetcher
 
-  constructor (redisConnStr: string, kafkahost: string, snapshotTopic: string, stateEventsTopic: string, logger: ILogger) {
+  constructor (redisConnStr: string, kafkaHost: string, aggregateName: string, snapshotTopic: string, stateEventsTopic: string, logger: ILogger) {
     this._redisConnStr = redisConnStr
-    this._kafkahost = kafkahost
+    this._kafkahost = kafkaHost
     this._logger = logger
 
+    this._aggregateName = aggregateName
     this._snapshotsTopic = snapshotTopic
     this._eventsTopic = stateEventsTopic
 
-    this._redisOffsetRepo = new RedisMessageOffsetRepo(this._redisConnStr, 'ParticipantsOffsets_', this._logger)
-    this._kafkaMsgFetcher = new RDKafkaFetcher(this._kafkahost, 'EventSourcingParticipantRepo', this._logger)
+    this._redisOffsetRepo = new RedisMessageOffsetRepo(this._redisConnStr, `${this._aggregateName}Offsets_`, this._logger)
+    this._kafkaMsgFetcher = new RDKafkaFetcher(this._kafkahost, `${this._aggregateName}EventSourcingRepo`, this._logger)
   }
 
   async init (): Promise<void> {
@@ -113,6 +116,20 @@ export class EventSourcingParticipantRepo implements IESourcingStateRepository {
     }
 
     const events = await this._kafkaMsgFetcher.fetchAll(id, this._eventsTopic, partition, offset)
+
+    // if there is a snapshot that was not on the offset cache, then store it
+    if (snapshotOffsets === null && snapshotGenMsg !== null && snapshotGenMsg.msgPartition !== null && snapshotGenMsg.msgOffset !== null) {
+      process.nextTick(async () => {
+        await this._redisOffsetRepo.store({
+          aggregateId: id,
+          topic: snapshotGenMsg.msgTopic,
+          // @ts-expect-error
+          partition: snapshotGenMsg.msgPartition,
+          // @ts-expect-error
+          offset: snapshotGenMsg.msgOffset
+        })
+      })
+    }
 
     return {
       snapshot: snapshot,
