@@ -83,8 +83,11 @@ export class RDKafkaFetcher implements IMessageFetcher {
     return await this._fetcher(aggregateId, topic, partition, firstOffset, false)
   }
 
+  k
+
   async _fetcher (aggregateId: string, topic: string, partition: number, firstOffset: number, justOne: boolean): Promise<IDomainMessage[]> {
     // topic = 'ParticipantCommands'
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     return await new Promise(async (resolve, reject) => {
       const retMsgs: IDomainMessage[] = []
 
@@ -138,6 +141,7 @@ export class RDKafkaFetcher implements IMessageFetcher {
         }
       }) */
 
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       consumer.on('ready', async (readyInfo: RDKafka.ReadyInfo, metadata: RDKafka.Metadata) => {
         // get partitions if none was provided
         let partitions: number [] = []

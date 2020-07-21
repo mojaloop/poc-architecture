@@ -65,7 +65,6 @@ export class ParticipantCmdHandler implements IRunHandler {
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     this._logger = logger
     this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdHandler::start - appConfig=${JSON.stringify(appConfig)}`)
-    let repo: IParticipantRepo
 
     this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdHandler - Creating repo of type ${appConfig.repo.type as string}`)
 
@@ -107,7 +106,7 @@ export class ParticipantCmdHandler implements IRunHandler {
       ['success', 'error', 'evtname'] // Define a custom label 'success'
     )
 
-    logger.isInfoEnabled() && logger.info(`ParticipantCmdConsumer - Creating ${appConfig.kafka.consumer as string} participantCmdConsumer...`)
+    this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - Creating ${appConfig.kafka.consumer as string} participantCmdConsumer...`)
     clientId = `participantCmdConsumer-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
 
     const rdKafkaConsumerOptions: RDKafkaConsumerOptions = {
@@ -127,7 +126,7 @@ export class ParticipantCmdHandler implements IRunHandler {
       },
       topics: [ParticipantsTopics.Commands]
     }
-    this._consumer = new RDKafkaConsumer(rdKafkaConsumerOptions, logger)
+    this._consumer = new RDKafkaConsumer(rdKafkaConsumerOptions, this._logger)
 
     this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - Created kafkaConsumer of type ${this._consumer.constructor.name}`)
 

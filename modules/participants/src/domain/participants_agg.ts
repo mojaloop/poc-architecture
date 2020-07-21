@@ -59,8 +59,11 @@ export class ParticpantsAgg extends BaseEventSourcingAggregate<ParticipantEntity
     this._registerCommandHandler('CommitPayeeFundsCmd', this.processCommitFundsCommand)
 
     // register event handlers
-    this._registerStateEventHandler('ParticipantCreatedStateEvt', this._handleCreatedStateEvent)
-    this._registerStateEventHandler('ParticipantPositionChangedStateEvt', this._handlePositionChangedStateEvent)
+    this._registerStateEventHandler('ParticipantCreatedStateEvt', this._applyCreatedStateEvent)
+    this._registerStateEventHandler('ParticipantPositionChangedStateEvt', this._applyPositionChangedStateEvent)
+
+    // TODO implement snapshot handler
+    // this._setSnapshotHandler(this._applySnapshotHandler)
   }
 
   async loadAllToInMemoryCache (): Promise<void> {
@@ -152,7 +155,7 @@ export class ParticpantsAgg extends BaseEventSourcingAggregate<ParticipantEntity
     return { success: true, stateEvent: stateEvt }
   }
 
-  private async _handleCreatedStateEvent (stateEvent: ParticipantCreatedStateEvt, replayed?: boolean): Promise<void> {
+  private async _applyCreatedStateEvent (stateEvent: ParticipantCreatedStateEvt, replayed?: boolean): Promise<void> {
     const state: ParticipantState = {
       ...stateEvent.payload.participant,
       created_at: stateEvent.msgTimestamp,
@@ -163,7 +166,7 @@ export class ParticpantsAgg extends BaseEventSourcingAggregate<ParticipantEntity
     this._rootEntity = this._entity_factory.createFromState(state)
   }
 
-  private async _handlePositionChangedStateEvent (stateEvent: ParticipantPositionChangedStateEvt, replayed?: boolean): Promise<void> {
+  private async _applyPositionChangedStateEvent (stateEvent: ParticipantPositionChangedStateEvt, replayed?: boolean): Promise<void> {
     if (this._rootEntity === null) {
       throw new Error('Null root entity found while trying to apply "ParticipantPositionChangedStateEvt"')
     }

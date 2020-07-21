@@ -65,6 +65,8 @@ export enum AccountLimitTypes {
 export enum TransfersTopics {
   'Commands' = 'TransferCommands',
   'DomainEvents' = 'TransferDomainEvents',
+  'StateEvents' = 'TransferStateEvents',
+  'SnapshotEvents' = 'TransferSnapshotEvents'
 }
 
 export enum TransferInternalStates {
