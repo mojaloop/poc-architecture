@@ -1194,9 +1194,9 @@ redis-transfers:
     ##
     create: false
 
-redis-transfers-dup:
+redis-participants:
   enabled: true
-  nameOverride: redis-transfers-dup
+  nameOverride: redis-participants
   image:
     repository: bitnami/redis
     ## ref: https://github.com/bitnami/bitnami-docker-redis#supported-tags-and-respective-dockerfile-links
@@ -1595,9 +1595,9 @@ redis-transfers-dup:
     ##
     create: false
 
-redis-participants:
+redis-persisted:
   enabled: true
-  nameOverride: redis-participants
+  nameOverride: redis-persisted
   image:
     repository: bitnami/redis
     ## ref: https://github.com/bitnami/bitnami-docker-redis#supported-tags-and-respective-dockerfile-links

@@ -30,7 +30,7 @@ config:
   uv_threadpool_size: 7
   redis_host: 'redis://$release_name-redis-master:6379'
   redis_expiration_in_sec: 1800
-  redis_duplicate_host: 'redis://$release_name-redis-master:6379'
+  redis_persisted_host: 'redis://$release_name-redis-master:6379'
   # Supported repo Types: memory, redis, cachedredis
   participants_repo_type: redis
   event_trace_vendor: mojaloop
