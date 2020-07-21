@@ -62,11 +62,10 @@ import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 import { IParticipantRepo } from '../domain/participant_repo'
 import { CachedRedisParticipantStateRepo } from '../infrastructure/cachedredis_participant_repo'
 
-export class ParticipantEvtHandler implements IRunHandler {
+export class ParticipantReadsideStateEvtHandler implements IRunHandler {
   private _consumer: MessageConsumer
-  private _publisher: IMessagePublisher
-  private _repo: IParticipantRepo
-  private readonly _partipantsPartitions: Array<{ id: string, partition: number }> = []
+  private readonly _publisher: IMessagePublisher
+  private _readSideRepo:
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler::start - appConfig=${JSON.stringify(appConfig)}`)
@@ -79,80 +78,6 @@ export class ParticipantEvtHandler implements IRunHandler {
     await repo.init()
 
     logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Created repo of type ${repo.constructor.name}`)
-
-    let kafkaMsgPublisher: IMessagePublisher | undefined
-
-    logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Creating ${appConfig.kafka.producer as string} participantEvtHandler.kafkaMsgPublisher...`)
-    let clientId = `participantEvtHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
-    switch (appConfig.kafka.producer) {
-      case (KafkaInfraTypes.NODE_KAFKA_STREAM):
-      case (KafkaInfraTypes.NODE_KAFKA): {
-        const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
-          client: {
-            kafka: {
-              kafkaHost: appConfig.kafka.host,
-              clientId
-            },
-            compression: appConfig.kafka.gzipCompression === true ? KafkaNodeCompressionTypes.GZIP : KafkaNodeCompressionTypes.None
-          }
-        }
-        kafkaMsgPublisher = new KafkaMessagePublisher(
-          kafkaGenericProducerOptions,
-          logger
-        )
-        break
-      }
-      case (KafkaInfraTypes.KAFKAJS): {
-        const kafkaJsProducerOptions: KafkaJsProducerOptions = {
-          client: {
-            client: { // https://kafka.js.org/docs/configuration#options
-              brokers: [appConfig.kafka.host],
-              clientId
-            },
-            producer: { // https://kafka.js.org/docs/producing#options
-              allowAutoTopicCreation: true,
-              transactionTimeout: 60000
-            },
-            compression: appConfig.kafka.gzipCompression as boolean ? KafkaJsCompressionTypes.GZIP : KafkaJsCompressionTypes.None
-          }
-        }
-        kafkaMsgPublisher = new KafkajsMessagePublisher(
-          kafkaJsProducerOptions,
-          logger
-        )
-        break
-      }
-      case (KafkaInfraTypes.NODE_RDKAFKA): {
-        const rdKafkaProducerOptions: RDKafkaProducerOptions = {
-          client: {
-            producerConfig: {
-              'metadata.broker.list': appConfig.kafka.host,
-              dr_cb: true,
-              'client.id': clientId,
-              'socket.keepalive.enable': true,
-              'compression.codec': appConfig.kafka.gzipCompression === true ? RDKafkaCompressionTypes.GZIP : RDKafkaCompressionTypes.NONE
-            },
-            topicConfig: {
-              // partitioner: RDKafkaPartioner.MURMUR2_RANDOM // default java algorithm, seems to have worse random distribution for hashing than rdkafka's default
-            }
-          }
-        }
-        kafkaMsgPublisher = new RDKafkaMessagePublisher(
-          rdKafkaProducerOptions,
-          logger
-        )
-        break
-      }
-      default: {
-        logger.isWarnEnabled() && logger.warn('ParticipantEvtHandler - Unable to find a Kafka Producer implementation!')
-        throw new Error('participantEvtHandler.kafkaMsgPublisher was not created!')
-      }
-    }
-
-    logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
-
-    this._publisher = kafkaMsgPublisher
-    await kafkaMsgPublisher.init()
 
     const histoParticipantEvtHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
       'participantEvtHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
@@ -206,7 +131,7 @@ export class ParticipantEvtHandler implements IRunHandler {
 
         if (participantCmd != null) {
           logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${participantCmd?.msgName}:${message?.msgKey}:${participantCmd?.msgId}`)
-          await kafkaMsgPublisher!.publish(participantCmd)
+          await kafkaMsgPublisher.publish(participantCmd)
         } else {
           logger.isWarnEnabled() && logger.warn(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
         }
@@ -314,18 +239,6 @@ export class ParticipantEvtHandler implements IRunHandler {
 
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     await participantEvtConsumer.init(participantEvtHandler, subscribedMsgNames)
-  }
-
-  async loadAllParticipantsToMemory (): Promise<void> {
-    return await new Promise(async (resolve, reject) => {
-      const allIds: string[] = await this._entityDuplicateRepo.getAll()
-
-      await Promise.all(allIds.map(async (id: string) => {
-        await this.load(id)
-      })).then(async () => {
-        return resolve()
-      })
-    })
   }
 
   async destroy (): Promise<void> {

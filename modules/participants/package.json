@@ -52,11 +52,13 @@
     "bignumber.js": "^9.0.0",
     "commander": "^5.1.0",
     "dotenv": "^8.2.0",
+    "mongodb": "^3.5.9",
     "path": "^0.12.7",
     "redis": "^3.0.2"
   },
   "devDependencies": {
     "@types/kafka-node": "^3.0.0",
+    "@types/mongodb": "^3.5.25",
     "@types/node": "^14.0.20",
     "@types/redis": "^2.8.24",
     "@types/uuid": "^8.0.0",
