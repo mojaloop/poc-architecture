@@ -75,8 +75,8 @@ export class TransferCmdHandler implements IRunHandler {
 
     // TODO change to multiple redis host settings
     this._stateCacheRepo = new RedisTransferStateRepo(appConfig.redis.host, this._logger, appConfig.redis.expirationInSeconds)
-    this._duplicateRepo = new RedisDuplicateRepo(appConfig.redis.host, 'transfers_duplicate', this._logger) // TODO move to config
-    this._eventSourcingRepo = new EventSourcingStateRepo(appConfig.redis.host, appConfig.kafka.host, 'Transfer', TransfersTopics.SnapshotEvents, TransfersTopics.StateEvents, this._logger)
+    this._duplicateRepo = new RedisDuplicateRepo(appConfig.persisted_redis.host, 'transfers_duplicate', this._logger) // TODO move to config
+    this._eventSourcingRepo = new EventSourcingStateRepo(appConfig.persisted_redis.host, appConfig.kafka.host, 'Transfer', TransfersTopics.SnapshotEvents, TransfersTopics.StateEvents, this._logger)
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
     this._logger.isInfoEnabled() && this._logger.info(`TransferCmdHandler - Creating ${appConfig.kafka.producer} transferCmdHandler.kafkaMsgPublisher...`)

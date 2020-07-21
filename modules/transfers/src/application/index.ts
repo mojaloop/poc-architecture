@@ -95,7 +95,7 @@ Program.command('handler')
         host: getEnvValueOrDefault('REDIS_HOST', 'redis://localhost:6379') as string,
         expirationInSeconds: getEnvIntegerOrDefault('REDIS_EXPIRATION_IN_SEC', -1) as number
       },
-      duplicate: {
+      persisted_redis: {
         host: getEnvValueOrDefault('REDIS_DUPL_HOST', 'redis://localhost:6379') as string
       }
     }

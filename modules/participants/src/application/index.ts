@@ -37,7 +37,7 @@
 
 'use strict'
 
-import { MojaLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
+import { MojaLogger, Metrics, TMetricOptionsType, getEnvValueOrDefault } from '@mojaloop-poc/lib-utilities'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { TApiServerOptions, ApiServer, IRunHandler, KafkaInfraTypes, RdKafkaCommitMode } from '@mojaloop-poc/lib-infrastructure'
 import { ParticipantCmdHandler } from './participantCmdHandler'
@@ -97,6 +97,9 @@ Program.command('handler')
       },
       redis: {
         host: process.env.REDIS_HOST
+      },
+      persisted_redis: {
+        host: getEnvValueOrDefault('REDIS_DUPL_HOST', 'redis://localhost:6379') as string
       }
     }
 
