@@ -34,7 +34,7 @@ export class KafkaJsConsumer extends MessageConsumer {
 
   private readonly _queue: any[] = []
   private readonly _processing: boolean = false
-  private _handlerCallback!: (message: IDomainMessage) => void
+  private _handlerCallback!: (message: IDomainMessage) => Promise<void>
 
   protected _logger: ILogger
 
@@ -56,11 +56,9 @@ export class KafkaJsConsumer extends MessageConsumer {
       return topicName
     })
 
-    if (logger != null) {
-      this._logger = new ConsoleLogger()
-    }
+    this._logger = logger ?? new ConsoleLogger()
 
-    this._logger.info('KafkaJs consumer instance created')
+    this._logger.isInfoEnabled() && this._logger.info('KafkaJs consumer instance created')
   }
 
   async destroy (forceCommit: boolean = false): Promise<void> {
@@ -68,8 +66,8 @@ export class KafkaJsConsumer extends MessageConsumer {
   }
 
   /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-  async init (handlerCallback: (message: IDomainMessage) => void): Promise<void> {
-    this._logger.info('initialising...')
+  async init (handlerCallback: (message: IDomainMessage) => Promise<void>): Promise<void> {
+    this._logger.isInfoEnabled() && this._logger.info('initialising...')
 
     this._handlerCallback = handlerCallback
 
@@ -114,7 +112,7 @@ export class KafkaJsConsumer extends MessageConsumer {
 
     this._defaultedKafkajsConfig = Object.assign({}, KafkajsOptions)
 
-    this._logger.debug(`Consumer options: \n${JSON.stringify(KafkajsOptions)}`)
+    this._logger.isDebugEnabled() && this._logger.debug(`Consumer options: \n${JSON.stringify(KafkajsOptions)}`)
     this._client = new Kafkajs(KafkajsOptions.client)
     this._consumer = this._client.consumer(KafkajsOptions.consumer)
 
@@ -123,11 +121,11 @@ export class KafkaJsConsumer extends MessageConsumer {
     const fromBeginning = true
     if (Array.isArray(this._options.topics)) {
       for await (const topic of this._options.topics) {
-        this._logger.info(`Consumer Subscribing to ${topic}`)
+        this._logger.isInfoEnabled() && this._logger.info(`Consumer Subscribing to ${topic}`)
         await this._consumer.subscribe({ topic, fromBeginning })
       }
     } else {
-      this._logger.info(`Consumr Subscribing to ${this._options.topics}`)
+      this._logger.isInfoEnabled() && this._logger.info(`Consumr Subscribing to ${this._options.topics}`)
       await this._consumer.subscribe({ topic: this._options.topics, fromBeginning })
     }
 
@@ -140,24 +138,27 @@ export class KafkaJsConsumer extends MessageConsumer {
       eachMessage: async ({ topic, partition, message }) => {
         try {
           const domainMessage = JSON.parse(message.value.toString()) as IDomainMessage
+          if (domainMessage.msgPartition == null) {
+            domainMessage.msgPartition = partition
+          }
           await this._handlerCallback(domainMessage)
           // const admin = this._client.admin()
           // await admin.connect()
           // const offset = await admin.fetchTopicOffsets(topic)
-          // this._logger.info(`current Offset=${offset}`)
+          // this._logger.isInfoEnabled() && this._logger.info(`current Offset=${offset}`)
         } catch (err) {
           // TODO: Deadletter queue or log scrapping to monitor this unhandled error?
-          this._logger.error(err)
+          this._logger.isErrorEnabled() && this._logger.error(err)
         } finally {
           const offset = (parseInt(message.offset) + 1).toString()
           const commitData = { topic, partition, offset }
           if (this._defaultedKafkajsConfig?.consumerRunConfig?.autoCommit === false) {
-            this._logger.debug(`Consumer commit @ - ${JSON.stringify(commitData)}`)
+            this._logger.isDebugEnabled() && this._logger.debug(`Consumer commit @ - ${JSON.stringify(commitData)}`)
             await this._consumer.commitOffsets([
               commitData
             ])
           } else {
-            this._logger.debug(`Consumer skipping commit @ - ${JSON.stringify(commitData)}`)
+            this._logger.isDebugEnabled() && this._logger.debug(`Consumer skipping commit @ - ${JSON.stringify(commitData)}`)
           }
         }
       }

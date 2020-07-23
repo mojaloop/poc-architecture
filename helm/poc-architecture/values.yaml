@@ -1,0 +1,2735 @@
+# Default values for central.
+# This is a YAML-formatted file.
+# Declare global configurations
+global: {}
+
+parameters:
+  poc_architecture_image : &poc_architecture_image "mojaloop/poc-architecture"
+  poc_architecture_tag : &poc_architecture_tag "v0.39"
+  kafka_autocommit: &kafka_autocommit true
+  kafka_producer_gzip: &kafka_producer_gzip true
+  kafka_replicas: &kafka_replicas 1
+  # Supported consumers: kafkajs, node-kafka, node-kafka-stream, node-rdkafka
+  kafka_consumer: &kafka_consumer node-rdkafka
+  # Supported producers: kafkajs, node-kafka, node-rdkafka
+  kafka_producer: &kafka_producer node-rdkafka
+  # Supported repo Types: memory, redis, cachedredis
+  participants_repo_type: &participants_repo_type cachedredis
+  redis_expiration_in_sec: &redis_expiration_in_sec 1800
+
+
+## Jobs
+jobs:
+  postInstall:
+    enabled: true
+    image:
+      repository: *poc_architecture_image
+      tag: *poc_architecture_tag
+      command: "cd modules/devtools && npm run pubCreateParticipantCmd && npm run pubCreateParticipantCmdForPerf1"
+
+    config:
+      # this can be set if the dependency chart for kafka is disabled. If 'kafka_host' is commented out, then the name of the dependency chart will be used.
+      kafka_host: '$release_name-kafka'
+      kafka_port: 9092
+      # Supported consumers: kafkajs, node-kafka, node-kafka-stream, node-rdkafka
+      kafka_consumer: *kafka_consumer
+      # Supported producers: kafkajs, node-kafka, node-rdkafka
+      kafka_producer: *kafka_producer
+      kafka_producer_gzip: true
+      kafka_autocommit: *kafka_autocommit
+      kafka_autocommit_interval: 100
+      kafka_autocommit_threshold: 1000
+      simulator_host: '$release_name-legacy-simulator'
+      uv_threadpool_size: 7
+      redis_host: 'redis://$release_name-redis-master:6379'
+      redis_persisted_host: 'redis://$release_name-redis-master:6379'
+      # Supported repo Types: memory, redis, cachedredis
+      participants_repo_type: *participants_repo_type
+      log_level: info
+      log_filter: 'error, warn, info, debug'
+
+    init:
+      enabled: true
+      image:
+        name: wait-for-kafka
+        repository: solsson/kafka
+        tag: latest
+        pullPolicy: Always
+        command: "until ./bin/kafka-broker-api-versions.sh --bootstrap-server $kafka_host:$kafka_port; do echo waiting for Kafka; sleep 2; done;"
+        env: {}
+
+kafka:
+  enabled: true
+  nameOverride: kafka
+  # ------------------------------------------------------------------------------
+  # Kafka:
+  # ------------------------------------------------------------------------------
+
+  ## The StatefulSet installs 3 pods by default
+  replicas: *kafka_replicas
+
+  ## The kafka image repository
+  image: "confluentinc/cp-kafka"
+
+  ## The kafka image tag
+  # imageTag: "4.0.1-1"
+  imageTag: "5.0.1"  # Confluent image for Kafka 2.0.0
+
+
+  ## Specify a imagePullPolicy
+  ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
+  imagePullPolicy: "IfNotPresent"
+
+  ## Configure resource requests and limits
+  ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+  resources: {}
+    # limits:
+    #   cpu: 200m
+    #   memory: 1536Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 1024Mi
+  kafkaHeapOptions: "-Xmx1G -Xms1G"
+
+  ## The StatefulSet Update Strategy which Kafka will use when changes are applied.
+  ## ref: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#update-strategies
+  updateStrategy:
+    type: "OnDelete"
+
+  ## Start and stop pods in Parallel or OrderedReady (one-by-one.)  Note - Can not change after first release.
+  ## ref: https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#pod-management-policy
+  podManagementPolicy: OrderedReady
+
+  ## If RBAC is enabled on the cluster, the Kafka init container needs a service account
+  ## with permissisions sufficient to apply pod labels
+  rbac:
+    enabled: true
+
+  ## The name of the storage class which the cluster should use.
+  # storageClass: default
+
+  ## The subpath within the Kafka container's PV where logs will be stored.
+  ## This is combined with `persistence.mountPath`, to create, by default: /opt/kafka/data/logs
+  logSubPath: "logs"
+
+  ## Use an alternate scheduler, e.g. "stork".
+  ## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
+  ##
+  # schedulerName:
+
+  ## Pod scheduling preferences (by default keep pods within a release on separate nodes).
+  ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+  ## By default we don't set affinity
+  affinity: {}
+  ## Alternatively, this typical example defines:
+  ## antiAffinity (to keep Kafka pods on separate pods)
+  ## and affinity (to encourage Kafka pods to be collocated with Zookeeper pods)
+  # affinity:
+  #   podAntiAffinity:
+  #     requiredDuringSchedulingIgnoredDuringExecution:
+  #     - labelSelector:
+  #         matchExpressions:
+  #         - key: app
+  #           operator: In
+  #           values:
+  #           - kafka
+  #       topologyKey: "kubernetes.io/hostname"
+  #   podAffinity:
+  #     preferredDuringSchedulingIgnoredDuringExecution:
+  #      - weight: 50
+  #        podAffinityTerm:
+  #          labelSelector:
+  #            matchExpressions:
+  #            - key: app
+  #              operator: In
+  #              values:
+  #                - zookeeper
+  #          topologyKey: "kubernetes.io/hostname"
+
+  ## Node labels for pod assignment
+  ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+  nodeSelector: {}
+
+  ## Readiness probe config.
+  ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/
+  ##
+  readinessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    successThreshold: 1
+    failureThreshold: 3
+
+  ## Period to wait for broker graceful shutdown (sigterm) before pod is killed (sigkill)
+  ## ref: https://kubernetes-v1-4.github.io/docs/user-guide/production-pods/#lifecycle-hooks-and-termination-notice
+  ## ref: https://kafka.apache.org/10/documentation.html#brokerconfigs controlled.shutdown.*
+  terminationGracePeriodSeconds: 60
+
+  # Tolerations for nodes that have taints on them.
+  # Useful if you want to dedicate nodes to just run kafka
+  # https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+  tolerations: []
+  # tolerations:
+  # - key: "key"
+  #   operator: "Equal"
+  #   value: "value"
+  #   effect: "NoSchedule"
+
+  ## External access.
+  ##
+  external:
+    enabled: false
+    servicePort: 19092
+    firstListenerPort: 31090
+    domain: cluster.local
+    init:
+      image: "lwolf/kubectl_deployer"
+      imageTag: "0.4"
+      imagePullPolicy: "IfNotPresent"
+
+  ## Configuration Overrides. Specify any Kafka settings you would like set on the StatefulSet
+  ## here in map format, as defined in the official docs.
+  ## ref: https://kafka.apache.org/documentation/#brokerconfigs
+  ##
+  configurationOverrides:
+    "offsets.topic.replication.factor": 1
+    # "auto.leader.rebalance.enable": true
+    "auto.create.topics.enable": true
+    # "controlled.shutdown.enable": true
+    # "controlled.shutdown.max.retries": 100
+
+    ## Options required for external access via NodePort
+    ## ref:
+    ## - http://kafka.apache.org/documentation/#security_configbroker
+    ## - https://cwiki.apache.org/confluence/display/KAFKA/KIP-103%3A+Separation+of+Internal+and+External+traffic
+    ##
+    ## Setting "advertised.listeners" here appends to "PLAINTEXT://${POD_IP}:9092,"
+    # "advertised.listeners": |-
+    #   EXTERNAL://kafka.cluster.local:$((31090 + ${KAFKA_BROKER_ID}))
+    # "listener.security.protocol.map": |-
+    #   PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+
+  ## A collection of additional ports to expose on brokers (formatted as normal containerPort yaml)
+  # Useful when the image exposes metrics (like prometheus, etc.) through a javaagent instead of a sidecar
+  additionalPorts: {}
+
+  ## Persistence configuration. Specify if and how to persist data to a persistent volume.
+  ##
+  persistence:
+    enabled: false
+
+    ## The size of the PersistentVolume to allocate to each Kafka Pod in the StatefulSet. For
+    ## production servers this number should likely be much larger.
+    ##
+    size: "1Gi"
+
+    ## The location within the Kafka container where the PV will mount its storage and Kafka will
+    ## store its logs.
+    ##
+    mountPath: "/opt/kafka/data"
+
+    ## Kafka data Persistent Volume Storage Class
+    ## If defined, storageClassName: <storageClass>
+    ## If set to "-", storageClassName: "", which disables dynamic provisioning
+    ## If undefined (the default) or set to null, no storageClassName spec is
+    ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+    ##   GKE, AWS & OpenStack)
+    ##
+    # storageClass:
+
+  jmx:
+    ## Rules to apply to the Prometheus JMX Exporter.  Note while lots of stats have been cleaned and exposed,
+    ## there are still more stats to clean up and expose, others will never get exposed.  They keep lots of duplicates
+    ## that can be derived easily.  The configMap in this chart cleans up the metrics it exposes to be in a Prometheus
+    ## format, eg topic, broker are labels and not part of metric name. Improvements are gladly accepted and encouraged.
+    configMap:
+
+      ## Allows disabling the default configmap, note a configMap is needed
+      enabled: true
+
+      ## Allows setting values to generate confimap
+      ## To allow all metrics through (warning its crazy excessive) comment out below `overrideConfig` and set
+      ## `whitelistObjectNames: []`
+      overrideConfig: {}
+        # jmxUrl: service:jmx:rmi:///jndi/rmi://127.0.0.1:5555/jmxrmi
+        # lowercaseOutputName: true
+        # lowercaseOutputLabelNames: true
+        # ssl: false
+        # rules:
+        # - pattern: ".*"
+
+      ## If you would like to supply your own ConfigMap for JMX metrics, supply the name of that
+      ## ConfigMap as an `overrideName` here.
+      overrideName: ""
+
+    ## Port the jmx metrics are exposed in native jmx format, not in Prometheus format
+    port: 5555
+
+    ## JMX Whitelist Objects, can be set to control which JMX metrics are exposed.  Only whitelisted
+    ## values will be exposed via JMX Exporter.  They must also be exposed via Rules.  To expose all metrics
+    ## (warning its crazy excessive and they aren't formatted in a prometheus style) (1) `whitelistObjectNames: []`
+    ## (2) commented out above `overrideConfig`.
+    whitelistObjectNames:  # []
+    - kafka.controller:*
+    - kafka.server:*
+    - java.lang:*
+    - kafka.network:*
+    - kafka.log:*
+
+  ## Prometheus Exporters / Metrics
+  ##
+  prometheus:
+    ## Prometheus JMX Exporter: exposes the majority of Kafkas metrics
+    jmx:
+      enabled: true
+
+      ## The image to use for the metrics collector
+      image: solsson/kafka-prometheus-jmx-exporter@sha256
+
+      ## The image tag to use for the metrics collector
+      imageTag: a23062396cd5af1acdf76512632c20ea6be76885dfc20cd9ff40fb23846557e8
+
+      ## Interval at which Prometheus scrapes metrics, note: only used by Prometheus Operator
+      interval: 10s
+
+      ## Timeout at which Prometheus timeouts scrape run, note: only used by Prometheus Operator
+      scrapeTimeout: 10s
+
+      ## Port jmx-exporter exposes Prometheus format metrics to scrape
+      port: 5556
+
+      resources: {}
+        # limits:
+        #   cpu: 200m
+        #   memory: 1Gi
+        # requests:
+        #   cpu: 100m
+        #   memory: 100Mi
+
+    ## Prometheus Kafka Exporter: exposes complimentary metrics to JMX Exporter
+    kafka:
+      enabled: true
+
+      ## The image to use for the metrics collector
+      image: danielqsj/kafka-exporter
+
+      ## The image tag to use for the metrics collector
+      # imageTag: v1.0.1
+      imageTag: v1.2.0
+
+      ## Interval at which Prometheus scrapes metrics, note: only used by Prometheus Operator
+      interval: 10s
+
+      ## Timeout at which Prometheus timeouts scrape run, note: only used by Prometheus Operator
+      scrapeTimeout: 10s
+
+      ## Port kafka-exporter exposes for Prometheus to scrape metrics
+      port: 9308
+
+      ## Resource limits
+      resources: {}
+  #      limits:
+  #        cpu: 200m
+  #        memory: 1Gi
+  #      requests:
+  #        cpu: 100m
+  #        memory: 100Mi
+
+    operator:
+      ## Are you using Prometheus Operator?
+      enabled: false
+
+      serviceMonitor:
+        # Namespace Prometheus is installed in
+        namespace: monitoring
+
+        ## Defaults to whats used if you follow CoreOS [Prometheus Install Instructions](https://github.com/coreos/prometheus-operator/tree/master/helm#tldr)
+        ## [Prometheus Selector Label](https://github.com/coreos/prometheus-operator/blob/master/helm/prometheus/templates/prometheus.yaml#L65)
+        ## [Kube Prometheus Selector Label](https://github.com/coreos/prometheus-operator/blob/master/helm/kube-prometheus/values.yaml#L298)
+        selector:
+          prometheus: kube-prometheus
+
+  # ------------------------------------------------------------------------------
+  # Zookeeper:
+  # ------------------------------------------------------------------------------
+
+  zookeeper:
+    ## If true, install the Zookeeper chart alongside Kafka
+    ## ref: https://github.com/kubernetes/charts/tree/master/incubator/zookeeper
+    enabled: true
+
+    ## ref: https://github.com/kubernetes/contrib/tree/master/statefulsets/zookeeper#stateful-set
+    # Desired quantity of ZooKeeper pods. This should always be (1,3,5, or 7)
+    replicaCount: *kafka_replicas
+
+    ## Configure Zookeeper resource requests and limits
+    ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    resources: ~
+
+    ## The JVM heap size to allocate to Zookeeper
+    heap: "1G"
+
+    persistence:
+      enabled: false
+      ## The amount of PV storage allocated to each Zookeeper pod in the statefulset
+      # size: "2Gi"
+
+    ## Specify a Zookeeper imagePullPolicy
+    ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
+    imagePullPolicy: "IfNotPresent"
+
+    ## If the Zookeeper Chart is disabled a URL and port are required to connect
+    url: ""
+    port: 2181
+
+    ## Pod scheduling preferences (by default keep pods within a release on separate nodes).
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+    ## By default we don't set affinity:
+    affinity: {}  # Criteria by which pod label-values influence scheduling for zookeeper pods.
+    # podAntiAffinity:
+    #   requiredDuringSchedulingIgnoredDuringExecution:
+    #     - topologyKey: "kubernetes.io/hostname"
+    #       labelSelector:
+    #         matchLabels:
+    #           release: zookeeper
+
+redis:
+  enabled: false
+  image:
+    repository: bitnami/redis
+    ## ref: https://github.com/bitnami/bitnami-docker-redis#supported-tags-and-respective-dockerfile-links
+    # tag: 6.0.5-debian-10-r2
+    tag: 6.0.5-debian-10-r10
+    pullPolicy: IfNotPresent
+  ## String to partially override redis.fullname template (will maintain the release name)
+  ##
+  # nameOverride:
+
+  ## String to fully override redis.fullname template
+  ##
+  # fullnameOverride:
+
+  ## Cluster settings
+  cluster:
+    enabled: false
+    slaveCount: 2
+
+  ## Specifies the Kubernetes Cluster's Domain Name.
+  ##
+  clusterDomain: cluster.local
+
+  rbac:
+    ## Specifies whether RBAC resources should be created
+    ##
+    create: false
+
+    role:
+      ## Rules to create. It follows the role specification
+      # rules:
+      #  - apiGroups:
+      #    - extensions
+      #    resources:
+      #      - podsecuritypolicies
+      #    verbs:
+      #      - use
+      #    resourceNames:
+      #      - gce.unprivileged
+      rules: []
+
+  ## Redis pod Security Context
+  securityContext:
+    enabled: true
+    fsGroup: 1001
+    runAsUser: 1001
+    ## sysctl settings for master and slave pods
+    ##
+    ## Uncomment the setting below to increase the net.core.somaxconn value
+    ##
+    # sysctls:
+    # - name: net.core.somaxconn
+    #   value: "10000"
+
+  ## Use password authentication
+  usePassword: false
+  ## Redis password (both master and slave)
+  ## Defaults to a random 10-character alphanumeric string if not set and usePassword is true
+  ## ref: https://github.com/bitnami/bitnami-docker-redis#setting-the-server-password-on-first-run
+  ##
+  password: ""
+  ## Use existing secret (ignores previous password)
+  # existingSecret:
+  ## Password key to be retrieved from Redis secret
+  ##
+  # existingSecretPasswordKey:
+
+  ## Mount secrets as files instead of environment variables
+  usePasswordFile: false
+
+  ## Persist data to a persistent volume (Redis Master)
+  persistence:
+    ## A manually managed Persistent Volume and Claim
+    ## Requires persistence.enabled: true
+    ## If defined, PVC must be created manually before volume will be bound
+    existingClaim:
+
+  # Redis port
+  redisPort: 6379
+
+  ##
+  ## Redis Master parameters
+  ##
+  master:
+    ## Redis command arguments
+    ##
+    ## Can be used to specify command line arguments, for example:
+    ##
+    command: "/run.sh"
+    ## Additional Redis configuration for the master nodes
+    ## ref: https://redis.io/topics/config
+    ##
+    configmap:
+    ## Redis additional command line flags
+    ##
+    ## Can be used to specify command line flags, for example:
+    ## extraFlags:
+    ##  - "--maxmemory-policy volatile-ttl"
+    ##  - "--repl-backlog-size 1024mb"
+    extraFlags: []
+    ## Comma-separated list of Redis commands to disable
+    ##
+    ## Can be used to disable Redis commands for security reasons.
+    ## Commands will be completely disabled by renaming each to an empty string.
+    ## ref: https://redis.io/topics/security#disabling-of-specific-commands
+    ##
+    # disableCommands:
+    #   - FLUSHDB
+    #   - FLUSHALL
+
+    ## Redis Master additional pod labels and annotations
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+    podLabels: {}
+    podAnnotations: {}
+
+    ## Redis Master resource requests and limits
+    ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    # resources:
+    #   requests:
+    #     memory: 256Mi
+    #     cpu: 100m
+    ## Use an alternate scheduler, e.g. "stork".
+    ## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
+    ##
+    # schedulerName:
+
+    ## Configure extra options for Redis Master liveness and readiness probes
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/#configure-probes)
+    ##
+    livenessProbe:
+      enabled: true
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 5
+      successThreshold: 1
+      failureThreshold: 5
+    readinessProbe:
+      enabled: true
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 1
+      successThreshold: 1
+      failureThreshold: 5
+
+    ## Configure custom probes for images other images like
+    ## rhscl/redis-32-rhel7 rhscl/redis-5-rhel7
+    ## Only used if readinessProbe.enabled: false / livenessProbe.enabled: false
+    ##
+    # customLivenessProbe:
+    #  tcpSocket:
+    #    port: 6379
+    #  initialDelaySeconds: 10
+    #  periodSeconds: 5
+    # customReadinessProbe:
+    #  initialDelaySeconds: 30
+    #  periodSeconds: 10
+    #  timeoutSeconds: 5
+    #  exec:
+    #    command:
+    #    - "container-entrypoint"
+    #    - "bash"
+    #    - "-c"
+    #    - "redis-cli set liveness-probe \"`date`\" | grep OK"
+    customLivenessProbe: {}
+    customReadinessProbe: {}
+
+    ## Redis Master Node selectors and tolerations for pod assignment
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#taints-and-tolerations-beta-feature
+    ##
+    # nodeSelector: {"beta.kubernetes.io/arch": "amd64"}
+    # tolerations: []
+    ## Redis Master pod/node affinity/anti-affinity
+    ##
+    affinity: {}
+
+    ## Redis Master Service properties
+    service:
+      ##  Redis Master Service type
+      type: ClusterIP
+      port: 6379
+
+      ## Specify the nodePort value for the LoadBalancer and NodePort service types.
+      ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
+      ##
+      # nodePort:
+
+      ## Provide any additional annotations which may be required. This can be used to
+      ## set the LoadBalancer service type to internal only.
+      ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#internal-load-balancer
+      ##
+      annotations: {}
+      labels: {}
+      loadBalancerIP:
+      # loadBalancerSourceRanges: ["10.0.0.0/8"]
+
+    ## Enable persistence using Persistent Volume Claims
+    ## ref: http://kubernetes.io/docs/user-guide/persistent-volumes/
+    ##
+    persistence:
+      enabled: false
+      ## The path the volume will be mounted at, useful when using different
+      ## Redis images.
+      path: /data
+      ## The subdirectory of the volume to mount to, useful in dev environments
+      ## and one PV for multiple services.
+      subPath: ""
+      ## redis data Persistent Volume Storage Class
+      ## If defined, storageClassName: <storageClass>
+      ## If set to "-", storageClassName: "", which disables dynamic provisioning
+      ## If undefined (the default) or set to null, no storageClassName spec is
+      ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+      ##   GKE, AWS & OpenStack)
+      ##
+      # storageClass: "-"
+      accessModes:
+        - ReadWriteOnce
+      size: 8Gi
+      ## Persistent Volume selectors
+      ## https://kubernetes.io/docs/concepts/storage/persistent-volumes/#selector
+      matchLabels: {}
+      matchExpressions: {}
+
+    ## Update strategy, can be set to RollingUpdate or onDelete by default.
+    ## https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#updating-statefulsets
+    statefulset:
+      updateStrategy: RollingUpdate
+      ## Partition update strategy
+      ## https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#partitions
+      # rollingUpdatePartition:
+
+    ## Redis Master pod priorityClassName
+    ##
+    priorityClassName: {}
+
+  ## Prometheus Exporter / Metrics
+  ##
+  metrics:
+    enabled: true
+
+    image:
+      registry: docker.io
+      repository: bitnami/redis-exporter
+      # tag: 1.6.1-debian-10-r28
+      tag: 1.8.0-debian-10-r1
+      pullPolicy: IfNotPresent
+      ## Optionally specify an array of imagePullSecrets.
+      ## Secrets must be manually created in the namespace.
+      ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+      ##
+      # pullSecrets:
+      #   - myRegistryKeySecretName
+
+    ## Metrics exporter resource requests and limits
+    ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    ##
+    # resources: {}
+
+    ## Extra arguments for Metrics exporter, for example:
+    ## extraArgs:
+    ##   check-keys: myKey,myOtherKey
+    # extraArgs: {}
+
+    ## Metrics exporter pod Annotation and Labels
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9121"
+    # podLabels: {}
+
+    # Enable this if you're using https://github.com/coreos/prometheus-operator
+    serviceMonitor:
+      enabled: false
+      ## Specify a namespace if needed
+      # namespace: monitoring
+      # fallback to the prometheus default unless specified
+      # interval: 10s
+      ## Defaults to what's used if you follow CoreOS [Prometheus Install Instructions](https://github.com/bitnami/charts/tree/master/bitnami/prometheus-operator#tldr)
+      ## [Prometheus Selector Label](https://github.com/bitnami/charts/tree/master/bitnami/prometheus-operator#prometheus-operator-1)
+      ## [Kube Prometheus Selector Label](https://github.com/bitnami/charts/tree/master/bitnami/prometheus-operator#exporters)
+      selector:
+        prometheus: kube-prometheus
+
+    ## Custom PrometheusRule to be defined
+    ## The value is evaluated as a template, so, for example, the value can depend on .Release or .Chart
+    ## ref: https://github.com/coreos/prometheus-operator#customresourcedefinitions
+    prometheusRule:
+      enabled: false
+      additionalLabels: {}
+      namespace: ""
+      ## Redis prometheus rules
+      ## These are just examples rules, please adapt them to your needs.
+      ## Make sure to constraint the rules to the current postgresql service.
+      # rules:
+      #   - alert: RedisDown
+      #     expr: redis_up{service="{{ template "redis.fullname" . }}-metrics"} == 0
+      #     for: 2m
+      #     labels:
+      #       severity: error
+      #     annotations:
+      #       summary: Redis instance {{ "{{ $labels.instance }}" }} down
+      #       description: Redis instance {{ "{{ $labels.instance }}" }} is down
+      #    - alert: RedisMemoryHigh
+      #      expr: >
+      #        redis_memory_used_bytes{service="{{ template "redis.fullname" . }}-metrics"} * 100
+      #        /
+      #        redis_memory_max_bytes{service="{{ template "redis.fullname" . }}-metrics"}
+      #        > 90 =< 100
+      #      for: 2m
+      #      labels:
+      #        severity: error
+      #      annotations:
+      #        summary: Redis instance {{ "{{ $labels.instance }}" }} is using too much memory
+      #        description: |
+      #          Redis instance {{ "{{ $labels.instance }}" }} is using {{ "{{ $value }}" }}% of its available memory.
+      #    - alert: RedisKeyEviction
+      #      expr: |
+      #        increase(redis_evicted_keys_total{service="{{ template "redis.fullname" . }}-metrics"}[5m]) > 0
+      #      for: 1s
+      #      labels:
+      #        severity: error
+      #      annotations:
+      #        summary: Redis instance {{ "{{ $labels.instance }}" }} has evicted keys
+      #        description: |
+      #          Redis instance {{ "{{ $labels.instance }}" }} has evicted {{ "{{ $value }}" }} keys in the last 5 minutes.
+      rules: []
+
+    ## Metrics exporter pod priorityClassName
+    # priorityClassName: {}
+    service:
+      type: ClusterIP
+      ## Use serviceLoadBalancerIP to request a specific static IP,
+      ## otherwise leave blank
+      # loadBalancerIP:
+      annotations: {}
+      labels: {}
+
+  ##
+  ## Init containers parameters:
+  ## volumePermissions: Change the owner of the persist volume mountpoint to RunAsUser:fsGroup
+  ##
+  volumePermissions:
+    enabled: false
+    image:
+      registry: docker.io
+      repository: bitnami/minideb
+      tag: buster
+      pullPolicy: Always
+      ## Optionally specify an array of imagePullSecrets.
+      ## Secrets must be manually created in the namespace.
+      ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+      ##
+      # pullSecrets:
+      #   - myRegistryKeySecretName
+    resources: {}
+    # resources:
+    #   requests:
+    #     memory: 128Mi
+    #     cpu: 100m
+
+  ## Redis config file
+  ## ref: https://redis.io/topics/config
+  ##
+  configmap: |-
+    # Enable AOF https://redis.io/topics/persistence#append-only-file
+    appendonly yes
+    # Disable RDB persistence, AOF persistence already enabled.
+    save ""
+
+  ## Sysctl InitContainer
+  ## used to perform sysctl operation to modify Kernel settings (needed sometimes to avoid warnings)
+  sysctlImage:
+    enabled: false
+    command: []
+    registry: docker.io
+    repository: bitnami/minideb
+    tag: buster
+    pullPolicy: Always
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+    ##
+    # pullSecrets:
+    #   - myRegistryKeySecretName
+    mountHostSys: false
+    resources: {}
+    # resources:
+    #   requests:
+    #     memory: 128Mi
+    #     cpu: 100m
+
+  ## PodSecurityPolicy configuration
+  ## ref: https://kubernetes.io/docs/concepts/policy/pod-security-policy/
+  ##
+  podSecurityPolicy:
+    ## Specifies whether a PodSecurityPolicy should be created
+    ##
+    create: false
+
+redis-transfers:
+  enabled: true
+  nameOverride: redis-transfers
+  image:
+    repository: bitnami/redis
+    ## ref: https://github.com/bitnami/bitnami-docker-redis#supported-tags-and-respective-dockerfile-links
+    # tag: 6.0.5-debian-10-r2
+    tag: 6.0.5-debian-10-r10
+    pullPolicy: IfNotPresent
+  ## String to partially override redis.fullname template (will maintain the release name)
+  ##
+  # nameOverride:
+
+  ## String to fully override redis.fullname template
+  ##
+  # fullnameOverride:
+
+  ## Cluster settings
+  cluster:
+    enabled: false
+    slaveCount: 2
+
+  ## Specifies the Kubernetes Cluster's Domain Name.
+  ##
+  clusterDomain: cluster.local
+
+  rbac:
+    ## Specifies whether RBAC resources should be created
+    ##
+    create: false
+
+    role:
+      ## Rules to create. It follows the role specification
+      # rules:
+      #  - apiGroups:
+      #    - extensions
+      #    resources:
+      #      - podsecuritypolicies
+      #    verbs:
+      #      - use
+      #    resourceNames:
+      #      - gce.unprivileged
+      rules: []
+
+  ## Redis pod Security Context
+  securityContext:
+    enabled: true
+    fsGroup: 1001
+    runAsUser: 1001
+    ## sysctl settings for master and slave pods
+    ##
+    ## Uncomment the setting below to increase the net.core.somaxconn value
+    ##
+    # sysctls:
+    # - name: net.core.somaxconn
+    #   value: "10000"
+
+  ## Use password authentication
+  usePassword: false
+  ## Redis password (both master and slave)
+  ## Defaults to a random 10-character alphanumeric string if not set and usePassword is true
+  ## ref: https://github.com/bitnami/bitnami-docker-redis#setting-the-server-password-on-first-run
+  ##
+  password: ""
+  ## Use existing secret (ignores previous password)
+  # existingSecret:
+  ## Password key to be retrieved from Redis secret
+  ##
+  # existingSecretPasswordKey:
+
+  ## Mount secrets as files instead of environment variables
+  usePasswordFile: false
+
+  ## Persist data to a persistent volume (Redis Master)
+  persistence:
+    ## A manually managed Persistent Volume and Claim
+    ## Requires persistence.enabled: true
+    ## If defined, PVC must be created manually before volume will be bound
+    existingClaim:
+
+  # Redis port
+  redisPort: 6379
+
+  ##
+  ## Redis Master parameters
+  ##
+  master:
+    ## Redis command arguments
+    ##
+    ## Can be used to specify command line arguments, for example:
+    ##
+    command: "/run.sh"
+    ## Additional Redis configuration for the master nodes
+    ## ref: https://redis.io/topics/config
+    ##
+    configmap:
+    ## Redis additional command line flags
+    ##
+    ## Can be used to specify command line flags, for example:
+    ## extraFlags:
+    ##  - "--maxmemory-policy volatile-ttl"
+    ##  - "--repl-backlog-size 1024mb"
+    extraFlags: []
+    ## Comma-separated list of Redis commands to disable
+    ##
+    ## Can be used to disable Redis commands for security reasons.
+    ## Commands will be completely disabled by renaming each to an empty string.
+    ## ref: https://redis.io/topics/security#disabling-of-specific-commands
+    ##
+    # disableCommands:
+    #   - FLUSHDB
+    #   - FLUSHALL
+
+    ## Redis Master additional pod labels and annotations
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+    podLabels: {}
+    podAnnotations: {}
+
+    ## Redis Master resource requests and limits
+    ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    # resources:
+    #   requests:
+    #     memory: 256Mi
+    #     cpu: 100m
+    ## Use an alternate scheduler, e.g. "stork".
+    ## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
+    ##
+    # schedulerName:
+
+    ## Configure extra options for Redis Master liveness and readiness probes
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/#configure-probes)
+    ##
+    livenessProbe:
+      enabled: true
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 5
+      successThreshold: 1
+      failureThreshold: 5
+    readinessProbe:
+      enabled: true
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 1
+      successThreshold: 1
+      failureThreshold: 5
+
+    ## Configure custom probes for images other images like
+    ## rhscl/redis-32-rhel7 rhscl/redis-5-rhel7
+    ## Only used if readinessProbe.enabled: false / livenessProbe.enabled: false
+    ##
+    # customLivenessProbe:
+    #  tcpSocket:
+    #    port: 6379
+    #  initialDelaySeconds: 10
+    #  periodSeconds: 5
+    # customReadinessProbe:
+    #  initialDelaySeconds: 30
+    #  periodSeconds: 10
+    #  timeoutSeconds: 5
+    #  exec:
+    #    command:
+    #    - "container-entrypoint"
+    #    - "bash"
+    #    - "-c"
+    #    - "redis-cli set liveness-probe \"`date`\" | grep OK"
+    customLivenessProbe: {}
+    customReadinessProbe: {}
+
+    ## Redis Master Node selectors and tolerations for pod assignment
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#taints-and-tolerations-beta-feature
+    ##
+    # nodeSelector: {"beta.kubernetes.io/arch": "amd64"}
+    # tolerations: []
+    ## Redis Master pod/node affinity/anti-affinity
+    ##
+    affinity: {}
+
+    ## Redis Master Service properties
+    service:
+      ##  Redis Master Service type
+      type: ClusterIP
+      port: 6379
+
+      ## Specify the nodePort value for the LoadBalancer and NodePort service types.
+      ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
+      ##
+      # nodePort:
+
+      ## Provide any additional annotations which may be required. This can be used to
+      ## set the LoadBalancer service type to internal only.
+      ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#internal-load-balancer
+      ##
+      annotations: {}
+      labels: {}
+      loadBalancerIP:
+      # loadBalancerSourceRanges: ["10.0.0.0/8"]
+
+    ## Enable persistence using Persistent Volume Claims
+    ## ref: http://kubernetes.io/docs/user-guide/persistent-volumes/
+    ##
+    persistence:
+      enabled: false
+      ## The path the volume will be mounted at, useful when using different
+      ## Redis images.
+      path: /data
+      ## The subdirectory of the volume to mount to, useful in dev environments
+      ## and one PV for multiple services.
+      subPath: ""
+      ## redis data Persistent Volume Storage Class
+      ## If defined, storageClassName: <storageClass>
+      ## If set to "-", storageClassName: "", which disables dynamic provisioning
+      ## If undefined (the default) or set to null, no storageClassName spec is
+      ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+      ##   GKE, AWS & OpenStack)
+      ##
+      # storageClass: "-"
+      accessModes:
+        - ReadWriteOnce
+      size: 8Gi
+      ## Persistent Volume selectors
+      ## https://kubernetes.io/docs/concepts/storage/persistent-volumes/#selector
+      matchLabels: {}
+      matchExpressions: {}
+
+    ## Update strategy, can be set to RollingUpdate or onDelete by default.
+    ## https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#updating-statefulsets
+    statefulset:
+      updateStrategy: RollingUpdate
+      ## Partition update strategy
+      ## https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#partitions
+      # rollingUpdatePartition:
+
+    ## Redis Master pod priorityClassName
+    ##
+    priorityClassName: {}
+
+  ## Prometheus Exporter / Metrics
+  ##
+  metrics:
+    enabled: true
+
+    image:
+      registry: docker.io
+      repository: bitnami/redis-exporter
+      # tag: 1.6.1-debian-10-r28
+      tag: 1.8.0-debian-10-r1
+      pullPolicy: IfNotPresent
+      ## Optionally specify an array of imagePullSecrets.
+      ## Secrets must be manually created in the namespace.
+      ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+      ##
+      # pullSecrets:
+      #   - myRegistryKeySecretName
+
+    ## Metrics exporter resource requests and limits
+    ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    ##
+    # resources: {}
+
+    ## Extra arguments for Metrics exporter, for example:
+    ## extraArgs:
+    ##   check-keys: myKey,myOtherKey
+    # extraArgs: {}
+
+    ## Metrics exporter pod Annotation and Labels
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9121"
+    # podLabels: {}
+
+    # Enable this if you're using https://github.com/coreos/prometheus-operator
+    serviceMonitor:
+      enabled: false
+      ## Specify a namespace if needed
+      # namespace: monitoring
+      # fallback to the prometheus default unless specified
+      # interval: 10s
+      ## Defaults to what's used if you follow CoreOS [Prometheus Install Instructions](https://github.com/bitnami/charts/tree/master/bitnami/prometheus-operator#tldr)
+      ## [Prometheus Selector Label](https://github.com/bitnami/charts/tree/master/bitnami/prometheus-operator#prometheus-operator-1)
+      ## [Kube Prometheus Selector Label](https://github.com/bitnami/charts/tree/master/bitnami/prometheus-operator#exporters)
+      selector:
+        prometheus: kube-prometheus
+
+    ## Custom PrometheusRule to be defined
+    ## The value is evaluated as a template, so, for example, the value can depend on .Release or .Chart
+    ## ref: https://github.com/coreos/prometheus-operator#customresourcedefinitions
+    prometheusRule:
+      enabled: false
+      additionalLabels: {}
+      namespace: ""
+      ## Redis prometheus rules
+      ## These are just examples rules, please adapt them to your needs.
+      ## Make sure to constraint the rules to the current postgresql service.
+      # rules:
+      #   - alert: RedisDown
+      #     expr: redis_up{service="{{ template "redis.fullname" . }}-metrics"} == 0
+      #     for: 2m
+      #     labels:
+      #       severity: error
+      #     annotations:
+      #       summary: Redis instance {{ "{{ $labels.instance }}" }} down
+      #       description: Redis instance {{ "{{ $labels.instance }}" }} is down
+      #    - alert: RedisMemoryHigh
+      #      expr: >
+      #        redis_memory_used_bytes{service="{{ template "redis.fullname" . }}-metrics"} * 100
+      #        /
+      #        redis_memory_max_bytes{service="{{ template "redis.fullname" . }}-metrics"}
+      #        > 90 =< 100
+      #      for: 2m
+      #      labels:
+      #        severity: error
+      #      annotations:
+      #        summary: Redis instance {{ "{{ $labels.instance }}" }} is using too much memory
+      #        description: |
+      #          Redis instance {{ "{{ $labels.instance }}" }} is using {{ "{{ $value }}" }}% of its available memory.
+      #    - alert: RedisKeyEviction
+      #      expr: |
+      #        increase(redis_evicted_keys_total{service="{{ template "redis.fullname" . }}-metrics"}[5m]) > 0
+      #      for: 1s
+      #      labels:
+      #        severity: error
+      #      annotations:
+      #        summary: Redis instance {{ "{{ $labels.instance }}" }} has evicted keys
+      #        description: |
+      #          Redis instance {{ "{{ $labels.instance }}" }} has evicted {{ "{{ $value }}" }} keys in the last 5 minutes.
+      rules: []
+
+    ## Metrics exporter pod priorityClassName
+    # priorityClassName: {}
+    service:
+      type: ClusterIP
+      ## Use serviceLoadBalancerIP to request a specific static IP,
+      ## otherwise leave blank
+      # loadBalancerIP:
+      annotations: {}
+      labels: {}
+
+  ##
+  ## Init containers parameters:
+  ## volumePermissions: Change the owner of the persist volume mountpoint to RunAsUser:fsGroup
+  ##
+  volumePermissions:
+    enabled: false
+    image:
+      registry: docker.io
+      repository: bitnami/minideb
+      tag: buster
+      pullPolicy: Always
+      ## Optionally specify an array of imagePullSecrets.
+      ## Secrets must be manually created in the namespace.
+      ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+      ##
+      # pullSecrets:
+      #   - myRegistryKeySecretName
+    resources: {}
+    # resources:
+    #   requests:
+    #     memory: 128Mi
+    #     cpu: 100m
+
+  ## Redis config file
+  ## ref: https://redis.io/topics/config
+  ##
+  configmap: |-
+    # Enable AOF https://redis.io/topics/persistence#append-only-file
+    appendonly yes
+    # Disable RDB persistence, AOF persistence already enabled.
+    save ""
+
+  ## Sysctl InitContainer
+  ## used to perform sysctl operation to modify Kernel settings (needed sometimes to avoid warnings)
+  sysctlImage:
+    enabled: false
+    command: []
+    registry: docker.io
+    repository: bitnami/minideb
+    tag: buster
+    pullPolicy: Always
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+    ##
+    # pullSecrets:
+    #   - myRegistryKeySecretName
+    mountHostSys: false
+    resources: {}
+    # resources:
+    #   requests:
+    #     memory: 128Mi
+    #     cpu: 100m
+
+  ## PodSecurityPolicy configuration
+  ## ref: https://kubernetes.io/docs/concepts/policy/pod-security-policy/
+  ##
+  podSecurityPolicy:
+    ## Specifies whether a PodSecurityPolicy should be created
+    ##
+    create: false
+
+redis-participants:
+  enabled: true
+  nameOverride: redis-participants
+  image:
+    repository: bitnami/redis
+    ## ref: https://github.com/bitnami/bitnami-docker-redis#supported-tags-and-respective-dockerfile-links
+    # tag: 6.0.5-debian-10-r2
+    tag: 6.0.5-debian-10-r10
+    pullPolicy: IfNotPresent
+  ## String to partially override redis.fullname template (will maintain the release name)
+  ##
+  # nameOverride:
+
+  ## String to fully override redis.fullname template
+  ##
+  # fullnameOverride:
+
+  ## Cluster settings
+  cluster:
+    enabled: false
+    slaveCount: 2
+
+  ## Specifies the Kubernetes Cluster's Domain Name.
+  ##
+  clusterDomain: cluster.local
+
+  rbac:
+    ## Specifies whether RBAC resources should be created
+    ##
+    create: false
+
+    role:
+      ## Rules to create. It follows the role specification
+      # rules:
+      #  - apiGroups:
+      #    - extensions
+      #    resources:
+      #      - podsecuritypolicies
+      #    verbs:
+      #      - use
+      #    resourceNames:
+      #      - gce.unprivileged
+      rules: []
+
+  ## Redis pod Security Context
+  securityContext:
+    enabled: true
+    fsGroup: 1001
+    runAsUser: 1001
+    ## sysctl settings for master and slave pods
+    ##
+    ## Uncomment the setting below to increase the net.core.somaxconn value
+    ##
+    # sysctls:
+    # - name: net.core.somaxconn
+    #   value: "10000"
+
+  ## Use password authentication
+  usePassword: false
+  ## Redis password (both master and slave)
+  ## Defaults to a random 10-character alphanumeric string if not set and usePassword is true
+  ## ref: https://github.com/bitnami/bitnami-docker-redis#setting-the-server-password-on-first-run
+  ##
+  password: ""
+  ## Use existing secret (ignores previous password)
+  # existingSecret:
+  ## Password key to be retrieved from Redis secret
+  ##
+  # existingSecretPasswordKey:
+
+  ## Mount secrets as files instead of environment variables
+  usePasswordFile: false
+
+  ## Persist data to a persistent volume (Redis Master)
+  persistence:
+    ## A manually managed Persistent Volume and Claim
+    ## Requires persistence.enabled: true
+    ## If defined, PVC must be created manually before volume will be bound
+    existingClaim:
+
+  # Redis port
+  redisPort: 6379
+
+  ##
+  ## Redis Master parameters
+  ##
+  master:
+    ## Redis command arguments
+    ##
+    ## Can be used to specify command line arguments, for example:
+    ##
+    command: "/run.sh"
+    ## Additional Redis configuration for the master nodes
+    ## ref: https://redis.io/topics/config
+    ##
+    configmap:
+    ## Redis additional command line flags
+    ##
+    ## Can be used to specify command line flags, for example:
+    ## extraFlags:
+    ##  - "--maxmemory-policy volatile-ttl"
+    ##  - "--repl-backlog-size 1024mb"
+    extraFlags: []
+    ## Comma-separated list of Redis commands to disable
+    ##
+    ## Can be used to disable Redis commands for security reasons.
+    ## Commands will be completely disabled by renaming each to an empty string.
+    ## ref: https://redis.io/topics/security#disabling-of-specific-commands
+    ##
+    # disableCommands:
+    #   - FLUSHDB
+    #   - FLUSHALL
+
+    ## Redis Master additional pod labels and annotations
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+    podLabels: {}
+    podAnnotations: {}
+
+    ## Redis Master resource requests and limits
+    ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    # resources:
+    #   requests:
+    #     memory: 256Mi
+    #     cpu: 100m
+    ## Use an alternate scheduler, e.g. "stork".
+    ## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
+    ##
+    # schedulerName:
+
+    ## Configure extra options for Redis Master liveness and readiness probes
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/#configure-probes)
+    ##
+    livenessProbe:
+      enabled: true
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 5
+      successThreshold: 1
+      failureThreshold: 5
+    readinessProbe:
+      enabled: true
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 1
+      successThreshold: 1
+      failureThreshold: 5
+
+    ## Configure custom probes for images other images like
+    ## rhscl/redis-32-rhel7 rhscl/redis-5-rhel7
+    ## Only used if readinessProbe.enabled: false / livenessProbe.enabled: false
+    ##
+    # customLivenessProbe:
+    #  tcpSocket:
+    #    port: 6379
+    #  initialDelaySeconds: 10
+    #  periodSeconds: 5
+    # customReadinessProbe:
+    #  initialDelaySeconds: 30
+    #  periodSeconds: 10
+    #  timeoutSeconds: 5
+    #  exec:
+    #    command:
+    #    - "container-entrypoint"
+    #    - "bash"
+    #    - "-c"
+    #    - "redis-cli set liveness-probe \"`date`\" | grep OK"
+    customLivenessProbe: {}
+    customReadinessProbe: {}
+
+    ## Redis Master Node selectors and tolerations for pod assignment
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#taints-and-tolerations-beta-feature
+    ##
+    # nodeSelector: {"beta.kubernetes.io/arch": "amd64"}
+    # tolerations: []
+    ## Redis Master pod/node affinity/anti-affinity
+    ##
+    affinity: {}
+
+    ## Redis Master Service properties
+    service:
+      ##  Redis Master Service type
+      type: ClusterIP
+      port: 6379
+
+      ## Specify the nodePort value for the LoadBalancer and NodePort service types.
+      ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
+      ##
+      # nodePort:
+
+      ## Provide any additional annotations which may be required. This can be used to
+      ## set the LoadBalancer service type to internal only.
+      ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#internal-load-balancer
+      ##
+      annotations: {}
+      labels: {}
+      loadBalancerIP:
+      # loadBalancerSourceRanges: ["10.0.0.0/8"]
+
+    ## Enable persistence using Persistent Volume Claims
+    ## ref: http://kubernetes.io/docs/user-guide/persistent-volumes/
+    ##
+    persistence:
+      enabled: false
+      ## The path the volume will be mounted at, useful when using different
+      ## Redis images.
+      path: /data
+      ## The subdirectory of the volume to mount to, useful in dev environments
+      ## and one PV for multiple services.
+      subPath: ""
+      ## redis data Persistent Volume Storage Class
+      ## If defined, storageClassName: <storageClass>
+      ## If set to "-", storageClassName: "", which disables dynamic provisioning
+      ## If undefined (the default) or set to null, no storageClassName spec is
+      ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+      ##   GKE, AWS & OpenStack)
+      ##
+      # storageClass: "-"
+      accessModes:
+        - ReadWriteOnce
+      size: 8Gi
+      ## Persistent Volume selectors
+      ## https://kubernetes.io/docs/concepts/storage/persistent-volumes/#selector
+      matchLabels: {}
+      matchExpressions: {}
+
+    ## Update strategy, can be set to RollingUpdate or onDelete by default.
+    ## https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#updating-statefulsets
+    statefulset:
+      updateStrategy: RollingUpdate
+      ## Partition update strategy
+      ## https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#partitions
+      # rollingUpdatePartition:
+
+    ## Redis Master pod priorityClassName
+    ##
+    priorityClassName: {}
+
+  ## Prometheus Exporter / Metrics
+  ##
+  metrics:
+    enabled: true
+
+    image:
+      registry: docker.io
+      repository: bitnami/redis-exporter
+      # tag: 1.6.1-debian-10-r28
+      tag: 1.8.0-debian-10-r1
+      pullPolicy: IfNotPresent
+      ## Optionally specify an array of imagePullSecrets.
+      ## Secrets must be manually created in the namespace.
+      ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+      ##
+      # pullSecrets:
+      #   - myRegistryKeySecretName
+
+    ## Metrics exporter resource requests and limits
+    ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    ##
+    # resources: {}
+
+    ## Extra arguments for Metrics exporter, for example:
+    ## extraArgs:
+    ##   check-keys: myKey,myOtherKey
+    # extraArgs: {}
+
+    ## Metrics exporter pod Annotation and Labels
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9121"
+    # podLabels: {}
+
+    # Enable this if you're using https://github.com/coreos/prometheus-operator
+    serviceMonitor:
+      enabled: false
+      ## Specify a namespace if needed
+      # namespace: monitoring
+      # fallback to the prometheus default unless specified
+      # interval: 10s
+      ## Defaults to what's used if you follow CoreOS [Prometheus Install Instructions](https://github.com/bitnami/charts/tree/master/bitnami/prometheus-operator#tldr)
+      ## [Prometheus Selector Label](https://github.com/bitnami/charts/tree/master/bitnami/prometheus-operator#prometheus-operator-1)
+      ## [Kube Prometheus Selector Label](https://github.com/bitnami/charts/tree/master/bitnami/prometheus-operator#exporters)
+      selector:
+        prometheus: kube-prometheus
+
+    ## Custom PrometheusRule to be defined
+    ## The value is evaluated as a template, so, for example, the value can depend on .Release or .Chart
+    ## ref: https://github.com/coreos/prometheus-operator#customresourcedefinitions
+    prometheusRule:
+      enabled: false
+      additionalLabels: {}
+      namespace: ""
+      ## Redis prometheus rules
+      ## These are just examples rules, please adapt them to your needs.
+      ## Make sure to constraint the rules to the current postgresql service.
+      # rules:
+      #   - alert: RedisDown
+      #     expr: redis_up{service="{{ template "redis.fullname" . }}-metrics"} == 0
+      #     for: 2m
+      #     labels:
+      #       severity: error
+      #     annotations:
+      #       summary: Redis instance {{ "{{ $labels.instance }}" }} down
+      #       description: Redis instance {{ "{{ $labels.instance }}" }} is down
+      #    - alert: RedisMemoryHigh
+      #      expr: >
+      #        redis_memory_used_bytes{service="{{ template "redis.fullname" . }}-metrics"} * 100
+      #        /
+      #        redis_memory_max_bytes{service="{{ template "redis.fullname" . }}-metrics"}
+      #        > 90 =< 100
+      #      for: 2m
+      #      labels:
+      #        severity: error
+      #      annotations:
+      #        summary: Redis instance {{ "{{ $labels.instance }}" }} is using too much memory
+      #        description: |
+      #          Redis instance {{ "{{ $labels.instance }}" }} is using {{ "{{ $value }}" }}% of its available memory.
+      #    - alert: RedisKeyEviction
+      #      expr: |
+      #        increase(redis_evicted_keys_total{service="{{ template "redis.fullname" . }}-metrics"}[5m]) > 0
+      #      for: 1s
+      #      labels:
+      #        severity: error
+      #      annotations:
+      #        summary: Redis instance {{ "{{ $labels.instance }}" }} has evicted keys
+      #        description: |
+      #          Redis instance {{ "{{ $labels.instance }}" }} has evicted {{ "{{ $value }}" }} keys in the last 5 minutes.
+      rules: []
+
+    ## Metrics exporter pod priorityClassName
+    # priorityClassName: {}
+    service:
+      type: ClusterIP
+      ## Use serviceLoadBalancerIP to request a specific static IP,
+      ## otherwise leave blank
+      # loadBalancerIP:
+      annotations: {}
+      labels: {}
+
+  ##
+  ## Init containers parameters:
+  ## volumePermissions: Change the owner of the persist volume mountpoint to RunAsUser:fsGroup
+  ##
+  volumePermissions:
+    enabled: false
+    image:
+      registry: docker.io
+      repository: bitnami/minideb
+      tag: buster
+      pullPolicy: Always
+      ## Optionally specify an array of imagePullSecrets.
+      ## Secrets must be manually created in the namespace.
+      ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+      ##
+      # pullSecrets:
+      #   - myRegistryKeySecretName
+    resources: {}
+    # resources:
+    #   requests:
+    #     memory: 128Mi
+    #     cpu: 100m
+
+  ## Redis config file
+  ## ref: https://redis.io/topics/config
+  ##
+  configmap: |-
+    # Enable AOF https://redis.io/topics/persistence#append-only-file
+    appendonly yes
+    # Disable RDB persistence, AOF persistence already enabled.
+    save ""
+
+  ## Sysctl InitContainer
+  ## used to perform sysctl operation to modify Kernel settings (needed sometimes to avoid warnings)
+  sysctlImage:
+    enabled: false
+    command: []
+    registry: docker.io
+    repository: bitnami/minideb
+    tag: buster
+    pullPolicy: Always
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+    ##
+    # pullSecrets:
+    #   - myRegistryKeySecretName
+    mountHostSys: false
+    resources: {}
+    # resources:
+    #   requests:
+    #     memory: 128Mi
+    #     cpu: 100m
+
+  ## PodSecurityPolicy configuration
+  ## ref: https://kubernetes.io/docs/concepts/policy/pod-security-policy/
+  ##
+  podSecurityPolicy:
+    ## Specifies whether a PodSecurityPolicy should be created
+    ##
+    create: false
+
+redis-persisted:
+  enabled: true
+  nameOverride: redis-persisted
+  image:
+    repository: bitnami/redis
+    ## ref: https://github.com/bitnami/bitnami-docker-redis#supported-tags-and-respective-dockerfile-links
+    # tag: 6.0.5-debian-10-r2
+    tag: 6.0.5-debian-10-r10
+    pullPolicy: IfNotPresent
+  ## String to partially override redis.fullname template (will maintain the release name)
+  ##
+  # nameOverride:
+
+  ## String to fully override redis.fullname template
+  ##
+  # fullnameOverride:
+
+  ## Cluster settings
+  cluster:
+    enabled: false
+    slaveCount: 2
+
+  ## Specifies the Kubernetes Cluster's Domain Name.
+  ##
+  clusterDomain: cluster.local
+
+  rbac:
+    ## Specifies whether RBAC resources should be created
+    ##
+    create: false
+
+    role:
+      ## Rules to create. It follows the role specification
+      # rules:
+      #  - apiGroups:
+      #    - extensions
+      #    resources:
+      #      - podsecuritypolicies
+      #    verbs:
+      #      - use
+      #    resourceNames:
+      #      - gce.unprivileged
+      rules: []
+
+  ## Redis pod Security Context
+  securityContext:
+    enabled: true
+    fsGroup: 1001
+    runAsUser: 1001
+    ## sysctl settings for master and slave pods
+    ##
+    ## Uncomment the setting below to increase the net.core.somaxconn value
+    ##
+    # sysctls:
+    # - name: net.core.somaxconn
+    #   value: "10000"
+
+  ## Use password authentication
+  usePassword: false
+  ## Redis password (both master and slave)
+  ## Defaults to a random 10-character alphanumeric string if not set and usePassword is true
+  ## ref: https://github.com/bitnami/bitnami-docker-redis#setting-the-server-password-on-first-run
+  ##
+  password: ""
+  ## Use existing secret (ignores previous password)
+  # existingSecret:
+  ## Password key to be retrieved from Redis secret
+  ##
+  # existingSecretPasswordKey:
+
+  ## Mount secrets as files instead of environment variables
+  usePasswordFile: false
+
+  ## Persist data to a persistent volume (Redis Master)
+  persistence:
+    ## A manually managed Persistent Volume and Claim
+    ## Requires persistence.enabled: true
+    ## If defined, PVC must be created manually before volume will be bound
+    existingClaim:
+
+  # Redis port
+  redisPort: 6379
+
+  ##
+  ## Redis Master parameters
+  ##
+  master:
+    ## Redis command arguments
+    ##
+    ## Can be used to specify command line arguments, for example:
+    ##
+    command: "/run.sh"
+    ## Additional Redis configuration for the master nodes
+    ## ref: https://redis.io/topics/config
+    ##
+    configmap:
+    ## Redis additional command line flags
+    ##
+    ## Can be used to specify command line flags, for example:
+    ## extraFlags:
+    ##  - "--maxmemory-policy volatile-ttl"
+    ##  - "--repl-backlog-size 1024mb"
+    extraFlags: []
+    ## Comma-separated list of Redis commands to disable
+    ##
+    ## Can be used to disable Redis commands for security reasons.
+    ## Commands will be completely disabled by renaming each to an empty string.
+    ## ref: https://redis.io/topics/security#disabling-of-specific-commands
+    ##
+    # disableCommands:
+    #   - FLUSHDB
+    #   - FLUSHALL
+
+    ## Redis Master additional pod labels and annotations
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+    podLabels: {}
+    podAnnotations: {}
+
+    ## Redis Master resource requests and limits
+    ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    # resources:
+    #   requests:
+    #     memory: 256Mi
+    #     cpu: 100m
+    ## Use an alternate scheduler, e.g. "stork".
+    ## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
+    ##
+    # schedulerName:
+
+    ## Configure extra options for Redis Master liveness and readiness probes
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/#configure-probes)
+    ##
+    livenessProbe:
+      enabled: true
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 5
+      successThreshold: 1
+      failureThreshold: 5
+    readinessProbe:
+      enabled: true
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 1
+      successThreshold: 1
+      failureThreshold: 5
+
+    ## Configure custom probes for images other images like
+    ## rhscl/redis-32-rhel7 rhscl/redis-5-rhel7
+    ## Only used if readinessProbe.enabled: false / livenessProbe.enabled: false
+    ##
+    # customLivenessProbe:
+    #  tcpSocket:
+    #    port: 6379
+    #  initialDelaySeconds: 10
+    #  periodSeconds: 5
+    # customReadinessProbe:
+    #  initialDelaySeconds: 30
+    #  periodSeconds: 10
+    #  timeoutSeconds: 5
+    #  exec:
+    #    command:
+    #    - "container-entrypoint"
+    #    - "bash"
+    #    - "-c"
+    #    - "redis-cli set liveness-probe \"`date`\" | grep OK"
+    customLivenessProbe: {}
+    customReadinessProbe: {}
+
+    ## Redis Master Node selectors and tolerations for pod assignment
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#taints-and-tolerations-beta-feature
+    ##
+    # nodeSelector: {"beta.kubernetes.io/arch": "amd64"}
+    # tolerations: []
+    ## Redis Master pod/node affinity/anti-affinity
+    ##
+    affinity: {}
+
+    ## Redis Master Service properties
+    service:
+      ##  Redis Master Service type
+      type: ClusterIP
+      port: 6379
+
+      ## Specify the nodePort value for the LoadBalancer and NodePort service types.
+      ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
+      ##
+      # nodePort:
+
+      ## Provide any additional annotations which may be required. This can be used to
+      ## set the LoadBalancer service type to internal only.
+      ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#internal-load-balancer
+      ##
+      annotations: {}
+      labels: {}
+      loadBalancerIP:
+      # loadBalancerSourceRanges: ["10.0.0.0/8"]
+
+    ## Enable persistence using Persistent Volume Claims
+    ## ref: http://kubernetes.io/docs/user-guide/persistent-volumes/
+    ##
+    persistence:
+      enabled: false
+      ## The path the volume will be mounted at, useful when using different
+      ## Redis images.
+      path: /data
+      ## The subdirectory of the volume to mount to, useful in dev environments
+      ## and one PV for multiple services.
+      subPath: ""
+      ## redis data Persistent Volume Storage Class
+      ## If defined, storageClassName: <storageClass>
+      ## If set to "-", storageClassName: "", which disables dynamic provisioning
+      ## If undefined (the default) or set to null, no storageClassName spec is
+      ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+      ##   GKE, AWS & OpenStack)
+      ##
+      # storageClass: "-"
+      accessModes:
+        - ReadWriteOnce
+      size: 8Gi
+      ## Persistent Volume selectors
+      ## https://kubernetes.io/docs/concepts/storage/persistent-volumes/#selector
+      matchLabels: {}
+      matchExpressions: {}
+
+    ## Update strategy, can be set to RollingUpdate or onDelete by default.
+    ## https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#updating-statefulsets
+    statefulset:
+      updateStrategy: RollingUpdate
+      ## Partition update strategy
+      ## https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#partitions
+      # rollingUpdatePartition:
+
+    ## Redis Master pod priorityClassName
+    ##
+    priorityClassName: {}
+
+  ## Prometheus Exporter / Metrics
+  ##
+  metrics:
+    enabled: true
+
+    image:
+      registry: docker.io
+      repository: bitnami/redis-exporter
+      # tag: 1.6.1-debian-10-r28
+      tag: 1.8.0-debian-10-r1
+      pullPolicy: IfNotPresent
+      ## Optionally specify an array of imagePullSecrets.
+      ## Secrets must be manually created in the namespace.
+      ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+      ##
+      # pullSecrets:
+      #   - myRegistryKeySecretName
+
+    ## Metrics exporter resource requests and limits
+    ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    ##
+    # resources: {}
+
+    ## Extra arguments for Metrics exporter, for example:
+    ## extraArgs:
+    ##   check-keys: myKey,myOtherKey
+    # extraArgs: {}
+
+    ## Metrics exporter pod Annotation and Labels
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9121"
+    # podLabels: {}
+
+    # Enable this if you're using https://github.com/coreos/prometheus-operator
+    serviceMonitor:
+      enabled: false
+      ## Specify a namespace if needed
+      # namespace: monitoring
+      # fallback to the prometheus default unless specified
+      # interval: 10s
+      ## Defaults to what's used if you follow CoreOS [Prometheus Install Instructions](https://github.com/bitnami/charts/tree/master/bitnami/prometheus-operator#tldr)
+      ## [Prometheus Selector Label](https://github.com/bitnami/charts/tree/master/bitnami/prometheus-operator#prometheus-operator-1)
+      ## [Kube Prometheus Selector Label](https://github.com/bitnami/charts/tree/master/bitnami/prometheus-operator#exporters)
+      selector:
+        prometheus: kube-prometheus
+
+    ## Custom PrometheusRule to be defined
+    ## The value is evaluated as a template, so, for example, the value can depend on .Release or .Chart
+    ## ref: https://github.com/coreos/prometheus-operator#customresourcedefinitions
+    prometheusRule:
+      enabled: false
+      additionalLabels: {}
+      namespace: ""
+      ## Redis prometheus rules
+      ## These are just examples rules, please adapt them to your needs.
+      ## Make sure to constraint the rules to the current postgresql service.
+      # rules:
+      #   - alert: RedisDown
+      #     expr: redis_up{service="{{ template "redis.fullname" . }}-metrics"} == 0
+      #     for: 2m
+      #     labels:
+      #       severity: error
+      #     annotations:
+      #       summary: Redis instance {{ "{{ $labels.instance }}" }} down
+      #       description: Redis instance {{ "{{ $labels.instance }}" }} is down
+      #    - alert: RedisMemoryHigh
+      #      expr: >
+      #        redis_memory_used_bytes{service="{{ template "redis.fullname" . }}-metrics"} * 100
+      #        /
+      #        redis_memory_max_bytes{service="{{ template "redis.fullname" . }}-metrics"}
+      #        > 90 =< 100
+      #      for: 2m
+      #      labels:
+      #        severity: error
+      #      annotations:
+      #        summary: Redis instance {{ "{{ $labels.instance }}" }} is using too much memory
+      #        description: |
+      #          Redis instance {{ "{{ $labels.instance }}" }} is using {{ "{{ $value }}" }}% of its available memory.
+      #    - alert: RedisKeyEviction
+      #      expr: |
+      #        increase(redis_evicted_keys_total{service="{{ template "redis.fullname" . }}-metrics"}[5m]) > 0
+      #      for: 1s
+      #      labels:
+      #        severity: error
+      #      annotations:
+      #        summary: Redis instance {{ "{{ $labels.instance }}" }} has evicted keys
+      #        description: |
+      #          Redis instance {{ "{{ $labels.instance }}" }} has evicted {{ "{{ $value }}" }} keys in the last 5 minutes.
+      rules: []
+
+    ## Metrics exporter pod priorityClassName
+    # priorityClassName: {}
+    service:
+      type: ClusterIP
+      ## Use serviceLoadBalancerIP to request a specific static IP,
+      ## otherwise leave blank
+      # loadBalancerIP:
+      annotations: {}
+      labels: {}
+
+  ##
+  ## Init containers parameters:
+  ## volumePermissions: Change the owner of the persist volume mountpoint to RunAsUser:fsGroup
+  ##
+  volumePermissions:
+    enabled: false
+    image:
+      registry: docker.io
+      repository: bitnami/minideb
+      tag: buster
+      pullPolicy: Always
+      ## Optionally specify an array of imagePullSecrets.
+      ## Secrets must be manually created in the namespace.
+      ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+      ##
+      # pullSecrets:
+      #   - myRegistryKeySecretName
+    resources: {}
+    # resources:
+    #   requests:
+    #     memory: 128Mi
+    #     cpu: 100m
+
+  ## Redis config file
+  ## ref: https://redis.io/topics/config
+  ##
+  configmap: |-
+    # Enable AOF https://redis.io/topics/persistence#append-only-file
+    appendonly yes
+    # Disable RDB persistence, AOF persistence already enabled.
+    save ""
+
+  ## Sysctl InitContainer
+  ## used to perform sysctl operation to modify Kernel settings (needed sometimes to avoid warnings)
+  sysctlImage:
+    enabled: false
+    command: []
+    registry: docker.io
+    repository: bitnami/minideb
+    tag: buster
+    pullPolicy: Always
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+    ##
+    # pullSecrets:
+    #   - myRegistryKeySecretName
+    mountHostSys: false
+    resources: {}
+    # resources:
+    #   requests:
+    #     memory: 128Mi
+    #     cpu: 100m
+
+  ## PodSecurityPolicy configuration
+  ## ref: https://kubernetes.io/docs/concepts/policy/pod-security-policy/
+  ##
+  podSecurityPolicy:
+    ## Specifies whether a PodSecurityPolicy should be created
+    ##
+    create: false
+
+participants:
+  enabled: true
+  # Default values for poc-participants.
+  # This is a YAML-formatted file.
+  # Declare variables to be passed into your templates.
+  replicaCount: 1
+  image:
+    repository: *poc_architecture_image
+    tag: *poc_architecture_tag
+    command: "cd modules/participants && node dist/application/index.js handler --config ../../.env"
+    # command: "sleep 300"
+    # repository: solsson/kafka
+    # tag: latest
+    # pullPolicy: Always
+    # command: "sleep 100"
+
+  config:
+    # this can be set if the dependency chart for kafka is disabled. If 'kafka_host' is commented out, then the name of the dependency chart will be used.
+    kafka_host: '$release_name-kafka'
+    kafka_port: 9092
+    # Supported consumers: kafkajs, node-kafka, node-kafka-stream, node-rdkafka
+    kafka_consumer: *kafka_consumer
+    # Supported producers: kafkajs, node-kafka, node-rdkafka
+    kafka_producer: *kafka_producer
+    kafka_producer_gzip: *kafka_producer_gzip
+    kafka_autocommit: *kafka_autocommit
+    kafka_autocommit_interval: 100
+    kafka_autocommit_threshold: 1000
+    simulator_host: '$release_name-legacy-simulator'
+    uv_threadpool_size: 7
+    # redis_host: 'redis://$release_name-redis-master:6379'
+    redis_host: 'redis://$release_name-redis-participants-master:6379'
+    redis_persisted_host: 'redis://$release_name-redis-master:6379'
+    # Supported repo Types: memory, redis, cachedredis
+    participants_repo_type: *participants_repo_type
+    log_level: info
+    log_filter: 'error, warn, info, debug'
+
+  init:
+    enabled: true
+    image:
+      name: wait-for-kafka
+      repository: solsson/kafka
+      tag: latest
+      pullPolicy: Always
+      command: "until ./bin/kafka-broker-api-versions.sh --bootstrap-server $kafka_host:$kafka_port; do echo waiting for Kafka; sleep 2; done;"
+      env: {}
+
+  readinessProbe:
+    enabled: false
+    httpGet:
+      path: /health
+    initialDelaySeconds: 60
+    periodSeconds: 15
+  livenessProbe:
+    enabled: false
+    httpGet:
+      path: /health
+    initialDelaySeconds: 30
+    periodSeconds: 15
+
+  ## metric configuration for prometheus instrumentation
+  metrics:
+    ## flag to enable/disable the metrics end-points
+    enabled: false
+    config:
+      timeout: 5000
+      prefix: moja_
+      defaultLabels:
+        serviceName: poc-participants-service
+
+  service:
+    type: ClusterIP
+    externalPort: 80
+    internalPort: 3000
+
+transfers:
+  enabled: true
+  # Default values for poc-transfers.
+  # This is a YAML-formatted file.
+  # Declare variables to be passed into your templates.
+  replicaCount: 1
+  image:
+    repository: *poc_architecture_image
+    tag: *poc_architecture_tag
+    command: "cd modules/transfers && node dist/application/index.js handler --config ../../.env"
+    # command: "sleep 300"
+    # repository: solsson/kafka
+    # tag: latest
+    # pullPolicy: Always
+    # command: "sleep 100"
+
+  config:
+    # this can be set if the dependency chart for kafka is disabled. If 'kafka_host' is commented out, then the name of the dependency chart will be used.
+    kafka_host: '$release_name-kafka'
+    kafka_port: 9092
+    # Supported consumers: kafkajs, node-kafka, node-kafka-stream, node-rdkafka
+    kafka_consumer: *kafka_consumer
+    # Supported producers: kafkajs, node-kafka, node-rdkafka
+    kafka_producer: *kafka_producer
+    kafka_producer_gzip: *kafka_producer_gzip
+    kafka_autocommit: *kafka_autocommit
+    kafka_autocommit_interval: 100
+    kafka_autocommit_threshold: 1000
+    simulator_host: '$release_name-legacy-simulator'
+    uv_threadpool_size: 7
+    # redis_host: 'redis://$release_name-redis-master:6379'
+    redis_host: 'redis://$release_name-redis-transfers-master:6379'
+    redis_expiration_in_sec: *redis_expiration_in_sec
+    redis_persisted_host: 'redis://$release_name-redis-master:6379'
+    # Supported repo Types: memory, redis, cachedredis
+    participants_repo_type: *participants_repo_type
+    log_level: info
+    log_filter: 'error, warn, info, debug'
+
+  init:
+    enabled: true
+    image:
+      name: wait-for-kafka
+      repository: solsson/kafka
+      tag: latest
+      pullPolicy: Always
+      command: "until ./bin/kafka-broker-api-versions.sh --bootstrap-server $kafka_host:$kafka_port; do echo waiting for Kafka; sleep 2; done;"
+      env: {}
+
+  readinessProbe:
+    enabled: false
+    httpGet:
+      path: /health
+    initialDelaySeconds: 60
+    periodSeconds: 15
+  livenessProbe:
+    enabled: false
+    httpGet:
+      path: /health
+    initialDelaySeconds: 30
+    periodSeconds: 15
+
+  ## metric configuration for prometheus instrumentation
+  metrics:
+    ## flag to enable/disable the metrics end-points
+    enabled: false
+    config:
+      timeout: 5000
+      prefix: moja_
+      defaultLabels:
+        serviceName: poc-transfers-service
+
+  service:
+    type: ClusterIP
+    externalPort: 80
+    internalPort: 3000
+
+simulator-dev-tool:
+  enabled: true
+  # Default values for ml-api-adapter.
+  # This is a YAML-formatted file.
+  # Declare variables to be passed into your templates.
+  replicaCount: 0
+  image:
+    repository: *poc_architecture_image
+    tag: *poc_architecture_tag
+    command: "cd modules/devtools && node dist/simulator/index.js handler"
+  config:
+    # this can be set if the dependency chart for kafka is disabled. If 'kafka_host' is commented out, then the name of the dependency chart will be used.
+    kafka_host: '$release_name-kafka'
+    kafka_port: 9092
+    # Supported consumers: kafkajs, node-kafka, node-kafka-stream, node-rdkafka
+    kafka_consumer: *kafka_consumer
+    # Supported producers: kafkajs, node-kafka, node-rdkafka
+    kafka_producer: *kafka_producer
+    kafka_producer_gzip: *kafka_producer_gzip
+    kafka_autocommit: *kafka_autocommit
+    kafka_autocommit_interval: 100
+    kafka_autocommit_threshold: 1000
+    simulator_host: '$release_name-legacy-simulator'
+    uv_threadpool_size: 7
+    redis_host: 'redis://$release_name-redis-master:6379'
+    redis_persisted_host: 'redis://$release_name-redis-master:6379'
+    # Supported repo Types: memory, redis, cachedredis
+    participants_repo_type: *participants_repo_type
+    log_level: info
+    log_filter: 'error, warn, info, debug'
+
+  init:
+    enabled: true
+    image:
+      name: wait-for-kafka
+      repository: solsson/kafka
+      tag: latest
+      pullPolicy: Always
+      command: "until ./bin/kafka-broker-api-versions.sh --bootstrap-server $kafka_host:$kafka_port; do echo waiting for Kafka; sleep 2; done;"
+      env: {}
+
+  readinessProbe:
+    enabled: false
+    httpGet:
+      path: /health
+    initialDelaySeconds: 60
+    periodSeconds: 15
+  livenessProbe:
+    enabled: false
+    httpGet:
+      path: /health
+    initialDelaySeconds: 30
+    periodSeconds: 15
+
+  ## metric configuration for prometheus instrumentation
+  metrics:
+    ## flag to enable/disable the metrics end-points
+    enabled: true
+    config:
+      timeout: 5000
+      prefix: moja_
+      defaultLabels:
+        serviceName: poc-simulator-service
+
+  service:
+    type: ClusterIP
+    externalPort: 80
+    internalPort: 4000
+
+simulator-metrics-exporter:
+  enabled: true
+  # Default values for ml-api-adapter.
+  # This is a YAML-formatted file.
+  # Declare variables to be passed into your templates.
+  replicaCount: 1
+  image:
+    repository: *poc_architecture_image
+    tag: *poc_architecture_tag
+    command: "cd modules/devtools && npm run perfMeasure"
+
+  config:
+    # this can be set if the dependency chart for kafka is disabled. If 'kafka_host' is commented out, then the name of the dependency chart will be used.
+    kafka_host: '$release_name-kafka'
+    kafka_port: 9092
+    # Supported consumers: kafkajs, node-kafka, node-kafka-stream, node-rdkafka
+    kafka_consumer: *kafka_consumer
+    # Supported producers: kafkajs, node-kafka, node-rdkafka
+    kafka_producer: *kafka_producer
+    kafka_producer_gzip: *kafka_producer_gzip
+    kafka_autocommit: *kafka_autocommit
+    kafka_autocommit_interval: 100
+    kafka_autocommit_threshold: 1000
+    measure_kafka_group_id: 'perf_measure_consumer'
+    simulator_host: '$release_name-legacy-simulator'
+    uv_threadpool_size: 7
+    redis_host: 'redis://$release_name-redis-master:6379'
+    redis_persisted_host: 'redis://$release_name-redis-master:6379'
+    # Supported repo Types: memory, redis, cachedredis
+    participants_repo_type: *participants_repo_type
+    log_level: info
+    log_filter: 'error, warn, info, debug'
+
+  init:
+    enabled: false
+    image:
+      name: wait-for-kafka
+      repository: solsson/kafka
+      tag: latest
+      pullPolicy: Always
+      command: "until ./bin/kafka-broker-api-versions.sh --bootstrap-server $kafka_host:$kafka_port; do echo waiting for Kafka; sleep 2; done;"
+      env: {}
+
+  readinessProbe:
+    enabled: false
+    httpGet:
+      path: /health
+    initialDelaySeconds: 60
+    periodSeconds: 15
+  livenessProbe:
+    enabled: false
+    httpGet:
+      path: /health
+    initialDelaySeconds: 30
+    periodSeconds: 15
+
+  ## metric configuration for prometheus instrumentation
+  metrics:
+    ## flag to enable/disable the metrics end-points
+    enabled: true
+    config:
+      timeout: 5000
+      prefix: moja_
+      defaultLabels:
+        serviceName: poc-simulator-metrics-exporter
+
+  service:
+    type: ClusterIP
+    externalPort: 80
+    internalPort: 4001
+
+ml-api-adapter:
+  ml-api-adapter-service:
+    enabled: true
+    # Default values for ml-api-adapter.
+    # This is a YAML-formatted file.
+    # Declare variables to be passed into your templates.
+    replicaCount: 1
+    image:
+      repository: *poc_architecture_image
+      tag: *poc_architecture_tag
+      command: "node modules/ml-api-adapter/src/api/index.js"
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## ref: https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+    ##
+    #  imagePullSecrets:
+    #    - name: myregistrykey
+      pullPolicy: Always
+
+    ## Pod scheduling preferences.
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+    affinity: {}
+
+    ## Node labels for pod assignment
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+    nodeSelector: {}
+
+    ## Set toleration for scheduler
+    ## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+    tolerations: []
+
+    sidecar:
+      enabled: false
+      image:
+        repository: mojaloop/event-sidecar
+        tag: v9.5.1
+        pullPolicy: Always
+      readinessProbe:
+        enabled: true
+        initialDelaySeconds: 60
+        periodSeconds: 15
+      livenessProbe:
+        enabled: true
+        initialDelaySeconds: 60
+        periodSeconds: 15
+      config:
+        log_level: info
+
+    init:
+      enabled: true
+      image:
+        name: wait-for-kafka
+        repository: solsson/kafka
+        tag: latest
+        pullPolicy: Always
+        command: "until ./bin/kafka-broker-api-versions.sh --bootstrap-server $kafka_host:$kafka_port; do echo waiting for Kafka; sleep 2; done;"
+        env: {}
+        ## Env example
+        # env:
+        #   envItem1:
+        #     name: hello
+        #     value: world
+        #
+
+    ## metric configuration for prometheus instrumentation
+    metrics:
+      ## flag to enable/disable the metrics end-points
+      enabled: true
+
+    config:
+      # this can be set if the dependency chart for kafka is disabled. If 'kafka_host' is commented out, then the name of the dependency chart will be used.
+      kafka_host: '$release_name-kafka'
+      kafka_port: 9092
+      uv_threadpool_size: 7
+      central_services_host: '$release_name-centralledger-service'
+      central_services_port: 80
+      security:
+        callback:
+          rejectUnauthorized: true
+      max_callback_time_lag_dilation_milliseconds: 100
+      max_fulfil_timeout_duration_seconds: 240
+
+      ## Log Configuration
+      log_level: info
+      log_filter: 'error, warn, info, debug'
+      log_transport: file
+
+      ## Tracing Configuration
+      event_trace_vendor: mojaloop
+      event_log_filter: 'audit:*, log:warn, log:error'
+      # If set to true, only the metadata object from the event will be printed.
+      event_log_metadata_only: false
+      # A comma-separated list of events that should return immediately instead of waiting for the event promises to resolve
+      # Any combination of: `log,audit,trace`
+      event_async_override: 'log,trace'
+
+      ## Error handling Configuration
+      error_handling:
+        include_cause_extension: false
+        truncate_extensions: true
+
+    service:
+      type: ClusterIP
+      externalPort: 80
+      internalPort: 3000
+
+    ingress:
+      enabled: true
+      externalPath: /
+      # Used to create an Ingress record.
+      hosts:
+        api: poc1-ml-api-adapter.mojaloop.live
+
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: '/'
+        # kubernetes.io/ingress.class: nginx
+        # kubernetes.io/tls-acme: "true"
+      tls:
+        # Secrets must be manually created in the namespace.
+        # - secretName: chart-example-tls
+        #   hosts:
+        #     - chart-example.local
+    resources: {}
+      # We usually recommend not to specify default resources and to leave this as a conscious
+      # choice for the user. This also increases chances charts run on environments with little
+      # resources, such as Minikube. If you do want to specify resources, uncomment the following
+      # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+      # limits:
+      #  cpu: 100m
+      #  memory: 128Mi
+      # requests:
+      #  cpu: 100m
+      #  memory: 128Mi
+
+  ml-api-adapter-handler-notification:
+    enabled: true
+    # Default values for ml-api-adapter.
+    # This is a YAML-formatted file.
+    # Declare variables to be passed into your templates.
+    replicaCount: 1
+    image:
+      repository: *poc_architecture_image
+      tag: *poc_architecture_tag
+      command: "node modules/ml-api-adapter/src/handlers/index.js handler --notification"
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## ref: https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+    ##
+    #  imagePullSecrets:
+    #    - name: myregistrykey
+      pullPolicy: Always
+
+    ## Pod scheduling preferences.
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+    affinity: {}
+
+    ## Node labels for pod assignment
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+    nodeSelector: {}
+
+    ## Set toleration for scheduler
+    ## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+    tolerations: []
+
+    sidecar:
+      enabled: false
+      image:
+        repository: mojaloop/event-sidecar
+        tag: v9.5.1
+        pullPolicy: Always
+      readinessProbe:
+        enabled: true
+        initialDelaySeconds: 60
+        periodSeconds: 15
+      livenessProbe:
+        enabled: true
+        initialDelaySeconds: 30
+        periodSeconds: 15
+      config:
+        log_level: info
+
+    init:
+      enabled: true
+
+    ## metric configuration for prometheus instrumentation
+    metrics:
+      ## flag to enable/disable the metrics end-points
+      enabled: true
+
+    config:
+      # this can be set if the dependency chart for kafka is disabled. If 'kafka_host' is commented out, then the name of the dependency chart will be used.
+      kafka_host: '$release_name-kafka'
+      kafka_port: 9092
+      kafka_consume_timeout: 100
+      kafka_autocommit_interval_ms: 100
+      kafka_autocommit_enabled: true
+      central_services_host: '$release_name-centralledger-service'
+      central_services_port: 80
+      uv_threadpool_size: 7
+      security:
+        callback:
+          rejectUnauthorized: true
+      max_callback_time_lag_dilation_milliseconds: 100
+      max_fulfil_timeout_duration_seconds: 240
+
+      ## Endpoint Cache Configuration
+      endpoint_cache_expiresInMs: 180000
+      endpoint_cache_generateTimeoutMs: 30000
+
+      ## Send callback confirmation to PayeeFSP in addition to the Mojaloop v1.0 Spec Callback to PayerFSP
+      send_transfer_confirmation_to_payee: false
+
+      ## Log Configuration
+      log_level: info
+      log_filter: 'debug, error, warn, info'
+      log_transport: file
+
+      ## Tracing Configuration
+      event_trace_vendor: mojaloop
+      event_log_filter: 'audit:*, log:warn, log:error'
+      # If set to true, only the metadata object from the event will be printed.
+      event_log_metadata_only: false
+      # A comma-separated list of events that should return immediately instead of waiting for the event promises to resolve
+      # Any combination of: `log,audit,trace`
+      event_async_override: 'log,trace'
+
+      # Parameters for JWS signing requests generated by ml-api-adapter
+      endpointSecurity:
+        jwsSign: false
+        fspiopSourceSigningName: 'switch'
+        jwsSigningKey:
+          # To generate this key:
+          # Private:
+          # ssh-keygen -t rsa -b 4096 -m PEM -f jwtRS256.key
+          # Public:
+          # openssl rsa -in jwtRS256.key -pubout -outform PEM -out jwtRS256.key.pub
+          # Should look like:
+          # -----BEGIN RSA PRIVATE KEY-----
+          # MIIJKQIBAAKCAgEAxfqaZivMPd4MpdBHu0jVMf3MSuSdkSMHn+sNJdDQfl+x4R5R
+          # ..
+          # ..
+          # mBynFpdjO0D3PnLKjnBDn1vFAfANOwVpGXCw5mn+484A/SIXYebWruFd03g4
+          # -----END RSA PRIVATE KEY-----
+
+      ## Error handling Configuration
+      error_handling:
+        include_cause_extension: false
+        truncate_extensions: true
+
+    service:
+      type: ClusterIP
+      externalPort: 80
+      internalPort: 3000
+
+    ingress:
+      enabled: true
+      externalPath: /
+      # Used to create an Ingress record.
+      hosts:
+        api: ml-api-adapter-notification.local
+
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: '/'
+        # kubernetes.io/ingress.class: nginx
+        # kubernetes.io/tls-acme: "true"
+      tls:
+        # Secrets must be manually created in the namespace.
+        # - secretName: chart-example-tls
+        #   hosts:
+        #     - chart-example.local
+    resources: {}
+      # We usually recommend not to specify default resources and to leave this as a conscious
+      # choice for the user. This also increases chances charts run on environments with little
+      # resources, such as Minikube. If you do want to specify resources, uncomment the following
+      # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+      # limits:
+      #  cpu: 100m
+      #  memory: 128Mi
+      # requests:
+      #  cpu: 100m
+      #  memory: 128Mi
+
+legacy-simulator:
+  # Default values for simulators.
+  # This is a YAML-formatted file.
+  # Declare variables to be passed into your templates.
+
+  replicaCount: 1
+
+  image:
+    repository: mojaloop/simulator
+    tag: v9.5.0
+    pullPolicy: Always
+
+  imagePullSecrets: []
+  #  - name: {{replace with credential}}
+
+  metrics:
+    enabled: true
+    prefix: moja_
+    timeout: 5000
+    defaultLabels:
+      serviceName: simulator
+
+  config:
+    ## Set debug level for log output
+    LOG_LEVEL: 'info'
+
+    ## Add '$release' into any of the *_SERVICE_ENDPOINT values to include the release name as part of the deployment
+    PARTIES_SERVICE_ENDPOINT: 'http://$release_name-account-lookup-service'
+    QUOTES_SERVICE_ENDPOINT: 'http://$release_name-quoting-service'
+    TRANSFERS_SERVICE_ENDPOINT: 'http://$release_name-ml-api-adapter-service'
+    ## Disable the fulfil response callback
+    TRANSFERS_FULFIL_RESPONSE_DISABLED: false
+    ## Set the fulfil response response information
+    TRANSFERS_FULFILMENT: 'XoSz1cL0tljJSCp_VtIYmPNw-zFUgGfbUqf69AagUzY'
+    TRANSFERS_CONDITION: 'HOr22-H3AfTDHrSkPjJtVPRdKouuMkDXTR4ejlQa8Ks'
+    TRANSFERS_ILPPACKET: 'AQAAAAAAAADIEHByaXZhdGUucGF5ZWVmc3CCAiB7InRyYW5zYWN0aW9uSWQiOiIyZGY3NzRlMi1mMWRiLTRmZjctYTQ5NS0yZGRkMzdhZjdjMmMiLCJxdW90ZUlkIjoiMDNhNjA1NTAtNmYyZi00NTU2LThlMDQtMDcwM2UzOWI4N2ZmIiwicGF5ZWUiOnsicGFydHlJZEluZm8iOnsicGFydHlJZFR5cGUiOiJNU0lTRE4iLCJwYXJ0eUlkZW50aWZpZXIiOiIyNzcxMzgwMzkxMyIsImZzcElkIjoicGF5ZWVmc3AifSwicGVyc29uYWxJbmZvIjp7ImNvbXBsZXhOYW1lIjp7fX19LCJwYXllciI6eyJwYXJ0eUlkSW5mbyI6eyJwYXJ0eUlkVHlwZSI6Ik1TSVNETiIsInBhcnR5SWRlbnRpZmllciI6IjI3NzEzODAzOTExIiwiZnNwSWQiOiJwYXllcmZzcCJ9LCJwZXJzb25hbEluZm8iOnsiY29tcGxleE5hbWUiOnt9fX0sImFtb3VudCI6eyJjdXJyZW5jeSI6IlVTRCIsImFtb3VudCI6IjIwMCJ9LCJ0cmFuc2FjdGlvblR5cGUiOnsic2NlbmFyaW8iOiJERVBPU0lUIiwic3ViU2NlbmFyaW8iOiJERVBPU0lUIiwiaW5pdGlhdG9yIjoiUEFZRVIiLCJpbml0aWF0b3JUeXBlIjoiQ09OU1VNRVIiLCJyZWZ1bmRJbmZvIjp7fX19'
+    MOCK_JWS_SIGNATURE: 'abcJjvNrkyK2KBieDUbGfhaBUn75aDUATNF4joqA8OLs4QgSD7i6EO8BIdy6Crph3LnXnTM20Ai1Z6nt0zliS_qPPLU9_vi6qLb15FOkl64DQs9hnfoGeo2tcjZJ88gm19uLY_s27AJqC1GH1B8E2emLrwQMDMikwQcYvXoyLrL7LL3CjaLMKdzR7KTcQi1tCK4sNg0noIQLpV3eA61kess'
+
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: http
+
+  readinessProbe:
+    enabled: true
+    httpGet:
+      path: /health
+      port: 8444
+      scheme: HTTP
+    initialDelaySeconds: 5
+    periodSeconds: 15
+  livenessProbe:
+    enabled: true
+    httpGet:
+      path: /health
+      port: 8444
+      scheme: HTTP
+    initialDelaySeconds: 5
+    periodSeconds: 15
+
+  ingress:
+    enabled: true
+    annotations: {
+      "nginx.ingress.kubernetes.io/rewrite-target": "/"
+    }
+      # kubernetes.io/ingress.class: nginx
+      # kubernetes.io/tls-acme: "true"
+    path: /
+    hosts:
+      - poc1-simulator.mojaloop.live
+    tls: []
+      #  - secretName: chart-example-tls
+      #    hosts:
+      #      - chart-example.local
+
+  resources: {}
+    # We usually recommend not to specify default resources and to leave this as a conscious
+    # choice for the user. This also increases chances charts run on environments with little
+    # resources, such as Minikube. If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #  cpu: 100m
+    #  memory: 128Mi
+    # requests:
+    #  cpu: 100m
+    #  memory: 128Mi
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+devtoolclient:
+  enabled: true
+  # Default values for ml-api-adapter.
+  # This is a YAML-formatted file.
+  # Declare variables to be passed into your templates.
+  replicaCount: 1
+  image:
+    repository: *poc_architecture_image
+    tag: *poc_architecture_tag
+    command: 'exec tail -f /dev/null'
+
+  config:
+    # this can be set if the dependency chart for kafka is disabled. If 'kafka_host' is commented out, then the name of the dependency chart will be used.
+    kafka_host: '$release_name-kafka'
+    kafka_port: 9092
+    # Supported consumers: kafkajs, node-kafka, node-kafka-stream, node-rdkafka
+    kafka_consumer: *kafka_consumer
+    # Supported producers: kafkajs, node-kafka, node-rdkafka
+    kafka_producer: *kafka_producer
+    kafka_producer_gzip: *kafka_producer_gzip
+    kafka_autocommit: *kafka_autocommit
+    kafka_autocommit_interval: 100
+    kafka_autocommit_threshold: 1000
+    simulator_host: '$release_name-legacy-simulator'
+    uv_threadpool_size: 7
+    redis_host: 'redis://$release_name-redis-master:6379'
+    redis_persisted_host: 'redis://$release_name-redis-master:6379'
+    # Supported repo Types: memory, redis, cachedredis
+    participants_repo_type: *participants_repo_type
+    log_level: info
+    log_filter: 'error, warn, info, debug'
+
+  init:
+    enabled: false
+    image:
+      name: wait-for-kafka
+      repository: solsson/kafka
+      tag: latest
+      pullPolicy: Always
+      command: "until ./bin/kafka-broker-api-versions.sh --bootstrap-server $kafka_host:$kafka_port; do echo waiting for Kafka; sleep 2; done;"
+      env: {}
+
+  readinessProbe:
+    enabled: false
+    httpGet:
+      path: /health
+    initialDelaySeconds: 60
+    periodSeconds: 15
+  livenessProbe:
+    enabled: false
+    httpGet:
+      path: /health
+    initialDelaySeconds: 30
+    periodSeconds: 15
+
+  ## metric configuration for prometheus instrumentation
+  metrics:
+    ## flag to enable/disable the metrics end-points
+    enabled: false
+    config:
+      timeout: 5000
+      prefix: moja_
+      defaultLabels:
+        serviceName: poc-participants-service
+
+  service:
+    type: ClusterIP
+    externalPort: 80
+    internalPort: 4001

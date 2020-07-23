@@ -62,7 +62,7 @@ export class PayerFundsReservedEvt extends DomainEventMsg {
   constructor (payload: PayerFundsReservedEvtPayload) {
     super()
 
-    this.aggregateId = this.msgKey = payload.payerId
+    this.aggregateId = this.msgKey = payload.transferId
 
     this.payload = payload
   }

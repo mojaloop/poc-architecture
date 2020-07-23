@@ -53,10 +53,12 @@ export type TTraceInfo = {
 
 export interface IMessage{
   msgType: MessageTypes
+  msgName: string // name of the event or command
   msgId: string // unique per message
   msgTimestamp: number
   msgKey: string // usually the id of the aggregate (used for partitioning)
   msgTopic: string
+  msgPartition: number | null
   // TODO: for later
 
   // source_system_name:string // source system name
@@ -75,7 +77,6 @@ export interface IMessage{
 // domain specific
 
 export interface IDomainMessage extends IMessage{
-  msgName: string // name of the event or command
 
   aggregateName: string // name of the source/target aggregate (source if event, target if command)
   aggregateId: string // id of the source/target aggregate (source if event, target if command)
@@ -138,6 +139,7 @@ export abstract class DomainMsg implements IDomainMessage {
   msgId: string = uuidv4() // unique per message
   msgTimestamp: number = Date.now()
   msgName: string = (this as any).constructor.name
+  msgPartition: number | null = null
   traceInfo: TTraceInfo | null = null
 
   abstract msgType: MessageTypes
@@ -169,7 +171,7 @@ export abstract class DomainMsg implements IDomainMessage {
     this.traceInfo = origMsg.traceInfo
   }
 
-  abstract validatePayload(): void
+  abstract validatePayload (): void
 }
 
 export abstract class DomainEventMsg extends DomainMsg {

@@ -1,0 +1,70 @@
+# requirements.yaml
+dependencies:
+# Mojaloop API Adapter Handlers
+- name: ml-api-adapter
+  version: 10.3.0
+  repository: "file://../ml-api-adapter"
+  condition: ml-api-adapter.enabled
+# Transfers Handlers
+- name: poc-modules
+  alias: transfers
+  version: 0.1.0
+  repository: "file://./poc-modules"
+  condition: transfers.enabled
+# Participant Handlers
+- name: poc-modules
+  alias: participants
+  version: 0.1.0
+  repository: "file://./poc-modules"
+  condition: participants.enabled
+# Devtools (simulators, publishers, etc)
+- name: poc-modules
+  alias: simulator-dev-tool
+  version: 0.1.0
+  repository: "file://./poc-modules"
+  condition: simulator-dev-tool.enabled
+# Devtool client
+- name: poc-modules
+  alias: simulator-metrics-exporter
+  version: 0.1.0
+  repository: "file://./poc-modules"
+  condition: simulator-metrics-exporter.enabled
+# Devtool client
+- name: poc-modules
+  alias: devtoolclient
+  version: 0.1.0
+  repository: "file://./poc-modules"
+  condition: devtoolclient.enabled
+# We will pull simulator from the official mojaloop helm repo
+- name: simulator
+  alias: legacy-simulator
+  version: 9.5.0
+  repository: "http://mojaloop.io/helm/repo/"
+  condition: legacy-simulator.enabled
+# This is used for testing ml-api-adapter deployments
+- name: kafka
+  # version: 0.13.11
+  version: 0.21.2
+  repository: http://storage.googleapis.com/kubernetes-charts-incubator
+  alias: kafka
+  condition: kafka.enabled
+- name: redis
+  version: 10.7.4
+  repository: https://charts.bitnami.com/bitnami
+  alias: redis-transfers
+  condition: redis-transfers.enabled
+- name: redis
+  version: 10.7.4
+  repository: https://charts.bitnami.com/bitnami
+  alias: redis-persisted
+  condition: redis-persisted.enabled
+- name: redis
+  version: 10.7.4
+  repository: https://charts.bitnami.com/bitnami
+  alias: redis-participants
+  condition: redis-participants.enabled
+- name: redis
+  version: 10.7.4
+  repository: https://charts.bitnami.com/bitnami
+  alias: redis
+  condition: redis.enabled
