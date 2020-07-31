@@ -4,7 +4,7 @@
 replicaCount: 1
 image:
   repository: mojaloop/poc-architecture
-  tag: v0.39
+  tag: v0.45
   command: 'cd modules/transfers && node dist/application/index.js handler --config ../../.env'
 
 config:
