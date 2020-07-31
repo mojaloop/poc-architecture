@@ -42,13 +42,14 @@ import { ILogger } from '@mojaloop-poc/lib-domain'
 import { TransferState } from '../domain/transfer_entity'
 import { ITransfersRepo } from '../domain/transfers_repo'
 
-export class RedisTransferStateRepo implements ITransfersRepo {
+export class CachedRedisTransferStateRepo implements ITransfersRepo {
   protected _redisClient!: redis.RedisClient
   private readonly _redisConnStr: string
   private readonly _logger: ILogger
   private _initialized: boolean = false
   private readonly keyPrefix: string = 'transfer_'
   private readonly _expirationInSeconds: number
+  private readonly _inMemorylist: Map<string, TransferState> = new Map<string, TransferState>()
 
   constructor (connStr: string, logger: ILogger, expirationInSeconds: number = -1) {
     this._redisConnStr = connStr
@@ -91,6 +92,10 @@ export class RedisTransferStateRepo implements ITransfersRepo {
 
       const key: string = this.keyWithPrefix(id)
 
+      if (this._inMemorylist.has(key)) {
+        return resolve(this._inMemorylist.get(key))
+      }
+
       this._redisClient.get(key, (err: Error | null, result: string | null) => {
         if (err != null) {
           this._logger.isErrorEnabled() && this._logger.error(err, 'Error fetching entity state from redis - for key: ' + key)
@@ -102,6 +107,9 @@ export class RedisTransferStateRepo implements ITransfersRepo {
         }
         try {
           const state: TransferState = JSON.parse(result)
+
+          this._inMemorylist.set(key, state)
+
           return resolve(state)
         } catch (err) {
           this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state from redis - for key: ' + key)
@@ -116,6 +124,10 @@ export class RedisTransferStateRepo implements ITransfersRepo {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
 
       const key: string = this.keyWithPrefix(id)
+
+      if (this._inMemorylist.has(key)) {
+        this._inMemorylist.delete(key)
+      }
 
       this._redisClient.del(key, (err?: Error|null, result?: number) => {
         if (err != null) {
@@ -137,26 +149,37 @@ export class RedisTransferStateRepo implements ITransfersRepo {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
 
       const key: string = this.keyWithPrefix(entityState.id)
-      // const expireStateInSec: number = (entityState != null && entityState?.expireStateInSec > 0) ? entityState.expireStateInSec : -1
-      let stringValue: string
-      try {
-        stringValue = JSON.stringify(entityState)
-      } catch (err) {
-        this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
-        return reject(err)
-      }
 
-      this._redisClient.setex(key, this._expirationInSeconds, stringValue, (err: Error | null, reply: string) => {
-        if (err != null) {
-          this._logger.isErrorEnabled() && this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
-          return reject(err)
-        }
-        if (reply !== 'OK') {
-          this._logger.isErrorEnabled() && this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
-          return reject(err)
-        }
-        return resolve()
-      })
+      this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::store - storing ${entityState.id} in-memory only!`)
+
+      this._inMemorylist.set(key, entityState)
+
+      // # This is handled by the "CachedPersistedRedisTransferStateRepo" (which does not exist at the moment) as this is purely an In-Memory processing store with just the initial transfers being loaded from Redis to ensure the intitial consistency on load/startup
+      resolve()
+
+      // let stringValue: string
+      // try {
+      //   stringValue = JSON.stringify(entityState)
+      // } catch (err) {
+      //   this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
+      //   return reject(err)
+      // }
+
+      // if (stringValue === null) {
+      //   return
+      // }
+
+      // this._redisClient.setex(key, this._expirationInSeconds, stringValue, (err: Error | null, reply: string) => {
+      //   if (err != null) {
+      //     this._logger.isErrorEnabled() && this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
+      //     return reject(err)
+      //   }
+      //   if (reply !== 'OK') {
+      //     this._logger.isErrorEnabled() && this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
+      //     return reject(err)
+      //   }
+      //   return resolve()
+      // })
     })
   }
 

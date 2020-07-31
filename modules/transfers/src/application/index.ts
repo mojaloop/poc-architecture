@@ -45,6 +45,7 @@ import { TransferEvtHandler } from './transferEvtHandler'
 import * as dotenv from 'dotenv'
 import { Command } from 'commander'
 import { resolve as Resolve } from 'path'
+import { RepoInfraTypes } from '../infrastructure'
 
 /* eslint-disable-next-line @typescript-eslint/no-var-requires */
 const pckg = require('../../package.json')
@@ -92,10 +93,12 @@ Program.command('handler')
         fetchWaitMaxMs: (process.env.KAFKA_FETCH_WAIT_MAX_MS != null && !isNaN(Number(process.env.KAFKA_FETCH_WAIT_MAX_MS)) && process.env.KAFKA_FETCH_WAIT_MAX_MS?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_WAIT_MAX_MS) : 100
       },
       redis: {
+        type: (process.env.TRANSFERS_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.TRANSFERS_REPO_TYPE,
         host: getEnvValueOrDefault('REDIS_HOST', 'redis://localhost:6379') as string,
         expirationInSeconds: getEnvIntegerOrDefault('REDIS_EXPIRATION_IN_SEC', -1) as number
       },
       duplicate: {
+        type: (process.env.DUPLICATE_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.DUPLICATE_REPO_TYPE,
         host: getEnvValueOrDefault('REDIS_DUPL_HOST', 'redis://localhost:6379') as string
       }
     }

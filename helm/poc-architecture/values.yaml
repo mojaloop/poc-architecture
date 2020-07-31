@@ -13,8 +13,12 @@ parameters:
   kafka_consumer: &kafka_consumer node-rdkafka
   # Supported producers: kafkajs, node-kafka, node-rdkafka
   kafka_producer: &kafka_producer node-rdkafka
-  # Supported repo Types: memory, redis, cachedredis
+  # Supported repo Types: memory, redis, cachedredis, cachedpersistedredis
   participants_repo_type: &participants_repo_type cachedredis
+  # Supported repo Types: memory, redis, cachedredis
+  transfers_repo_type: &transfers_repo_type redis
+  # Supported repo Types: memory, redis, cachedredis
+  duplicate_repo_type: &duplicate_repo_type redis
   redis_expiration_in_sec: &redis_expiration_in_sec 1800
 
 
@@ -43,8 +47,12 @@ jobs:
       uv_threadpool_size: 7
       redis_host: 'redis://$release_name-redis-master:6379'
       redis_persisted_host: 'redis://$release_name-redis-master:6379'
-      # Supported repo Types: memory, redis, cachedredis
+      # Supported repo Types: memory, redis, cachedredis, cachedpersistedredis
       participants_repo_type: *participants_repo_type
+      # Supported repo Types: memory, redis, cachedredis
+      transfers_repo_type: *transfers_repo_type
+      # Supported repo Types: memory, redis, cachedredis
+      duplicate_repo_type: *duplicate_repo_type
       log_level: info
       log_filter: 'error, warn, info, debug'
 
@@ -2029,8 +2037,12 @@ participants:
     # redis_host: 'redis://$release_name-redis-master:6379'
     redis_host: 'redis://$release_name-redis-participants-master:6379'
     redis_persisted_host: 'redis://$release_name-redis-master:6379'
-    # Supported repo Types: memory, redis, cachedredis
+    # Supported repo Types: memory, redis, cachedredis, cachedpersistedredis
     participants_repo_type: *participants_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    transfers_repo_type: *transfers_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    duplicate_repo_type: *duplicate_repo_type
     log_level: info
     log_filter: 'error, warn, info, debug'
 
@@ -2106,8 +2118,12 @@ transfers:
     redis_host: 'redis://$release_name-redis-transfers-master:6379'
     redis_expiration_in_sec: *redis_expiration_in_sec
     redis_persisted_host: 'redis://$release_name-redis-master:6379'
-    # Supported repo Types: memory, redis, cachedredis
+    # Supported repo Types: memory, redis, cachedredis, cachedpersistedredis
     participants_repo_type: *participants_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    transfers_repo_type: *transfers_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    duplicate_repo_type: *duplicate_repo_type
     log_level: info
     log_filter: 'error, warn, info, debug'
 
@@ -2175,8 +2191,12 @@ simulator-dev-tool:
     uv_threadpool_size: 7
     redis_host: 'redis://$release_name-redis-master:6379'
     redis_persisted_host: 'redis://$release_name-redis-master:6379'
-    # Supported repo Types: memory, redis, cachedredis
+    # Supported repo Types: memory, redis, cachedredis, cachedpersistedredis
     participants_repo_type: *participants_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    transfers_repo_type: *transfers_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    duplicate_repo_type: *duplicate_repo_type
     log_level: info
     log_filter: 'error, warn, info, debug'
 
@@ -2246,8 +2266,12 @@ simulator-metrics-exporter:
     uv_threadpool_size: 7
     redis_host: 'redis://$release_name-redis-master:6379'
     redis_persisted_host: 'redis://$release_name-redis-master:6379'
-    # Supported repo Types: memory, redis, cachedredis
+    # Supported repo Types: memory, redis, cachedredis, cachedpersistedredis
     participants_repo_type: *participants_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    transfers_repo_type: *transfers_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    duplicate_repo_type: *duplicate_repo_type
     log_level: info
     log_filter: 'error, warn, info, debug'
 
@@ -2691,8 +2715,12 @@ devtoolclient:
     uv_threadpool_size: 7
     redis_host: 'redis://$release_name-redis-master:6379'
     redis_persisted_host: 'redis://$release_name-redis-master:6379'
-    # Supported repo Types: memory, redis, cachedredis
+    # Supported repo Types: memory, redis, cachedredis, cachedpersistedredis
     participants_repo_type: *participants_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    transfers_repo_type: *transfers_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    duplicate_repo_type: *duplicate_repo_type
     log_level: info
     log_filter: 'error, warn, info, debug'
 

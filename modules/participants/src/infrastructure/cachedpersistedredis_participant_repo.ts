@@ -39,21 +39,29 @@
 
 import * as redis from 'redis'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { TransferState } from '../domain/transfer_entity'
-import { ITransfersRepo } from '../domain/transfers_repo'
+import { ParticipantState } from '../domain/participant_entity'
+import { IParticipantRepo } from '../domain/participant_repo'
+import { ParticipantAccountTypes, ParticipantEndpoint } from '@mojaloop-poc/lib-public-messages'
 
-export class RedisTransferStateRepo implements ITransfersRepo {
+/***
+ * TODO:
+* - Store currently only stores ParticipantState if it was not found in the `_inMemorylist`. /
+*   This should be fixed in future to ensure that there consistency between the in-memory cache and redis. /
+*   However this is easier said than done, and needs some thinking. This is however not a concern at this /
+*   stage as we expect a CQRS pattern to be used over this repo.
+ */
+
+export class CachedPersistedRedisParticipantStateRepo implements IParticipantRepo {
   protected _redisClient!: redis.RedisClient
+  private readonly _inMemorylist: Map<string, ParticipantState> = new Map<string, ParticipantState>()
   private readonly _redisConnStr: string
   private readonly _logger: ILogger
   private _initialized: boolean = false
-  private readonly keyPrefix: string = 'transfer_'
-  private readonly _expirationInSeconds: number
+  private readonly keyPrefix: string = 'participant_'
 
-  constructor (connStr: string, logger: ILogger, expirationInSeconds: number = -1) {
+  constructor (connStr: string, logger: ILogger) {
     this._redisConnStr = connStr
     this._logger = logger
-    this._expirationInSeconds = expirationInSeconds
   }
 
   async init (): Promise<void> {
@@ -68,7 +76,7 @@ export class RedisTransferStateRepo implements ITransfersRepo {
         return resolve()
       })
 
-      this._redisClient.on('error', (err: Error) => {
+      this._redisClient.on('error', (err) => {
         this._logger.isErrorEnabled() && this._logger.error(err, 'A redis error has occurred:')
         if (!this._initialized) { return reject(err) }
       })
@@ -85,11 +93,15 @@ export class RedisTransferStateRepo implements ITransfersRepo {
     return this._initialized // for now, no circuit breaker exists
   }
 
-  async load (id: string): Promise<TransferState|null> {
+  async load (id: string): Promise<ParticipantState|null> {
     return await new Promise((resolve, reject) => {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
 
       const key: string = this.keyWithPrefix(id)
+
+      if (this._inMemorylist.has(key)) {
+        return resolve(this._inMemorylist.get(key))
+      }
 
       this._redisClient.get(key, (err: Error | null, result: string | null) => {
         if (err != null) {
@@ -101,7 +113,10 @@ export class RedisTransferStateRepo implements ITransfersRepo {
           return resolve(null)
         }
         try {
-          const state: TransferState = JSON.parse(result)
+          const state: ParticipantState = JSON.parse(result)
+
+          this._inMemorylist.set(key, state)
+
           return resolve(state)
         } catch (err) {
           this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state from redis - for key: ' + key)
@@ -116,6 +131,10 @@ export class RedisTransferStateRepo implements ITransfersRepo {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
 
       const key: string = this.keyWithPrefix(id)
+
+      if (this._inMemorylist.has(key)) {
+        this._inMemorylist.delete(key)
+      }
 
       this._redisClient.del(key, (err?: Error|null, result?: number) => {
         if (err != null) {
@@ -132,35 +151,51 @@ export class RedisTransferStateRepo implements ITransfersRepo {
     })
   }
 
-  async store (entityState: TransferState): Promise<void> {
+  async store (entityState: ParticipantState): Promise<void> {
     return await new Promise((resolve, reject) => {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
 
       const key: string = this.keyWithPrefix(entityState.id)
-      // const expireStateInSec: number = (entityState != null && entityState?.expireStateInSec > 0) ? entityState.expireStateInSec : -1
-      let stringValue: string
+
+      this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::store - storing ${entityState.id} in-memory only, AND redis as we have not seen this participant before!`)
+
+      this._inMemorylist.set(key, entityState)
+
+      resolve()
+
+      let stringValue: string | null = null
       try {
         stringValue = JSON.stringify(entityState)
       } catch (err) {
         this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
-        return reject(err)
       }
 
-      this._redisClient.setex(key, this._expirationInSeconds, stringValue, (err: Error | null, reply: string) => {
+      if (stringValue === null) {
+        return
+      }
+
+      this._redisClient.set(key, stringValue, (err: Error | null, reply: string) => {
         if (err != null) {
           this._logger.isErrorEnabled() && this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
-          return reject(err)
         }
         if (reply !== 'OK') {
           this._logger.isErrorEnabled() && this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
-          return reject(err)
         }
-        return resolve()
       })
     })
   }
 
   private keyWithPrefix (key: string): string {
     return this.keyPrefix + key
+  }
+
+  async hasAccount (participantId: string, accType: ParticipantAccountTypes, currency: string): Promise<boolean> {
+    const participant = await this.load(participantId)
+    return participant?.accounts?.find(account => account.type === accType && account.currency === currency) != null
+  }
+
+  async getEndPoints (participantId: string): Promise<ParticipantEndpoint[]|undefined> {
+    const participant = await this.load(participantId)
+    return participant?.endpoints
   }
 }
