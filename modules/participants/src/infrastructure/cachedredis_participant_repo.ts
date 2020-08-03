@@ -159,7 +159,7 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
 
       this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::store - storing ${entityState.id} in-memory only!`)
 
-      if (this._inMemorylist.has(key) === false) {
+      if (!this._inMemorylist.has(key)) {
         this._inMemorylist.set(key, entityState)
 
         let stringValue: string | null = null
