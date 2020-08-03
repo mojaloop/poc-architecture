@@ -316,18 +316,6 @@ export class ParticipantEvtHandler implements IRunHandler {
     await participantEvtConsumer.init(participantEvtHandler, subscribedMsgNames)
   }
 
-  async loadAllParticipantsToMemory (): Promise<void> {
-    return await new Promise(async (resolve, reject) => {
-      const allIds: string[] = await this._entityDuplicateRepo.getAll()
-
-      await Promise.all(allIds.map(async (id: string) => {
-        await this.load(id)
-      })).then(async () => {
-        return resolve()
-      })
-    })
-  }
-
   async destroy (): Promise<void> {
     await this._consumer.destroy(true)
     await this._publisher.destroy()

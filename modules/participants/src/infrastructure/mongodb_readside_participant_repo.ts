@@ -37,50 +37,47 @@
 
 'use strict'
 
-import { MongoClient } from 'mongodb'
+import { Collection, MongoClient } from 'mongodb'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { ParticipantState } from '../domain/participant_entity'
-import { ParticipantAccountTypes, ParticipantEndpoint } from '@mojaloop-poc/lib-public-messages'
 
 export class MongoDbReadsideParticipantRepo {
   protected _mongoClient: MongoClient
-  private readonly _redisConnStr: string
-  private readonly _logger: ILogger
+  protected _mongoCollection: Collection
+  protected _mongoUri: string
   private _initialized: boolean = false
-  private readonly keyPrefix: string = 'participant_'
+  private readonly _logger: ILogger
+  private readonly _databaseName: string = 'moja_poc'
+  private readonly _collectionName: string = 'participants_'
 
-  constructor (connStr: string, logger: ILogger) {
-    this._redisConnStr = connStr
+  constructor (mongoUri: string, logger: ILogger) {
     this._logger = logger
-
-    this._mongoClient = new MongoClient()
+    this._mongoUri = mongoUri
   }
 
   async init (): Promise<void> {
-    this
+    try {
+      this._mongoClient = await MongoClient.connect(this._mongoUri, { useNewUrlParser: true })
+    } catch (err) {
+      const errMsg: string = err?.message?.toString()
+      this._logger.isWarnEnabled() && this._logger.warn(`MongoDbReadsideParticipantRepo - init failed with error: ${errMsg}`)
+      this._logger.isErrorEnabled() && this._logger.error(err)
+      throw (err)
+    }
 
-    return await new Promise((resolve, reject) => {
-      this._redisClient = redis.createClient({ url: this._redisConnStr })
-
-      this._redisClient.on('ready', () => {
-        this._logger.isInfoEnabled() && this._logger.info('Redis client ready')
-        if (this._initialized) { return }
-
-        this._initialized = true
-        return resolve()
-      })
-
-      this._redisClient.on('error', (err) => {
-        this._logger.isErrorEnabled() && this._logger.error(err, 'A redis error has occurred:')
-        if (!this._initialized) { return reject(err) }
-      })
-    })
+    // this._mongoClient = await MongoClient.connect(this._mongoUri)
+    if (this._mongoClient === null) {
+      throw new Error('Couldn\'t instantiate mongo client')
+    }
+    const db = this._mongoClient.db(this._databaseName)
+    this._mongoCollection = db.collection(this._collectionName)
+    this._initialized = true
   }
 
   async destroy (): Promise<void> {
-    if (this._initialized) { this._redisClient.quit() }
-
-    return await Promise.resolve()
+    if (this._initialized) {
+      await this._mongoClient.close()
+    }
   }
 
   canCall (): boolean {
@@ -88,90 +85,24 @@ export class MongoDbReadsideParticipantRepo {
   }
 
   async load (id: string): Promise<ParticipantState|null> {
-    return await new Promise((resolve, reject) => {
-      if (!this.canCall()) return reject(new Error('Repository not ready'))
-
-      const key: string = this.keyWithPrefix(id)
-
-      this._redisClient.get(key, (err: Error | null, result: string | null) => {
-        if (err != null) {
-          this._logger.isErrorEnabled() && this._logger.error(err, 'Error fetching entity state from redis - for key: ' + key)
-          return reject(err)
-        }
-        if (result == null) {
-          this._logger.isDebugEnabled() && this._logger.debug('Entity state not found in redis - for key: ' + key)
-          return resolve(null)
-        }
-        try {
-          const state: ParticipantState = JSON.parse(result)
-          return resolve(state)
-        } catch (err) {
-          this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state from redis - for key: ' + key)
-          return reject(err)
-        }
-      })
-    })
+    return await this._mongoCollection.findOne({ id: id })
   }
 
   async remove (id: string): Promise<void> {
-    return await new Promise((resolve, reject) => {
-      if (!this.canCall()) return reject(new Error('Repository not ready'))
 
-      const key: string = this.keyWithPrefix(id)
-
-      this._redisClient.del(key, (err?: Error|null, result?: number) => {
-        if (err != null) {
-          this._logger.isErrorEnabled() && this._logger.error(err, 'Error removing entity state from redis - for key: ' + key)
-          return reject(err)
-        }
-        if (result !== 1) {
-          this._logger.isDebugEnabled() && this._logger.debug('Entity state not found in redis - for key: ' + key)
-          return resolve()
-        }
-
-        return resolve()
-      })
-    })
   }
 
-  async store (entityState: ParticipantState): Promise<void> {
-    return await new Promise((resolve, reject) => {
-      if (!this.canCall()) return reject(new Error('Repository not ready'))
-
-      const key: string = this.keyWithPrefix(entityState.id)
-      let stringValue: string
-      try {
-        stringValue = JSON.stringify(entityState)
-      } catch (err) {
-        this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
-        return reject(err)
-      }
-
-      this._redisClient.set(key, stringValue, (err: Error | null, reply: string) => {
-        if (err != null) {
-          this._logger.isErrorEnabled() && this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
-          return reject(err)
-        }
-        if (reply !== 'OK') {
-          this._logger.isErrorEnabled() && this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
-          return reject(err)
-        }
-        return resolve()
-      })
-    })
+  async insert (participant: ParticipantState): Promise<boolean> {
+    const result = await this._mongoCollection.insertOne(participant)
+    return result.insertedCount === 1
   }
 
-  private keyWithPrefix (key: string): string {
-    return this.keyPrefix + key
-  }
-
-  async hasAccount (participantId: string, accType: ParticipantAccountTypes, currency: string): Promise<boolean> {
-    const participant = await this.load(participantId)
-    return participant?.accounts?.find(account => account.type === accType && account.currency === currency) != null
-  }
-
-  async getEndPoints (participantId: string): Promise<ParticipantEndpoint[]|undefined> {
-    const participant = await this.load(participantId)
-    return participant?.endpoints
+  // TODO check if we can have number in mongo for the position
+  async updatePosition (participantId: string, currency: string, position: string): Promise<boolean> {
+    const result = await this._mongoCollection.update(
+      { id: participantId, 'accounts.currency': currency },
+      { $set: { 'accounts.$.position': position } }
+    )
+    return result.result.nModified === 1 && result.result.ok === 1
   }
 }

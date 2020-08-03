@@ -46,6 +46,7 @@ import * as dotenv from 'dotenv'
 import { Command } from 'commander'
 import { resolve as Resolve } from 'path'
 import { RepoInfraTypes } from '../infrastructure'
+import { ParticipantReadsideStateEvtHandler } from './participantReadsideStateEvtHandler'
 
 /* eslint-disable-next-line @typescript-eslint/no-var-requires */
 const pckg = require('../../package.json')
@@ -61,6 +62,7 @@ Program.command('handler')
   .option('--disableApi', 'Disable API server for health & metrics')
   .option('--participantsEvt', 'Start the Participant Evt Handler')
   .option('--participantsCmd', 'Start the Participant Cmd Handler')
+  .option('--participantsReadSideStateEvt', 'Start the Participant Read Side State Handler')
 
   // function to execute when command is uses
   .action(async (args: any): Promise<void> => {
@@ -100,6 +102,9 @@ Program.command('handler')
       },
       persisted_redis: {
         host: getEnvValueOrDefault('REDIS_DUPL_HOST', 'redis://localhost:6379') as string
+      },
+      readside_mongo: {
+        uri: getEnvValueOrDefault('PARTICIPANTS_READSIDE_MONGO_DB_HOST', 'mongodb://localhost:27017/') as string
       }
     }
 
@@ -123,30 +128,27 @@ Program.command('handler')
 
     // list of all handlers
     const runHandlerList: IRunHandler[] = []
+    const runAllHAndlers = args.participantsEvt === undefined && args.participantsCmd === undefined && args.participantsReadSideStateEvt === undefined
 
-    // start all handlers here
-    if (args.participantsEvtHandler == null && args.participantsCmdHandler == null) {
-      const participantEvtHandler = new ParticipantEvtHandler()
-      await participantEvtHandler.start(appConfig, logger, metrics)
-      runHandlerList.push(participantEvtHandler)
-
-      const participantCmdHandler = new ParticipantCmdHandler()
-      await participantCmdHandler.start(appConfig, logger, metrics)
-      runHandlerList.push(participantCmdHandler)
-    }
-
-    // start only participantsEvtHandler
-    if (args.participantsEvtHandler != null) {
+    // start participantsEvtHandler
+    if (runAllHAndlers || args.participantsEvt != null) {
       const participantEvtHandler = new ParticipantEvtHandler()
       await participantEvtHandler.start(appConfig, logger, metrics)
       runHandlerList.push(participantEvtHandler)
     }
 
-    // start only participantsCmdHandler
-    if (args.participantsCmdHandler != null) {
+    // start participantsCmdHandler
+    if (runAllHAndlers || args.participantsCmd != null) {
       const participantCmdHandler = new ParticipantCmdHandler()
       await participantCmdHandler.start(appConfig, logger, metrics)
       runHandlerList.push(participantCmdHandler)
+    }
+
+    // start participantReadsideStateEvtHandler
+    if (runAllHAndlers || args.participantsReadSideStateEvt != null) {
+      const participantReadsideStateEvtHandler = new ParticipantReadsideStateEvtHandler()
+      await participantReadsideStateEvtHandler.start(appConfig, logger, metrics)
+      runHandlerList.push(participantReadsideStateEvtHandler)
     }
 
     // start only API
