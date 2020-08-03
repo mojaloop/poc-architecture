@@ -14,7 +14,7 @@ parameters:
   # Supported producers: kafkajs, node-kafka, node-rdkafka
   kafka_producer: &kafka_producer node-rdkafka
   # Supported repo Types: memory, redis, cachedredis, cachedpersistedredis
-  participants_repo_type: &participants_repo_type cachedredis
+  participants_repo_type: &participants_repo_type cachedpersistedredis
   # Supported repo Types: memory, redis, cachedredis
   transfers_repo_type: &transfers_repo_type redis
   # Supported repo Types: memory, redis, cachedredis
