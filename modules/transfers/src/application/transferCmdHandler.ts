@@ -67,22 +67,58 @@ import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
 import { AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 import { IDupTransferRepo } from '../domain/transfers_duplicate_repo'
+import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
+import { CachedRedisTransferStateRepo } from '../infrastructure/cachedredis_transfer_repo'
+import { RepoInfraTypes } from '../infrastructure'
+import { CachedRedisTransferDuplicateRepo } from '../infrastructure/cahcedredis_duplicate_repo'
+import { InMemoryTransferDuplicateRepo } from '../infrastructure/inmemory_duplicate_repo'
 
 export class TransferCmdHandler implements IRunHandler {
   private _consumer: MessageConsumer
   private _publisher: IMessagePublisher
   private _stateRepo: ITransfersRepo
-  private readonly _duplicateRepo: IDupTransferRepo
+  private _duplicateRepo: IDupTransferRepo
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     logger.isInfoEnabled() && logger.info(`TransferCmdHandler::start - appConfig=${JSON.stringify(appConfig)}`)
-    // const repo: IEntityStateRepository<TransferState> = new InMemoryTransferStateRepo()
-    const stateRepo: ITransfersRepo = new RedisTransferStateRepo(appConfig.redis.host, logger, appConfig.redis.expirationInSeconds)
-    // https://hur.st/bloomfilter/?n=100000000&p=1.0E-7&m=&k=
-    const duplicateRepo: IDupTransferRepo = new RedisTransferDuplicateRepo(appConfig.duplicate.host, logger)
+
+    let stateRepo: ITransfersRepo
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating State repo of type ${appConfig.redis.type as string}`)
+    switch (appConfig.redis.type) {
+      case RepoInfraTypes.REDIS: {
+        stateRepo = new RedisTransferStateRepo(appConfig.redis.host, logger, appConfig.redis.expirationInSeconds)
+        break
+      }
+      case RepoInfraTypes.CACHEDREDIS: {
+        stateRepo = new CachedRedisTransferStateRepo(appConfig.redis.host, logger, appConfig.redis.expirationInSeconds)
+        break
+      }
+      default: { // defaulting to In-Memory
+        stateRepo = new InMemoryTransferStateRepo()
+      }
+    }
     this._stateRepo = stateRepo
     await stateRepo.init()
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created State repo of type ${stateRepo.constructor.name}`)
+
+    let duplicateRepo: IDupTransferRepo
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating Duplicate repo of type ${appConfig.duplicate.type as string}`)
+    switch (appConfig.duplicate.type) {
+      case RepoInfraTypes.REDIS: {
+        duplicateRepo = new RedisTransferDuplicateRepo(appConfig.duplicate.host, logger)
+        break
+      }
+      case RepoInfraTypes.CACHEDREDIS: {
+        duplicateRepo = new CachedRedisTransferDuplicateRepo(appConfig.duplicate.host, logger)
+        break
+      }
+      default: { // defaulting to In-Memory
+        duplicateRepo = new InMemoryTransferDuplicateRepo()
+      }
+    }
+    this._duplicateRepo = duplicateRepo
     await duplicateRepo.init()
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created Duplicate repo of type ${duplicateRepo.constructor.name}`)
 
     let kafkaMsgPublisher: IMessagePublisher | undefined
 

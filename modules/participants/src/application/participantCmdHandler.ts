@@ -64,6 +64,7 @@ import { RepoInfraTypes } from '../infrastructure'
 import { InMemoryParticipantStateRepo } from '../infrastructure/inmemory_participant_repo'
 import { RedisParticipantStateRepo } from '../infrastructure/redis_participant_repo'
 import { CachedRedisParticipantStateRepo } from '../infrastructure/cachedredis_participant_repo'
+import { CachedPersistedRedisParticipantStateRepo } from '../infrastructure/cachedpersistedredis_participant_repo'
 
 export class ParticipantCmdHandler implements IRunHandler {
   private _consumer: MessageConsumer
@@ -82,6 +83,10 @@ export class ParticipantCmdHandler implements IRunHandler {
       }
       case RepoInfraTypes.CACHEDREDIS: {
         repo = new CachedRedisParticipantStateRepo(appConfig.redis.host, logger)
+        break
+      }
+      case RepoInfraTypes.CACHEDPERSISTEDREDIS: {
+        repo = new CachedPersistedRedisParticipantStateRepo(appConfig.redis.host, logger)
         break
       }
       default: { // defaulting to In-Memory

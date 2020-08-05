@@ -51,7 +51,7 @@ import { ParticipantAccountTypes, ParticipantEndpoint } from '@mojaloop-poc/lib-
 *   stage as we expect a CQRS pattern to be used over this repo.
  */
 
-export class CachedRedisParticipantStateRepo implements IParticipantRepo {
+export class CachedPersistedRedisParticipantStateRepo implements IParticipantRepo {
   protected _redisClient!: redis.RedisClient
   private readonly _inMemorylist: Map<string, ParticipantState> = new Map<string, ParticipantState>()
   private readonly _redisConnStr: string
@@ -76,9 +76,9 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
         return resolve()
       })
 
-      this._redisClient.on('error', (error: Error) => {
-        this._logger.isErrorEnabled() && this._logger.error(error, 'A redis error has occurred:')
-        if (!this._initialized) { return reject(error) }
+      this._redisClient.on('error', (err) => {
+        this._logger.isErrorEnabled() && this._logger.error(err, 'A redis error has occurred:')
+        if (!this._initialized) { return reject(err) }
       })
     })
   }
@@ -157,37 +157,31 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
 
       const key: string = this.keyWithPrefix(entityState.id)
 
-      this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::store - storing ${entityState.id} in-memory only!`)
+      this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::store - storing ${entityState.id} in-memory only, AND redis as we have not seen this participant before!`)
 
-      if (!this._inMemorylist.has(key)) {
-        this._inMemorylist.set(key, entityState)
+      this._inMemorylist.set(key, entityState)
 
-        let stringValue: string | null = null
-        try {
-          stringValue = JSON.stringify(entityState)
-        } catch (err) {
-          this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
-        }
+      resolve()
 
-        if (stringValue === null) {
-          return resolve()
-        }
-
-        this._redisClient.set(key, stringValue, (err: Error | null, reply: string) => {
-          if (err != null) {
-            this._logger.isErrorEnabled() && this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
-            return reject(err)
-          }
-          if (reply !== 'OK') {
-            this._logger.isErrorEnabled() && this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
-            return reject(new Error('Unsuccessful attempt to store the entity state in redis - for key: ' + key))
-          }
-          return resolve()
-        })
-      } else {
-        this._inMemorylist.set(key, entityState)
-        return resolve()
+      let stringValue: string | null = null
+      try {
+        stringValue = JSON.stringify(entityState)
+      } catch (err) {
+        this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
       }
+
+      if (stringValue === null) {
+        return
+      }
+
+      this._redisClient.set(key, stringValue, (err: Error | null, reply: string) => {
+        if (err != null) {
+          this._logger.isErrorEnabled() && this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
+        }
+        if (reply !== 'OK') {
+          this._logger.isErrorEnabled() && this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
+        }
+      })
     })
   }
 
