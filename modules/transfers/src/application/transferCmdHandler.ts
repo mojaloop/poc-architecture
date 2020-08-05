@@ -58,6 +58,13 @@ import { RedisTransferStateRepo } from '../infrastructure/redis_transfer_repo'
 import { ITransfersRepo } from '../domain/transfers_repo'
 import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
 import { AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
+import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
+import { IDupTransferRepo } from '../domain/transfers_duplicate_repo'
+import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
+import { CachedRedisTransferStateRepo } from '../infrastructure/cachedredis_transfer_repo'
+import { RepoInfraTypes } from '../infrastructure'
+import { CachedRedisTransferDuplicateRepo } from '../infrastructure/cahcedredis_duplicate_repo'
+import { InMemoryTransferDuplicateRepo } from '../infrastructure/inmemory_duplicate_repo'
 
 export class TransferCmdHandler implements IRunHandler {
   private _logger: ILogger
@@ -72,10 +79,43 @@ export class TransferCmdHandler implements IRunHandler {
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     this._logger = logger
     this._logger.isInfoEnabled() && this._logger.info(`TransferCmdHandler::start - appConfig=${JSON.stringify(appConfig)}`)
+    let stateRepo: ITransfersRepo
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating State repo of type ${appConfig.redis.type as string}`)
+    switch (appConfig.redis.type) {
+      case RepoInfraTypes.REDIS: {
+        stateRepo = new RedisTransferStateRepo(appConfig.redis.host, logger, appConfig.redis.expirationInSeconds)
+        break
+      }
+      case RepoInfraTypes.CACHEDREDIS: {
+        stateRepo = new CachedRedisTransferStateRepo(appConfig.redis.host, logger, appConfig.redis.expirationInSeconds)
+        break
+      }
+      default: { // defaulting to In-Memory
+        stateRepo = new InMemoryTransferStateRepo()
+      }
+    }
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created State repo of type ${stateRepo.constructor.name}`)
+
+    let duplicateRepo: IDupTransferRepo
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating Duplicate repo of type ${appConfig.duplicate.type as string}`)
+    switch (appConfig.duplicate.type) {
+      case RepoInfraTypes.REDIS: {
+        duplicateRepo = new RedisTransferDuplicateRepo(appConfig.duplicate.host, logger)
+        break
+      }
+      case RepoInfraTypes.CACHEDREDIS: {
+        duplicateRepo = new CachedRedisTransferDuplicateRepo(appConfig.duplicate.host, logger)
+        break
+      }
+      default: { // defaulting to In-Memory
+        duplicateRepo = new InMemoryTransferDuplicateRepo()
+      }
+    }
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created Duplicate repo of type ${duplicateRepo.constructor.name}`)
 
     // TODO change to multiple redis host settings
-    this._stateCacheRepo = new RedisTransferStateRepo(appConfig.redis.host, this._logger, appConfig.redis.expirationInSeconds)
-    this._duplicateRepo = new RedisDuplicateRepo(appConfig.persisted_redis.host, 'transfers_duplicate', this._logger) // TODO move to config
+    this._stateCacheRepo = stateRepo // new RedisTransferStateRepo(appConfig.redis.host, this._logger, appConfig.redis.expirationInSeconds)
+    this._duplicateRepo = duplicateRepo // new duplicateRepoRedisDuplicateRepo(appConfig.persisted_redis.host, 'transfers_duplicate', this._logger) // TODO move to config
     this._eventSourcingRepo = new EventSourcingStateRepo(appConfig.persisted_redis.host, appConfig.kafka.host, 'Transfer', TransfersTopics.SnapshotEvents, TransfersTopics.StateEvents, this._logger)
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */

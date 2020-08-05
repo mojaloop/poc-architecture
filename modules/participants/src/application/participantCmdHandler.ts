@@ -51,6 +51,7 @@ import { CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'
 import { IParticipantRepo } from '../domain/participant_repo'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 import { CachedRedisParticipantStateRepo } from '../infrastructure/cachedredis_participant_repo'
+import { CachedPersistedRedisParticipantStateRepo } from '../infrastructure/cachedpersistedredis_participant_repo'
 
 export class ParticipantCmdHandler implements IRunHandler {
   private _logger: ILogger
@@ -66,10 +67,30 @@ export class ParticipantCmdHandler implements IRunHandler {
     this._logger = logger
     this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdHandler::start - appConfig=${JSON.stringify(appConfig)}`)
 
-    this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdHandler - Creating repo of type ${appConfig.repo.type as string}`)
+    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Creating repo of type ${appConfig.repo.type as string}`)
+    switch (appConfig.repo.type) {
+      case RepoInfraTypes.REDIS: {
+        repo = new RedisParticipantStateRepo(appConfig.redis.host, logger)
+        break
+      }
+      case RepoInfraTypes.CACHEDREDIS: {
+        repo = new CachedRedisParticipantStateRepo(appConfig.redis.host, logger)
+        break
+      }
+      case RepoInfraTypes.CACHEDPERSISTEDREDIS: {
+        repo = new CachedPersistedRedisParticipantStateRepo(appConfig.redis.host, logger)
+        break
+      }
+      default: { // defaulting to In-Memory
+        repo = new InMemoryParticipantStateRepo()
+      }
+    }
+    // const repo: IEntityStateRepository<ParticipantState> = new InMemoryParticipantStateRepo();
+    // const repo: IParticipantRepo = new RedisParticipantStateRepo(appConfig.redis.host, logger)
+    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Created repo of type ${repo.constructor.name}`)
 
     // TODO change to multiple redis host settings
-    this._stateCacheRepo = new CachedRedisParticipantStateRepo(appConfig.redis.host, logger)
+    this._stateCacheRepo = repo // new CachedRedisParticipantStateRepo(appConfig.redis.host, logger)
     this._duplicateRepo = new RedisDuplicateRepo(appConfig.persisted_redis.host, 'participants_duplicate', logger) // TODO move to config
     this._eventSourcingRepo = new EventSourcingStateRepo(appConfig.persisted_redis.host, appConfig.kafka.host, 'Participant', ParticipantsTopics.SnapshotEvents, ParticipantsTopics.StateEvents, logger)
 

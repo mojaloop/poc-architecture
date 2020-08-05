@@ -5,7 +5,7 @@ global: {}
 
 parameters:
   poc_architecture_image : &poc_architecture_image "mojaloop/poc-architecture"
-  poc_architecture_tag : &poc_architecture_tag "v0.39"
+  poc_architecture_tag : &poc_architecture_tag "v0.46"
   kafka_autocommit: &kafka_autocommit true
   kafka_producer_gzip: &kafka_producer_gzip true
   kafka_replicas: &kafka_replicas 1
@@ -13,8 +13,12 @@ parameters:
   kafka_consumer: &kafka_consumer node-rdkafka
   # Supported producers: kafkajs, node-kafka, node-rdkafka
   kafka_producer: &kafka_producer node-rdkafka
+  # Supported repo Types: memory, redis, cachedredis, cachedpersistedredis
+  participants_repo_type: &participants_repo_type cachedpersistedredis
   # Supported repo Types: memory, redis, cachedredis
-  participants_repo_type: &participants_repo_type cachedredis
+  transfers_repo_type: &transfers_repo_type redis
+  # Supported repo Types: memory, redis, cachedredis
+  duplicate_repo_type: &duplicate_repo_type redis
   redis_expiration_in_sec: &redis_expiration_in_sec 1800
 
 
@@ -42,9 +46,13 @@ jobs:
       simulator_host: '$release_name-legacy-simulator'
       uv_threadpool_size: 7
       redis_host: 'redis://$release_name-redis-master:6379'
-      redis_duplicate_host: 'redis://$release_name-redis-master:6379'
-      # Supported repo Types: memory, redis, cachedredis
+      redis_persisted_host: 'redis://$release_name-redis-master:6379'
+      # Supported repo Types: memory, redis, cachedredis, cachedpersistedredis
       participants_repo_type: *participants_repo_type
+      # Supported repo Types: memory, redis, cachedredis
+      transfers_repo_type: *transfers_repo_type
+      # Supported repo Types: memory, redis, cachedredis
+      duplicate_repo_type: *duplicate_repo_type
       log_level: info
       log_filter: 'error, warn, info, debug'
 
@@ -1194,9 +1202,9 @@ redis-transfers:
     ##
     create: false
 
-redis-transfers-dup:
+redis-participants:
   enabled: true
-  nameOverride: redis-transfers-dup
+  nameOverride: redis-participants
   image:
     repository: bitnami/redis
     ## ref: https://github.com/bitnami/bitnami-docker-redis#supported-tags-and-respective-dockerfile-links
@@ -1595,9 +1603,9 @@ redis-transfers-dup:
     ##
     create: false
 
-redis-participants:
+redis-persisted:
   enabled: true
-  nameOverride: redis-participants
+  nameOverride: redis-persisted
   image:
     repository: bitnami/redis
     ## ref: https://github.com/bitnami/bitnami-docker-redis#supported-tags-and-respective-dockerfile-links
@@ -2028,9 +2036,13 @@ participants:
     uv_threadpool_size: 7
     # redis_host: 'redis://$release_name-redis-master:6379'
     redis_host: 'redis://$release_name-redis-participants-master:6379'
-    redis_duplicate_host: 'redis://$release_name-redis-master:6379'
-    # Supported repo Types: memory, redis, cachedredis
+    redis_persisted_host: 'redis://$release_name-redis-master:6379'
+    # Supported repo Types: memory, redis, cachedredis, cachedpersistedredis
     participants_repo_type: *participants_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    transfers_repo_type: *transfers_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    duplicate_repo_type: *duplicate_repo_type
     log_level: info
     log_filter: 'error, warn, info, debug'
 
@@ -2105,9 +2117,13 @@ transfers:
     # redis_host: 'redis://$release_name-redis-master:6379'
     redis_host: 'redis://$release_name-redis-transfers-master:6379'
     redis_expiration_in_sec: *redis_expiration_in_sec
-    redis_duplicate_host: 'redis://$release_name-redis-master:6379'
-    # Supported repo Types: memory, redis, cachedredis
+    redis_persisted_host: 'redis://$release_name-redis-master:6379'
+    # Supported repo Types: memory, redis, cachedredis, cachedpersistedredis
     participants_repo_type: *participants_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    transfers_repo_type: *transfers_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    duplicate_repo_type: *duplicate_repo_type
     log_level: info
     log_filter: 'error, warn, info, debug'
 
@@ -2174,9 +2190,13 @@ simulator-dev-tool:
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
     redis_host: 'redis://$release_name-redis-master:6379'
-    redis_duplicate_host: 'redis://$release_name-redis-master:6379'
-    # Supported repo Types: memory, redis, cachedredis
+    redis_persisted_host: 'redis://$release_name-redis-master:6379'
+    # Supported repo Types: memory, redis, cachedredis, cachedpersistedredis
     participants_repo_type: *participants_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    transfers_repo_type: *transfers_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    duplicate_repo_type: *duplicate_repo_type
     log_level: info
     log_filter: 'error, warn, info, debug'
 
@@ -2245,9 +2265,13 @@ simulator-metrics-exporter:
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
     redis_host: 'redis://$release_name-redis-master:6379'
-    redis_duplicate_host: 'redis://$release_name-redis-master:6379'
-    # Supported repo Types: memory, redis, cachedredis
+    redis_persisted_host: 'redis://$release_name-redis-master:6379'
+    # Supported repo Types: memory, redis, cachedredis, cachedpersistedredis
     participants_repo_type: *participants_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    transfers_repo_type: *transfers_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    duplicate_repo_type: *duplicate_repo_type
     log_level: info
     log_filter: 'error, warn, info, debug'
 
@@ -2690,9 +2714,13 @@ devtoolclient:
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
     redis_host: 'redis://$release_name-redis-master:6379'
-    redis_duplicate_host: 'redis://$release_name-redis-master:6379'
-    # Supported repo Types: memory, redis, cachedredis
+    redis_persisted_host: 'redis://$release_name-redis-master:6379'
+    # Supported repo Types: memory, redis, cachedredis, cachedpersistedredis
     participants_repo_type: *participants_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    transfers_repo_type: *transfers_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    duplicate_repo_type: *duplicate_repo_type
     log_level: info
     log_filter: 'error, warn, info, debug'
 

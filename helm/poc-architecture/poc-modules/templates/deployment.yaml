@@ -1,6 +1,6 @@
 {{- $kafkaHost := ( .Values.config.kafka_host | replace "$release_name" .Release.Name ) -}}
 {{- $redisHost := ( .Values.config.redis_host | replace "$release_name" .Release.Name ) -}}
-{{- $redisDuplicateHost := ( .Values.config.redis_duplicate_host | replace "$release_name" .Release.Name ) -}}
+{{- $redisDuplicateHost := ( .Values.config.redis_persisted_host | replace "$release_name" .Release.Name ) -}}
 {{- $simulatorHost := ( .Values.config.simulator_host | replace "$release_name" .Release.Name ) -}}
 apiVersion: {{ template "poc-modules.apiVersion.Deployment" . }}
 kind: Deployment
@@ -112,6 +112,10 @@ spec:
               value: {{ $simulatorHost | quote }}
             - name: PARTICIPANTS_REPO_TYPE
               value: {{ .Values.config.participants_repo_type | quote }}
+            - name: TRANSFERS_REPO_TYPE
+              value: {{ .Values.config.transfers_repo_type | quote }}
+            - name: DUPLICATE_REPO_TYPE
+              value: {{ .Values.config.duplicate_repo_type | quote }}
             - name: KAFKA_CONSUMER
               value: {{ .Values.config.kafka_consumer | quote }}
             - name: KAFKA_PRODUCER

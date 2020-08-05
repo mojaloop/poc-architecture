@@ -38,15 +38,16 @@
 'use strict'
 
 import * as redis from 'redis'
-import { ILogger, IEntityDuplicateRepository } from '@mojaloop-poc/lib-domain'
+import { ILogger } from '@mojaloop-poc/lib-domain'
 import { IDupTransferRepo } from '../domain/transfers_duplicate_repo'
 
-export class RedisTransferDuplicateRepo implements IDupTransferRepo, IEntityDuplicateRepository {
+export class CachedRedisTransferDuplicateRepo implements IDupTransferRepo {
   protected _redisClient!: redis.RedisClient
   private readonly _redisConnStr: string
   private readonly _logger: ILogger
   private _initialized: boolean = false
   private readonly _setKey: string = 'transfers_duplicate'
+  private readonly _inMemorySet: Set<string> = new Set<string>()
 
   constructor (connStr: string, logger: ILogger) {
     this._redisConnStr = connStr
@@ -74,56 +75,77 @@ export class RedisTransferDuplicateRepo implements IDupTransferRepo, IEntityDupl
   async add (id: string): Promise<boolean> {
     return await new Promise((resolve, reject) => {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
-      this._redisClient.sadd(this._setKey, id, (err: Error | null, result: number) => {
-        if (err != null) {
-          this._logger.isErrorEnabled() && this._logger.error(err, `Error storing '${id}' for set to redis: ${this._setKey}`)
-          return reject(err)
-        }
-        if (result === 1) {
-          return resolve(true)
-        } else {
-          return resolve(false)
-        }
-      })
+
+      if (this._inMemorySet.has(id)) {
+        return resolve(false)
+      }
+
+      this._inMemorySet.add(id)
+      return resolve(true)
+
+      /// / This is handled by the "CachedPersistedRedisTransferDuplicateRepo" (which does not exist at the moment) as this is purely an In-Memory processing store with just the initial transfers being loaded from Redis to ensure the intitial consistency on load/startup
+      // resolve()
+
+      // if (id === null) {
+      //   return
+      // }
+
+      // this._redisClient.sadd(this._setKey, id, (err: Error | null, result: number) => {
+      //   if (err != null) {
+      //     this._logger.isErrorEnabled() && this._logger.error(err, `Error storing '${id}' for set to redis: ${this._setKey}`)
+      //     return reject(err)
+      //   }
+      //   if (result === 1) {
+      //     return resolve(true)
+      //   } else {
+      //     return resolve(false)
+      //   }
+      // })
     })
   }
 
   async exists (id: string): Promise<boolean> {
     return await new Promise((resolve, reject) => {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
-      this._redisClient.sismember(this._setKey, id, (err: Error | null, result: number) => {
-        if (err != null) {
-          this._logger.isErrorEnabled() && this._logger.error(err, `Error checking '${id}' for set to redis: ${this._setKey}`)
-          return reject(err)
-        }
-        if (result === 1) {
-          return resolve(true)
-        } else {
-          return resolve(false)
-        }
-      })
+      if (this._inMemorySet.has(id)) {
+        return resolve(true)
+      } else {
+        this._redisClient.sismember(this._setKey, id, (err: Error | null, result: number) => {
+          if (err != null) {
+            this._logger.isErrorEnabled() && this._logger.error(err, `Error checking '${id}' for set to redis: ${this._setKey}`)
+            return reject(err)
+          }
+          if (result === 1) {
+            return resolve(true)
+          } else {
+            return resolve(false)
+          }
+        })
+      }
     })
   }
 
   async remove (id: string): Promise<boolean> {
     return await new Promise((resolve, reject) => {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
+      let inMemoryResult = false
+      if (this._inMemorySet.has(id)) {
+        this._inMemorySet.delete(id)
+        inMemoryResult = true
+      }
+
       this._redisClient.srem(this._setKey, id, (err: Error | null, result: number) => {
         if (err != null) {
           this._logger.isErrorEnabled() && this._logger.error(err, `Error removing '${id}' from set to redis: ${this._setKey}`)
           return reject(err)
         }
         if (result === 1) {
-          return resolve(true)
+          return resolve(inMemoryResult && true)
         } else {
           return resolve(false)
         }
       })
     })
-  }
-
-  async getAll (): Promise<string[]> {
-    throw new Error('Not implemented - should not be calling RedisTransferDuplicateRepo.getAll() for transfers')
   }
 
   async destroy (): Promise<void> {

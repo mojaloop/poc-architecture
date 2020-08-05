@@ -39,29 +39,22 @@
 
 import * as redis from 'redis'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { ParticipantState } from '../domain/participant_entity'
-import { IParticipantRepo } from '../domain/participant_repo'
-import { ParticipantAccountTypes, ParticipantEndpoint } from '@mojaloop-poc/lib-public-messages'
+import { TransferState } from '../domain/transfer_entity'
+import { ITransfersRepo } from '../domain/transfers_repo'
 
-/***
- * TODO:
-* - Store currently only stores ParticipantState if it was not found in the `_inMemorylist`. /
-*   This should be fixed in future to ensure that there consistency between the in-memory cache and redis. /
-*   However this is easier said than done, and needs some thinking. This is however not a concern at this /
-*   stage as we expect a CQRS pattern to be used over this repo.
- */
-
-export class CachedRedisParticipantStateRepo implements IParticipantRepo {
+export class CachedRedisTransferStateRepo implements ITransfersRepo {
   protected _redisClient!: redis.RedisClient
-  private readonly _inMemorylist: Map<string, ParticipantState> = new Map<string, ParticipantState>()
   private readonly _redisConnStr: string
   private readonly _logger: ILogger
   private _initialized: boolean = false
-  private readonly keyPrefix: string = 'participant_'
+  private readonly keyPrefix: string = 'transfer_'
+  private readonly _expirationInSeconds: number
+  private readonly _inMemorylist: Map<string, TransferState> = new Map<string, TransferState>()
 
-  constructor (connStr: string, logger: ILogger) {
+  constructor (connStr: string, logger: ILogger, expirationInSeconds: number = -1) {
     this._redisConnStr = connStr
     this._logger = logger
+    this._expirationInSeconds = expirationInSeconds
   }
 
   async init (): Promise<void> {
@@ -76,9 +69,9 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
         return resolve()
       })
 
-      this._redisClient.on('error', (error: Error) => {
-        this._logger.isErrorEnabled() && this._logger.error(error, 'A redis error has occurred:')
-        if (!this._initialized) { return reject(error) }
+      this._redisClient.on('error', (err: Error) => {
+        this._logger.isErrorEnabled() && this._logger.error(err, 'A redis error has occurred:')
+        if (!this._initialized) { return reject(err) }
       })
     })
   }
@@ -93,7 +86,7 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
     return this._initialized // for now, no circuit breaker exists
   }
 
-  async load (id: string): Promise<ParticipantState|null> {
+  async load (id: string): Promise<TransferState|null> {
     return await new Promise((resolve, reject) => {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
 
@@ -113,7 +106,7 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
           return resolve(null)
         }
         try {
-          const state: ParticipantState = JSON.parse(result)
+          const state: TransferState = JSON.parse(result)
 
           this._inMemorylist.set(key, state)
 
@@ -151,7 +144,7 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
     })
   }
 
-  async store (entityState: ParticipantState): Promise<void> {
+  async store (entityState: TransferState): Promise<void> {
     return await new Promise((resolve, reject) => {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
 
@@ -159,49 +152,38 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
 
       this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::store - storing ${entityState.id} in-memory only!`)
 
-      if (!this._inMemorylist.has(key)) {
-        this._inMemorylist.set(key, entityState)
+      this._inMemorylist.set(key, entityState)
 
-        let stringValue: string | null = null
-        try {
-          stringValue = JSON.stringify(entityState)
-        } catch (err) {
-          this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
-        }
+      // # This is handled by the "CachedPersistedRedisTransferStateRepo" (which does not exist at the moment) as this is purely an In-Memory processing store with just the initial transfers being loaded from Redis to ensure the intitial consistency on load/startup
+      resolve()
 
-        if (stringValue === null) {
-          return resolve()
-        }
+      // let stringValue: string
+      // try {
+      //   stringValue = JSON.stringify(entityState)
+      // } catch (err) {
+      //   this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
+      //   return reject(err)
+      // }
 
-        this._redisClient.set(key, stringValue, (err: Error | null, reply: string) => {
-          if (err != null) {
-            this._logger.isErrorEnabled() && this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
-            return reject(err)
-          }
-          if (reply !== 'OK') {
-            this._logger.isErrorEnabled() && this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
-            return reject(new Error('Unsuccessful attempt to store the entity state in redis - for key: ' + key))
-          }
-          return resolve()
-        })
-      } else {
-        this._inMemorylist.set(key, entityState)
-        return resolve()
-      }
+      // if (stringValue === null) {
+      //   return
+      // }
+
+      // this._redisClient.setex(key, this._expirationInSeconds, stringValue, (err: Error | null, reply: string) => {
+      //   if (err != null) {
+      //     this._logger.isErrorEnabled() && this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
+      //     return reject(err)
+      //   }
+      //   if (reply !== 'OK') {
+      //     this._logger.isErrorEnabled() && this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
+      //     return reject(err)
+      //   }
+      //   return resolve()
+      // })
     })
   }
 
   private keyWithPrefix (key: string): string {
     return this.keyPrefix + key
-  }
-
-  async hasAccount (participantId: string, accType: ParticipantAccountTypes, currency: string): Promise<boolean> {
-    const participant = await this.load(participantId)
-    return participant?.accounts?.find(account => account.type === accType && account.currency === currency) != null
-  }
-
-  async getEndPoints (participantId: string): Promise<ParticipantEndpoint[]|undefined> {
-    const participant = await this.load(participantId)
-    return participant?.endpoints
   }
 }
