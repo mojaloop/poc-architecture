@@ -68,7 +68,7 @@ export class RedisTransferStateRepo implements ITransfersRepo {
         return resolve()
       })
 
-      this._redisClient.on('error', (err) => {
+      this._redisClient.on('error', (err: Error) => {
         this._logger.isErrorEnabled() && this._logger.error(err, 'A redis error has occurred:')
         if (!this._initialized) { return reject(err) }
       })
