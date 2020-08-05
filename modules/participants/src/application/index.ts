@@ -122,7 +122,7 @@ Program.command('handler')
     const runHandlerList: IRunHandler[] = []
 
     // start all handlers here
-    if (args.participantsEvtHandler == null && args.participantsCmdHandler == null) {
+    if (args.participantsEvt == null && args.participantsCmd == null) {
       const participantEvtHandler = new ParticipantEvtHandler()
       await participantEvtHandler.start(appConfig, logger, metrics)
       runHandlerList.push(participantEvtHandler)
@@ -133,14 +133,14 @@ Program.command('handler')
     }
 
     // start only participantsEvtHandler
-    if (args.participantsEvtHandler != null) {
+    if (args.participantsEvt != null) {
       const participantEvtHandler = new ParticipantEvtHandler()
       await participantEvtHandler.start(appConfig, logger, metrics)
       runHandlerList.push(participantEvtHandler)
     }
 
     // start only participantsCmdHandler
-    if (args.participantsCmdHandler != null) {
+    if (args.participantsCmd != null) {
       const participantCmdHandler = new ParticipantCmdHandler()
       await participantCmdHandler.start(appConfig, logger, metrics)
       runHandlerList.push(participantCmdHandler)
