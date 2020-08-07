@@ -6,17 +6,37 @@ dependencies:
   repository: "file://../ml-api-adapter"
   condition: ml-api-adapter.enabled
 # Transfers Handlers
+# - name: poc-modules
+#   alias: transfers
+#   version: 0.1.0
+#   repository: "file://./poc-modules"
+#   condition: transfers.enabled
 - name: poc-modules
-  alias: transfers
+  alias: transfers-evt
   version: 0.1.0
   repository: "file://./poc-modules"
-  condition: transfers.enabled
+  condition: transfers-evt.enabled
+- name: poc-modules
+  alias: transfers-cmd
+  version: 0.1.0
+  repository: "file://./poc-modules"
+  condition: transfers-cmd.enabled
 # Participant Handlers
+# - name: poc-modules
+#   alias: participants
+#   version: 0.1.0
+#   repository: "file://./poc-modules"
+#   condition: participants.enabled
 - name: poc-modules
-  alias: participants
+  alias: participants-evt
   version: 0.1.0
   repository: "file://./poc-modules"
-  condition: participants.enabled
+  condition: participants-evt.enabled
+- name: poc-modules
+  alias: participants-cmd
+  version: 0.1.0
+  repository: "file://./poc-modules"
+  condition: participants-cmd.enabled
 # Devtools (simulators, publishers, etc)
 - name: poc-modules
   alias: simulator-dev-tool
