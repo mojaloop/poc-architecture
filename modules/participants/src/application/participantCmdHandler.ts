@@ -52,6 +52,9 @@ import { IParticipantRepo } from '../domain/participant_repo'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 import { CachedRedisParticipantStateRepo } from '../infrastructure/cachedredis_participant_repo'
 import { CachedPersistedRedisParticipantStateRepo } from '../infrastructure/cachedpersistedredis_participant_repo'
+import { RepoInfraTypes } from '../infrastructure'
+import { RedisParticipantStateRepo } from '../infrastructure/redis_participant_repo'
+import { InMemoryParticipantStateRepo } from '../infrastructure/inmemory_participant_repo'
 
 export class ParticipantCmdHandler implements IRunHandler {
   private _logger: ILogger
@@ -67,32 +70,49 @@ export class ParticipantCmdHandler implements IRunHandler {
     this._logger = logger
     this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdHandler::start - appConfig=${JSON.stringify(appConfig)}`)
 
-    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Creating repo of type ${appConfig.repo.type as string}`)
-    switch (appConfig.repo.type) {
+    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Creating Statecache-repo of type ${appConfig.state_cache.type as string}`)
+    switch (appConfig.state_cache.type) {
       case RepoInfraTypes.REDIS: {
-        repo = new RedisParticipantStateRepo(appConfig.redis.host, logger)
+        this._stateCacheRepo = new RedisParticipantStateRepo(appConfig.state_cache.host, logger)
         break
       }
       case RepoInfraTypes.CACHEDREDIS: {
-        repo = new CachedRedisParticipantStateRepo(appConfig.redis.host, logger)
+        this._stateCacheRepo = new CachedRedisParticipantStateRepo(appConfig.state_cache.host, logger)
         break
       }
       case RepoInfraTypes.CACHEDPERSISTEDREDIS: {
-        repo = new CachedPersistedRedisParticipantStateRepo(appConfig.redis.host, logger)
+        this._stateCacheRepo = new CachedPersistedRedisParticipantStateRepo(appConfig.state_cache.host, logger)
         break
       }
       default: { // defaulting to In-Memory
-        repo = new InMemoryParticipantStateRepo()
+        this._stateCacheRepo = new InMemoryParticipantStateRepo()
       }
     }
-    // const repo: IEntityStateRepository<ParticipantState> = new InMemoryParticipantStateRepo();
-    // const repo: IParticipantRepo = new RedisParticipantStateRepo(appConfig.redis.host, logger)
-    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Created repo of type ${repo.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Created Statecache-repo of type ${this._stateCacheRepo.constructor.name}`)
 
-    // TODO change to multiple redis host settings
-    this._stateCacheRepo = repo // new CachedRedisParticipantStateRepo(appConfig.redis.host, logger)
-    this._duplicateRepo = new RedisDuplicateRepo(appConfig.persisted_redis.host, 'participants_duplicate', logger) // TODO move to config
-    this._eventSourcingRepo = new EventSourcingStateRepo(appConfig.persisted_redis.host, appConfig.kafka.host, 'Participant', ParticipantsTopics.SnapshotEvents, ParticipantsTopics.StateEvents, logger)
+    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Creating Duplicate-repo of type ${appConfig.duplicate_store.type as string}`)
+    switch (appConfig.duplicate_store.type) {
+      case RepoInfraTypes.REDIS: {
+        this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, 'participants_duplicate', logger) // TODO move to config
+        break
+      }
+      default: {
+        this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, 'participants_duplicate', logger) // TODO move to config
+      }
+    }
+    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Created Duplicate-repo of type ${this._duplicateRepo.constructor.name}`)
+
+    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Creating Eventsourcing-repo of type ${appConfig.state_cache.type as string}`)
+    switch (appConfig.state_cache.type) {
+      case RepoInfraTypes.REDIS: {
+        this._eventSourcingRepo = new EventSourcingStateRepo(appConfig.state_cache.host, appConfig.kafka.host, 'Participant', ParticipantsTopics.SnapshotEvents, ParticipantsTopics.StateEvents, logger)
+        break
+      }
+      default: {
+        this._eventSourcingRepo = new EventSourcingStateRepo(appConfig.state_cache.host, appConfig.kafka.host, 'Participant', ParticipantsTopics.SnapshotEvents, ParticipantsTopics.StateEvents, logger)
+      }
+    }
+    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Created Eventsourcing-repo of type ${this._eventSourcingRepo.constructor.name}`)
 
     this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdHandler - Creating ${appConfig.kafka.producer as string} participantCmdHandler.kafkaMsgPublisher...`)
     let clientId = `participantCmdHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`

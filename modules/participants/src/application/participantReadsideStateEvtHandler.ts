@@ -60,7 +60,7 @@ export class ParticipantReadsideStateEvtHandler implements IRunHandler {
     this._clientId = `participantReadsideStateEvtHandler-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
 
     this._logger.isInfoEnabled() && this._logger.info(`ParticipantReadsideStateEvtHandler - Creating repo of type ${MongoDbReadsideParticipantRepo.constructor.name}`)
-    this._readSideRepo = new MongoDbReadsideParticipantRepo(appConfig.readside_mongo.uri, logger)
+    this._readSideRepo = new MongoDbReadsideParticipantRepo(appConfig.readside_store.uri, logger)
     await this._readSideRepo.init()
 
     this._logger.isInfoEnabled() && this._logger.info(`ParticipantReadsideStateEvtHandler - Created repo of type ${this._readSideRepo.constructor.name}`)

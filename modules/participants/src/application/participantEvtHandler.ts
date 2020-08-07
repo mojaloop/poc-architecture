@@ -71,14 +71,14 @@ export class ParticipantEvtHandler implements IRunHandler {
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler::start - appConfig=${JSON.stringify(appConfig)}`)
 
-    logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Creating repo of type ${CachedRedisParticipantStateRepo.name}`)
+    logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Creating Statecache of type ${CachedRedisParticipantStateRepo.name}`)
 
-    const repo: IParticipantRepo = new CachedRedisParticipantStateRepo(appConfig.redis.host, logger)
+    const repo: IParticipantRepo = new CachedRedisParticipantStateRepo(appConfig.state_cache.host, logger)
 
     this._repo = repo
     await repo.init()
 
-    logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Created repo of type ${repo.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Created Statecache of type ${repo.constructor.name}`)
 
     let kafkaMsgPublisher: IMessagePublisher | undefined
 

@@ -95,9 +95,9 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
     }
 
     return await handler.call(this, stateEvent, replayed).then(async () => {
-      this._logger.info(`Aggregate successfully applied state event: ${stateEvent.msgName}`)
+      this._logger.info(`Aggregate successfully applied state event @ ${stateEvent.msgOffset} - id: ${stateEvent.msgId}, name: ${stateEvent.msgName}`)
     }).catch(async (err: any) => {
-      this._logger.error(err, `Aggregate error trying to apply state event: ${stateEvent.msgName}`)
+      this._logger.error(err, `Aggregate error trying to apply state event @ ${stateEvent.msgOffset} - id: ${stateEvent.msgId}, name: ${stateEvent.msgName}`)
       throw err
     })
   }

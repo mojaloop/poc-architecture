@@ -82,9 +82,6 @@ Program.command('handler')
         host: (process.env.PARTICIPANTS_API_HOST != null) ? process.env.PARTICIPANTS_API_HOST : '0.0.0.0',
         port: (process.env.PARTICIPANTS_API_PORT != null && !isNaN(Number(process.env.PARTICIPANTS_API_PORT)) && process.env.PARTICIPANTS_API_PORT?.trim()?.length > 0) ? Number.parseInt(process.env.PARTICIPANTS_API_PORT) : 3003
       },
-      repo: {
-        type: (process.env.PARTICIPANTS_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.PARTICIPANTS_REPO_TYPE
-      },
       kafka: {
         host: (process.env.KAFKA_HOST != null) ? process.env.KAFKA_HOST : 'localhost:9092',
         consumer: (process.env.KAFKA_CONSUMER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_CONSUMER,
@@ -97,13 +94,15 @@ Program.command('handler')
         fetchMinBytes: (process.env.KAFKA_FETCH_MIN_BYTES != null && !isNaN(Number(process.env.KAFKA_FETCH_MIN_BYTES)) && process.env.KAFKA_FETCH_MIN_BYTES?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_MIN_BYTES) : 1,
         fetchWaitMaxMs: (process.env.KAFKA_FETCH_WAIT_MAX_MS != null && !isNaN(Number(process.env.KAFKA_FETCH_WAIT_MAX_MS)) && process.env.KAFKA_FETCH_WAIT_MAX_MS?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_WAIT_MAX_MS) : 100
       },
-      redis: {
+      state_cache: {
+        type: (process.env.PARTICIPANTS_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.PARTICIPANTS_REPO_TYPE,
         host: process.env.REDIS_HOST
       },
-      persisted_redis: {
+      duplicate_store: {
+        type: (process.env.DUPLICATE_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.DUPLICATE_REPO_TYPE,
         host: getEnvValueOrDefault('REDIS_DUPL_HOST', 'redis://localhost:6379') as string
       },
-      readside_mongo: {
+      readside_store: {
         uri: getEnvValueOrDefault('PARTICIPANTS_READSIDE_MONGO_DB_HOST', 'mongodb://localhost:27017/') as string
       }
     }

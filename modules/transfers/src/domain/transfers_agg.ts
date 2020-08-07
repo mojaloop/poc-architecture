@@ -42,9 +42,9 @@ export class TransfersAgg extends BaseEventSourcingAggregate<TransferEntity, Tra
   async processPrepareTransferCommand (commandMsg: PrepareTransferCmd): Promise<TCommandResult> {
     // try loading first to detect duplicates
 
-    const duplicate: boolean = await this._entityDuplicateRepo.exists(commandMsg.payload.transferId)
+    const isNotDuplicate: boolean = await this._entityDuplicateRepo.add(commandMsg.payload.transferId)
 
-    if (duplicate) {
+    if (!isNotDuplicate) {
       this.recordDomainEvent(new DuplicateTransferDetectedEvt(commandMsg.payload.transferId))
       return { success: false, stateEvent: null }
     }
