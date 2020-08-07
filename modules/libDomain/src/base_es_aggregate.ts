@@ -96,10 +96,10 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
 
     return await handler.call(this, stateEvent, replayed).then(async () => {
       /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-      this._logger.info(`Aggregate successfully applied state event @ ${stateEvent.msgOffset} - id: ${stateEvent.msgId}, name: ${stateEvent.msgName}`)
+      this._logger.isInfoEnabled() && this._logger.info(`Aggregate successfully applied state event @ ${stateEvent.msgOffset} - id: ${stateEvent.msgId}, name: ${stateEvent.msgName}`)
     }).catch(async (err: any) => {
       /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-      this._logger.error(err, `Aggregate error trying to apply state event @ ${stateEvent.msgOffset} - id: ${stateEvent.msgId}, name: ${stateEvent.msgName}`)
+      this._logger.isErrorEnabled() && this._logger.error(err, `Aggregate error trying to apply state event @ ${stateEvent.msgOffset} - id: ${stateEvent.msgId}, name: ${stateEvent.msgName}`)
       throw err
     })
   }
@@ -139,14 +139,14 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
 
     if (entityState != null) {
       this._rootEntity = this._entity_factory.createFromState(entityState)
-      this._logger.debug(`Aggregate with id: ${aggregateId} loaded from cache - took: ${now('micro') - startTimeMicroSecs} microseconds`)
+      this._logger.isDebugEnabled() && this._logger.debug(`Aggregate with id: ${aggregateId} loaded from cache - took: ${now('micro') - startTimeMicroSecs} microseconds`)
       return
     }
 
     const esState: TESourcingState| null = await this._esRepo.load(aggregateId)
 
     if ((esState === null || (esState.snapshot === null && esState.events === null)) && throwOnNotFound) {
-      this._logger.debug(`Aggregate with id: ${aggregateId} not found - took: ${now('micro') - startTimeMicroSecs} microseconds`)
+      this._logger.isDebugEnabled() && this._logger.debug(`Aggregate with id: ${aggregateId} not found - took: ${now('micro') - startTimeMicroSecs} microseconds`)
       throw new Error('Aggregate not found') // TODO typify these errors
     }
 
@@ -170,9 +170,9 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
         })
       }
 
-      this._logger.debug(`Aggregate with id: ${aggregateId} loaded from the event stream - took: ${now('micro') - startTimeMicroSecs} microseconds`)
+      this._logger.isDebugEnabled() && this._logger.debug(`Aggregate with id: ${aggregateId} loaded from the event stream - took: ${now('micro') - startTimeMicroSecs} microseconds`)
     } else if (throwOnNotFound) {
-      this._logger.debug(`Aggregate with id: ${aggregateId} not found - took: ${now('micro') - startTimeMicroSecs} microseconds`)
+      this._logger.isDebugEnabled() && this._logger.debug(`Aggregate with id: ${aggregateId} not found - took: ${now('micro') - startTimeMicroSecs} microseconds`)
       throw new Error('Aggregate not found') // TODO typify these errors
     }
   }
@@ -183,7 +183,7 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
 
   protected async commitEvents (stateEvent: StateEventMsg | null): Promise<void> {
     if (this._uncommittedDomainEvents.length <= 0 && stateEvent === null) {
-      this._logger.warn('Called aggregate commit without uncommitted events to commit')
+      this._logger.isWarnEnabled() && this._logger.warn('Called aggregate commit without uncommitted events to commit')
       return
     }
 
@@ -198,12 +198,12 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
     const eventNames = events.map(evt => evt.msgName)
 
     events.forEach(evt => {
-      this._logger.debug(`Committing name:'${evt.msgName}'; key:'${evt.msgKey}'; id:'${evt.msgId}'`)
+      this._logger.isDebugEnabled() && this._logger.debug(`Committing name:'${evt.msgName}'; key:'${evt.msgKey}'; id:'${evt.msgId}'`)
     })
 
     await this._msgPublisher.publishMany(events)
 
-    this._logger.debug(`Aggregate committed ${events.length} events - ${JSON.stringify(eventNames)}`)
+    this._logger.isDebugEnabled() && this._logger.debug(`Aggregate committed ${events.length} events - ${JSON.stringify(eventNames)}`)
 
     this._uncommittedDomainEvents = []
   }
@@ -230,12 +230,12 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
       if (!result.success) {
         // commit only domain events
         await this.commitEvents(null)
-        this._logger.info(`Command '${commandMsg.msgName}' execution failed`)
+        this._logger.isInfoEnabled() && this._logger.info(`Command '${commandMsg.msgName}' execution failed`)
         return false
       }
 
       if (result.stateEvent === null || result.stateEvent === undefined) {
-        this._logger.warn(`Command '${commandMsg.msgName}' execution was successful but no state event was returned`)
+        this._logger.isWarnEnabled() && this._logger.warn(`Command '${commandMsg.msgName}' execution was successful but no state event was returned`)
       }
 
       await this.commitEvents(result.stateEvent) // send out the unpublished events regardless
@@ -244,7 +244,7 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
         process.nextTick(async () => {
           // @ts-expect-error
           await this._entity_cache_repo.store(this._rootEntity.exportState())
-          this._logger.info(`Aggregate state persisted to repository at the end of command: ${commandMsg.msgName}`)
+          this._logger.isInfoEnabled() && this._logger.info(`Aggregate state persisted to repository at the end of command: ${commandMsg.msgName}`)
         })
       } else {
         throw new Error(`Aggregate doesn't have a valid state after processing command with name ${commandMsg.msgName}`)
@@ -254,7 +254,7 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
       return true
     }).catch(async (err: any) => {
       await this.commitEvents(null) // we still send out the unpublished domain events... but not state
-      this._logger.error(err, `Aggregate error trying to process command: ${commandMsg.msgName}`)
+      this._logger.isErrorEnabled() && this._logger.error(err, `Aggregate error trying to process command: ${commandMsg.msgName}`)
       throw err
     })
   }
