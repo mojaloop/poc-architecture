@@ -103,8 +103,8 @@ npm run start:transfers
 ## General TODO
 
 1. ~~Handle currencies with something that can handle arbitrary precision (or at a minimum big numbers, etc)~~
-2. Prometheus Metric Instrumentation & Dashboards - [#1417](https://github.com/mojaloop/project/issues/1417)
-3. Tracing Support - [#1417](https://github.com/mojaloop/project/issues/1417)
+2. ~~Prometheus Metric Instrumentation & Dashboards - [#1417](https://github.com/mojaloop/project/issues/1417)~~
+3. ~~Tracing Support - [#1417](https://github.com/mojaloop/project/issues/1417)~~
 4. Helm charts for deployment [#1434](https://github.com/mojaloop/project/issues/1434)
 5. Add support for currency specific ISO precision validations (validation as part of transfer handler or perhaps commands/events?)
 6. Non-inflight Long-term Persistent Storage for Reporting (contains full history of transfers, transfer-state-changes, position-state-changes, participants, etc)
