@@ -95,8 +95,10 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
     }
 
     return await handler.call(this, stateEvent, replayed).then(async () => {
+      /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
       this._logger.info(`Aggregate successfully applied state event @ ${stateEvent.msgOffset} - id: ${stateEvent.msgId}, name: ${stateEvent.msgName}`)
     }).catch(async (err: any) => {
+      /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
       this._logger.error(err, `Aggregate error trying to apply state event @ ${stateEvent.msgOffset} - id: ${stateEvent.msgId}, name: ${stateEvent.msgName}`)
       throw err
     })
