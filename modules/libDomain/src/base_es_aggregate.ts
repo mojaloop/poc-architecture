@@ -250,7 +250,7 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
         throw new Error(`Aggregate doesn't have a valid state after processing command with name ${commandMsg.msgName}`)
       }
 
-      this._logger.info(`Aggregate successfully processed command: ${commandMsg.msgName}`)
+      this._logger.isInfoEnabled() && this._logger.info(`Aggregate successfully processed command: ${commandMsg.msgName}`)
       return true
     }).catch(async (err: any) => {
       await this.commitEvents(null) // we still send out the unpublished domain events... but not state
