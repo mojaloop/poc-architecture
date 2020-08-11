@@ -92,12 +92,12 @@ Program.command('handler')
         fetchMinBytes: (process.env.KAFKA_FETCH_MIN_BYTES != null && !isNaN(Number(process.env.KAFKA_FETCH_MIN_BYTES)) && process.env.KAFKA_FETCH_MIN_BYTES?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_MIN_BYTES) : 1,
         fetchWaitMaxMs: (process.env.KAFKA_FETCH_WAIT_MAX_MS != null && !isNaN(Number(process.env.KAFKA_FETCH_WAIT_MAX_MS)) && process.env.KAFKA_FETCH_WAIT_MAX_MS?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_WAIT_MAX_MS) : 100
       },
-      redis: {
+      state_cache: {
         type: (process.env.TRANSFERS_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.TRANSFERS_REPO_TYPE,
         host: getEnvValueOrDefault('REDIS_HOST', 'redis://localhost:6379') as string,
         expirationInSeconds: getEnvIntegerOrDefault('REDIS_EXPIRATION_IN_SEC', -1) as number
       },
-      duplicate: {
+      duplicate_store: {
         type: (process.env.DUPLICATE_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.DUPLICATE_REPO_TYPE,
         host: getEnvValueOrDefault('REDIS_DUPL_HOST', 'redis://localhost:6379') as string
       }

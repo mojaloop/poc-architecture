@@ -37,12 +37,13 @@
 
 'use strict'
 
-// Exports for Utilities
-export * from './logger_console'
-export * from './logger_moja'
-export * from './crypto'
-export * from './crypto'
-export * from './metrics'
-export * from './env_tools'
-export * from './trace_tools'
-export * from './timeutils'
+export interface IEntityDuplicateRepository {
+  init: () => Promise<void>
+  destroy: () => Promise<void>
+  canCall: () => boolean // for circuit breaker
+
+  add: (entityId: string) => Promise<boolean>
+  exists: (entityId: string) => Promise<boolean>
+  remove: (entityId: string) => Promise<boolean>
+  getAll: () => Promise<string[]>
+}

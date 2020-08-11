@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-misused-promises */
 /*****
  License
  --------------
@@ -37,7 +38,7 @@
 
 'use strict'
 
-import { BaseAggregate, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
+import { BaseEventSourcingAggregate, IMessagePublisher, ILogger, TCommandResult, IESourcingStateRepository, IEntityDuplicateRepository } from '@mojaloop-poc/lib-domain'
 import { ParticipantEntity, ParticipantState, InvalidAccountError, InvalidLimitError, NetDebitCapLimitExceededError, ParticipantEndpointState, ParticipantAccountState, ParticipantLimitState } from './participant_entity'
 import { ParticipantsFactory } from './participants_factory'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
@@ -45,49 +46,51 @@ import { CreateParticipantCmd } from '../messages/create_participant_cmd'
 import { DuplicateParticipantDetectedEvt, InvalidParticipantEvt, PayerFundsReservedEvt, ParticipantCreatedEvt, NetCapLimitExceededEvt, PayeeFundsCommittedEvt, ParticipantAccountTypes, PayerFundsReservedEvtPayload, ParticipantEndpoint } from '@mojaloop-poc/lib-public-messages'
 import { IParticipantRepo } from './participant_repo'
 import { CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'
+import { ParticipantCreatedStateEvtPayload, ParticipantCreatedStateEvt } from '../messages/participant_created_stateevt'
+import { ParticipantPositionChangedStateEvtPayload, ParticipantPositionChangedStateEvt } from '../messages/participant_position_changed_stateevt'
 
-export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, ParticipantState> {
-  constructor (entityStateRepo: IParticipantRepo, msgPublisher: IMessagePublisher, logger: ILogger) {
-    super(ParticipantsFactory.GetInstance(), entityStateRepo, msgPublisher, logger)
+export class ParticpantsAgg extends BaseEventSourcingAggregate<ParticipantEntity, ParticipantState> {
+  constructor (entityStateCacheRepo: IParticipantRepo, entityDuplicateRepo: IEntityDuplicateRepository, esStateRepo: IESourcingStateRepository, msgPublisher: IMessagePublisher, logger: ILogger) {
+    super(ParticipantsFactory.GetInstance(), entityStateCacheRepo, entityDuplicateRepo, esStateRepo, msgPublisher, logger)
+
+    // register command handlers
     this._registerCommandHandler('CreateParticipantCmd', this.processCreateParticipantCommand)
     this._registerCommandHandler('ReservePayerFundsCmd', this.processReserveFundsCommand)
     this._registerCommandHandler('CommitPayeeFundsCmd', this.processCommitFundsCommand)
+
+    // register event handlers
+    this._registerStateEventHandler('ParticipantCreatedStateEvt', this._applyCreatedStateEvent)
+    this._registerStateEventHandler('ParticipantPositionChangedStateEvt', this._applyPositionChangedStateEvent)
+
+    // TODO implement snapshot handler
+    // this._setSnapshotHandler(this._applySnapshotHandler)
   }
 
-  /*
-  # Commented out as it causes the following lint error `error  Promise returned in function argument where a void return was expected  @typescript-eslint/no-misused-promises`. See below alternative implementation to fix linting issue.
-  */
-  // async processCreateParticipantCommand (commandMsg: CreateParticipantCmd): Promise<boolean> {
-  //   return await new Promise(async (resolve, reject) => {
-  //     // try loadling first to detect duplicates
-  //     await this.load(commandMsg.payload.id, false)
-  //     if (this._rootEntity != null) {
-  //       this.recordDomainEvent(new DuplicateParticipantDetectedEvt(commandMsg.payload.id))
-  //       return reject(new Error(`DuplicateParticipantDetected with command: ${commandMsg.constructor.name} - name: ${commandMsg.payload.name}, id:${commandMsg.payload.id}`))
-  //     }
+  async loadAllToInMemoryCache (): Promise<void> {
+    return await new Promise(async (resolve, reject) => {
+      const allIds: string[] = await this._entityDuplicateRepo.getAll()
 
-  //     this.create(commandMsg.payload.id)
-  //     this._rootEntity!.setupInitialState(
-  //       commandMsg.payload.name,
-  //       commandMsg.payload.limit,
-  //       commandMsg.payload.initialPosition
-  //     )
+      await Promise.all(allIds.map(async (id: string) => {
+        await this.load(id)
+      })).then(async () => {
+        return resolve()
+      })
+    })
+  }
 
-  //     this.recordDomainEvent(new ParticipantCreatedEvt(this._rootEntity!))
+  async processCreateParticipantCommand (commandMsg: CreateParticipantCmd): Promise<TCommandResult> {
+    // try loading first to detect duplicates
+    // check for duplicates
+    const duplicate: boolean = await this._entityDuplicateRepo.exists(commandMsg.payload?.participant?.id)
+    // await this.load(commandMsg.payload?.participant?.id, false)
 
-  //     return resolve(true)
-  //   })
-  // }
-
-  async processCreateParticipantCommand (commandMsg: CreateParticipantCmd): Promise<boolean> {
-    // try loadling first to detect duplicates
-    await this.load(commandMsg.payload?.participant?.id, false)
-    if (this._rootEntity != null) {
+    // if (this._rootEntity != null) {
+    if (duplicate) {
       const duplicateParticipantDetectedEvtPayload = {
         participantId: commandMsg.payload?.participant?.id
       }
       this.recordDomainEvent(new DuplicateParticipantDetectedEvt(duplicateParticipantDetectedEvtPayload))
-      return false
+      return { success: false, stateEvent: null }
     }
 
     this.create(commandMsg.payload?.participant?.id)
@@ -132,58 +135,76 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
     }
     this.recordDomainEvent(new ParticipantCreatedEvt(participantCreatedEvtPayload))
 
-    return true
-  }
-
-  /*
-  # Commented out as it causes the following lint error `error  Promise returned in function argument where a void return was expected  @typescript-eslint/no-misused-promises`. See below alternative implementation to fix linting issue.
-  */
-  // async processReserveFundsCommand (commandMsg: ReservePayerFundsCmd): Promise<boolean> {
-  //   return await new Promise(async (resolve, reject) => {
-  //     await this.load(commandMsg.payload.payerId)
-
-  //     if (this._rootEntity == null) {
-  //       this.recordDomainEvent(new InvalidParticipantEvt(commandMsg.payload.payerId))
-  //       return resolve(false)
-  //     }
-
-  //     if (!this._rootEntity.canReserveFunds(commandMsg.payload.amount)) {
-  //       this.recordDomainEvent(new NetCapLimitExceededEvt(this._rootEntity.id, commandMsg.payload.transferId))
-  //       return resolve(false)
-  //     }
-
-  //     this._rootEntity.reserveFunds(commandMsg.payload.amount)
-
-  //     this.recordDomainEvent(new PayerFundsReservedEvt(commandMsg.payload.transferId, commandMsg.payload.payerId, this._rootEntity.position))
-
-  //     return resolve(true)
-  //   })
-  // }
-
-  private recordInvalidParticipantEvt (participantId: string, transferId: string, err?: Error): void {
-    const InvalidParticipantEvtPayload = {
-      participantId,
-      transferId: transferId,
-      reason: err?.message
+    // state event
+    const stateEvtPayload: ParticipantCreatedStateEvtPayload = {
+      participant: {
+        id: this._rootEntity.id,
+        name: this._rootEntity.name,
+        accounts: this._rootEntity.accounts,
+        endpoints: this._rootEntity.endpoints,
+        partition: this._rootEntity.partition
+      }
     }
-    this.recordDomainEvent(new InvalidParticipantEvt(InvalidParticipantEvtPayload))
+    const stateEvt: ParticipantCreatedStateEvt = new ParticipantCreatedStateEvt(stateEvtPayload)
+
+    // update duplicate
+    const success: boolean = await this._entityDuplicateRepo.add(commandMsg.payload?.participant?.id)
+    if (!success) {
+      throw new Error('ParticpantsAgg.processCreateParticipantCommand unable to update duplicate repository')
+    }
+    return { success: true, stateEvent: stateEvt }
   }
 
-  async processReserveFundsCommand (commandMsg: ReservePayerFundsCmd): Promise<boolean> {
+  private async _applyCreatedStateEvent (stateEvent: ParticipantCreatedStateEvt, replayed?: boolean): Promise<void> {
+    const state: ParticipantState = {
+      ...stateEvent.payload.participant,
+      created_at: stateEvent.msgTimestamp,
+      updated_at: stateEvent.msgTimestamp,
+      version: 0 // fixed for now?!?!
+    }
+
+    this._rootEntity = this._entity_factory.createFromState(state)
+  }
+
+  private async _applyPositionChangedStateEvent (stateEvent: ParticipantPositionChangedStateEvt, replayed?: boolean): Promise<void> {
+    if (this._rootEntity === null) {
+      throw new Error('Null root entity found while trying to apply "ParticipantPositionChangedStateEvt"')
+    }
+
+    let positionChangedOk: boolean = false
+    const state: ParticipantState = this._rootEntity.exportState()
+    state.accounts.forEach((account: ParticipantAccountState) => {
+      if (account.type === ParticipantAccountTypes.POSITION && account.currency === stateEvent.payload.participant.currency) {
+        account.position = stateEvent.payload.participant.currentPosition
+        positionChangedOk = true
+      }
+    })
+
+    if (!positionChangedOk) {
+      throw new Error('Couldn\'t find correct account to update position while trying to apply "ParticipantPositionChangedStateEvt"')
+    }
+
+    // replace the state
+    this._rootEntity = this._entity_factory.createFromState(state)
+  }
+
+  async processReserveFundsCommand (commandMsg: ReservePayerFundsCmd): Promise<TCommandResult> {
     await this.load(commandMsg.payload.payerId, false)
 
     // # Validate PayerFSP exists
     if (this._rootEntity == null) {
       this.recordInvalidParticipantEvt(commandMsg.payload.payerId, commandMsg.payload.transferId)
-      return false
+      return { success: false, stateEvent: null }
     }
 
+    // TODO evaluate a new way of doing this - maybe send a cmd to veryfy the payee before the reserveCmd - then when verified the participantEventHandler can send the reserve cmd
+
     // # Fetch Payee FSP so that we can validate the accounts, and retrieve endpoints
-    const payeeFspState = await (this._entity_state_repo as IParticipantRepo).load(commandMsg.payload.payeeId)
+    const payeeFspState = await (this._entity_cache_repo as IParticipantRepo).load(commandMsg.payload.payeeId)
 
     if (payeeFspState == null) {
       this.recordInvalidParticipantEvt(commandMsg.payload.payeeId, commandMsg.payload.transferId)
-      return false
+      return { success: false, stateEvent: null }
     }
 
     const payeeFspEntity = new ParticipantEntity(payeeFspState)
@@ -191,7 +212,7 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
     const payeeHasAccount: boolean = payeeFspEntity.hasAccount(ParticipantAccountTypes.POSITION, commandMsg.payload.currency)
     if (!payeeHasAccount) {
       this.recordInvalidParticipantEvt(commandMsg.payload.payeeId, commandMsg.payload.transferId)
-      return false
+      return { success: false, stateEvent: null }
     }
 
     // # Lets try reserve funds
@@ -223,7 +244,18 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
         payeeEndPoints
       }
       this.recordDomainEvent(new PayerFundsReservedEvt(payerFundsReservedEvtPayload))
-      return true
+
+      // state event
+      const stateEvtPayload: ParticipantPositionChangedStateEvtPayload = {
+        participant: {
+          id: this._rootEntity.id,
+          currency: commandMsg.payload.currency,
+          currentPosition: currentPosition
+        }
+      }
+      const stateEvt: ParticipantPositionChangedStateEvt = new ParticipantPositionChangedStateEvt(stateEvtPayload)
+
+      return { success: true, stateEvent: stateEvt }
     } catch (err) {
       switch (err.constructor) {
         case InvalidAccountError:
@@ -245,31 +277,31 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
         }
       }
     }
-    return false
+    return { success: false, stateEvent: null }
   }
 
-  async processCommitFundsCommand (commandMsg: CommitPayeeFundsCmd): Promise<boolean> {
+  async processCommitFundsCommand (commandMsg: CommitPayeeFundsCmd): Promise<TCommandResult> {
     await this.load(commandMsg.payload.payeeId, false)
 
     // # Validate PayeeFSP exists
     if (this._rootEntity == null) {
       this.recordInvalidParticipantEvt(commandMsg.payload.payeeId, commandMsg.payload.transferId)
-      return false
+      return { success: false, stateEvent: null }
     }
 
     // # Validate PayeeFSP account - commenting this out since we validate the PayerFSP account as part of the reseverFunds
     const payeeHasAccount: boolean = this._rootEntity.hasAccount(ParticipantAccountTypes.POSITION, commandMsg.payload.currency)
     if (!payeeHasAccount) {
       this.recordInvalidParticipantEvt(commandMsg.payload.payeeId, commandMsg.payload.transferId)
-      return false
+      return { success: false, stateEvent: null }
     }
 
     // # Fetch Payer FSP so that we can validate the accounts, and retrieve endpoints
-    const payerFspState = await (this._entity_state_repo as IParticipantRepo).load(commandMsg.payload.payerId)
+    const payerFspState = await (this._entity_cache_repo as IParticipantRepo).load(commandMsg.payload.payerId)
 
     if (payerFspState == null) {
       this.recordInvalidParticipantEvt(commandMsg.payload.payerId, commandMsg.payload.transferId)
-      return false
+      return { success: false, stateEvent: null }
     }
 
     const payerFspEntity = new ParticipantEntity(payerFspState)
@@ -277,7 +309,7 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
     const payerHasAccount: boolean = payerFspEntity.hasAccount(ParticipantAccountTypes.POSITION, commandMsg.payload.currency)
     if (!payerHasAccount) {
       this.recordInvalidParticipantEvt(commandMsg.payload.payeeId, commandMsg.payload.transferId)
-      return false
+      return { success: false, stateEvent: null }
     }
 
     // # Lets try commit funds
@@ -311,7 +343,18 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
         payeeEndPoints
       }
       this.recordDomainEvent(new PayeeFundsCommittedEvt(payeeFundsCommittedEvtPayload))
-      return true
+
+      // state event
+      const stateEvtPayload: ParticipantPositionChangedStateEvtPayload = {
+        participant: {
+          id: this._rootEntity.id,
+          currency: commandMsg.payload.currency,
+          currentPosition: currentPosition
+        }
+      }
+      const stateEvt: ParticipantPositionChangedStateEvt = new ParticipantPositionChangedStateEvt(stateEvtPayload)
+
+      return { success: true, stateEvent: stateEvt }
     } catch (err) {
       switch (err.constructor) {
         case InvalidAccountError:
@@ -324,6 +367,15 @@ export class ParticpantsAgg extends BaseAggregate<ParticipantEntity, Participant
         }
       }
     }
-    return false
+    return { success: false, stateEvent: null }
+  }
+
+  private recordInvalidParticipantEvt (participantId: string, transferId: string, err?: Error): void {
+    const InvalidParticipantEvtPayload = {
+      participantId,
+      transferId: transferId,
+      reason: err?.message
+    }
+    this.recordDomainEvent(new InvalidParticipantEvt(InvalidParticipantEvtPayload))
   }
 }

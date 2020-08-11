@@ -33,16 +33,15 @@
  - Roman Pietrzak <roman.pietrzak@modusbox.com>
 
  --------------
-******/
+ ******/
 
 'use strict'
 
-// Exports for Utilities
-export * from './logger_console'
-export * from './logger_moja'
-export * from './crypto'
-export * from './crypto'
-export * from './metrics'
-export * from './env_tools'
-export * from './trace_tools'
-export * from './timeutils'
+import { IDomainMessage } from './messages'
+
+export interface IMessageFetcher {
+  init: () => Promise<void>
+  destroy: () => Promise<void>
+  fetchLast: (aggregateId: string, topic: string, partition: number, offset: number) => Promise<IDomainMessage | null>
+  fetchAll: (aggregateId: string, topic: string, partition: number, firstOffset: number) => Promise<IDomainMessage[]>
+}

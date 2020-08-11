@@ -38,309 +38,190 @@
 'use strict'
 // import { v4 as uuidv4 } from 'uuid'
 // import {InMemorytransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
-import { CommandMsg, IDomainMessage, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
+import { CommandMsg, IDomainMessage, IMessagePublisher, ILogger, IEntityDuplicateRepository, IESourcingStateRepository } from '@mojaloop-poc/lib-domain'
 import {
-  EnumOffset,
   IRunHandler,
-  KafkaInfraTypes,
-  KafkaMessagePublisher,
   MessageConsumer,
-  // node-kafka imports
-  KafkaGenericConsumer, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, KafkaNodeCompressionTypes,
-  // node-kafka-stream imports
-  KafkaStreamConsumer,
-  // kafkajs imports
-  KafkaJsCompressionTypes, KafkaJsConsumer, KafkaJsConsumerOptions, KafkajsMessagePublisher, KafkaJsProducerOptions,
-  // rdkafka imports
-  RDKafkaCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher, RDKafkaConsumerOptions, RDKafkaConsumer
+  RDKafkaCompressionTypes,
+  RDKafkaProducerOptions,
+  RDKafkaMessagePublisher,
+  RDKafkaConsumerOptions,
+  RDKafkaConsumer,
+  RedisDuplicateRepo, EventSourcingStateRepo
 } from '@mojaloop-poc/lib-infrastructure'
-// import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
-// import { TransferState } from '../domain/transfer_entity'
 import { TransfersTopics } from '@mojaloop-poc/lib-public-messages'
+import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 import { TransfersAgg } from '../domain/transfers_agg'
 import { PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
 import { AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { RedisTransferStateRepo } from '../infrastructure/redis_transfer_repo'
-import { RedisTransferDuplicateRepo } from '../infrastructure/redis_duplicate_repo'
 import { ITransfersRepo } from '../domain/transfers_repo'
 import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
 import { AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
-import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
-import { IDupTransferRepo } from '../domain/transfers_duplicate_repo'
 import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
-import { CachedRedisTransferStateRepo } from '../infrastructure/cachedredis_transfer_repo'
 import { RepoInfraTypes } from '../infrastructure'
-import { CachedRedisTransferDuplicateRepo } from '../infrastructure/cahcedredis_duplicate_repo'
-import { InMemoryTransferDuplicateRepo } from '../infrastructure/inmemory_duplicate_repo'
 
 export class TransferCmdHandler implements IRunHandler {
+  private _logger: ILogger
   private _consumer: MessageConsumer
   private _publisher: IMessagePublisher
-  private _stateRepo: ITransfersRepo
-  private _duplicateRepo: IDupTransferRepo
+  private _stateCacheRepo: ITransfersRepo
+  private _duplicateRepo: IEntityDuplicateRepository
+  private _eventSourcingRepo: IESourcingStateRepository
+  private _histoTransfersCmdHandlerMetric: any
+  private _transfersAgg: TransfersAgg
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
-    logger.isInfoEnabled() && logger.info(`TransferCmdHandler::start - appConfig=${JSON.stringify(appConfig)}`)
+    this._logger = logger
+    this._logger.isInfoEnabled() && this._logger.info(`TransferCmdHandler::start - appConfig=${JSON.stringify(appConfig)}`)
 
-    let stateRepo: ITransfersRepo
-    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating State repo of type ${appConfig.redis.type as string}`)
-    switch (appConfig.redis.type) {
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating Statecache-repo of type ${appConfig.state_cache.type as string}`)
+    switch (appConfig.state_cache.type) {
       case RepoInfraTypes.REDIS: {
-        stateRepo = new RedisTransferStateRepo(appConfig.redis.host, logger, appConfig.redis.expirationInSeconds)
-        break
-      }
-      case RepoInfraTypes.CACHEDREDIS: {
-        stateRepo = new CachedRedisTransferStateRepo(appConfig.redis.host, logger, appConfig.redis.expirationInSeconds)
+        this._stateCacheRepo = new RedisTransferStateRepo(appConfig.state_cache.host, logger, appConfig.state_cache.expirationInSeconds)
         break
       }
       default: { // defaulting to In-Memory
-        stateRepo = new InMemoryTransferStateRepo()
+        this._stateCacheRepo = new InMemoryTransferStateRepo()
       }
     }
-    this._stateRepo = stateRepo
-    await stateRepo.init()
-    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created State repo of type ${stateRepo.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created Statecache-repo of type ${this._stateCacheRepo.constructor.name}`)
 
-    let duplicateRepo: IDupTransferRepo
-    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating Duplicate repo of type ${appConfig.duplicate.type as string}`)
-    switch (appConfig.duplicate.type) {
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating Duplicate-repo of type ${appConfig.duplicate_store.type as string}`)
+    switch (appConfig.duplicate_store.type) {
       case RepoInfraTypes.REDIS: {
-        duplicateRepo = new RedisTransferDuplicateRepo(appConfig.duplicate.host, logger)
-        break
-      }
-      case RepoInfraTypes.CACHEDREDIS: {
-        duplicateRepo = new CachedRedisTransferDuplicateRepo(appConfig.duplicate.host, logger)
-        break
-      }
-      default: { // defaulting to In-Memory
-        duplicateRepo = new InMemoryTransferDuplicateRepo()
-      }
-    }
-    this._duplicateRepo = duplicateRepo
-    await duplicateRepo.init()
-    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created Duplicate repo of type ${duplicateRepo.constructor.name}`)
-
-    let kafkaMsgPublisher: IMessagePublisher | undefined
-
-    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating ${appConfig.kafka.producer} transferCmdHandler.kafkaMsgPublisher...`)
-    let clientId = `transferCmdHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
-    switch (appConfig.kafka.producer) {
-      case (KafkaInfraTypes.NODE_KAFKA_STREAM):
-      case (KafkaInfraTypes.NODE_KAFKA): {
-        const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
-          client: {
-            kafka: {
-              kafkaHost: appConfig.kafka.host,
-              clientId
-            },
-            compression: appConfig.kafka.gzipCompression === true ? KafkaNodeCompressionTypes.GZIP : KafkaNodeCompressionTypes.None
-          }
-        }
-        kafkaMsgPublisher = new KafkaMessagePublisher(
-          kafkaGenericProducerOptions,
-          logger
-        )
-        break
-      }
-      case (KafkaInfraTypes.KAFKAJS): {
-        const kafkaJsProducerOptions: KafkaJsProducerOptions = {
-          client: {
-            client: { // https://kafka.js.org/docs/configuration#options
-              brokers: [appConfig.kafka.host],
-              clientId
-            },
-            producer: { // https://kafka.js.org/docs/producing#options
-              allowAutoTopicCreation: true,
-              transactionTimeout: 60000
-            },
-            compression: appConfig.kafka.gzipCompression as boolean ? KafkaJsCompressionTypes.GZIP : KafkaJsCompressionTypes.None
-          }
-        }
-        kafkaMsgPublisher = new KafkajsMessagePublisher(
-          kafkaJsProducerOptions,
-          logger
-        )
-        break
-      }
-      case (KafkaInfraTypes.NODE_RDKAFKA): {
-        const rdKafkaProducerOptions: RDKafkaProducerOptions = {
-          client: {
-            producerConfig: {
-              'metadata.broker.list': appConfig.kafka.host,
-              dr_cb: true,
-              'client.id': clientId,
-              'socket.keepalive.enable': true,
-              'compression.codec': appConfig.kafka.gzipCompression === true ? RDKafkaCompressionTypes.GZIP : RDKafkaCompressionTypes.NONE
-            },
-            topicConfig: {
-              // partitioner: RDKafkaPartioner.MURMUR2_RANDOM // default java algorithm, seems to have worse random distribution for hashing than rdkafka's default
-            }
-          }
-        }
-        kafkaMsgPublisher = new RDKafkaMessagePublisher(
-          rdKafkaProducerOptions,
-          logger
-        )
+        this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, 'transfers_duplicate', logger)
         break
       }
       default: {
-        logger.isWarnEnabled() && logger.warn('TransferCmdHandler - Unable to find a Kafka Producer implementation!')
-        throw new Error('transferCmdHandler.kafkaMsgPublisher was not created!')
+        this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, 'transfers_duplicate', logger)
       }
     }
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created Duplicate-repo of type ${this._duplicateRepo.constructor.name}`)
 
-    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating Eventsourcing-repo of type ${appConfig.state_cache.type as string}`)
+    switch (appConfig.state_cache.type) {
+      case RepoInfraTypes.REDIS: {
+        this._eventSourcingRepo = new EventSourcingStateRepo(appConfig.state_cache.host, appConfig.kafka.host, 'Transfer', TransfersTopics.SnapshotEvents, TransfersTopics.StateEvents, this._logger)
+        break
+      }
+      default: {
+        this._eventSourcingRepo = new EventSourcingStateRepo(appConfig.state_cache.host, appConfig.kafka.host, 'Transfer', TransfersTopics.SnapshotEvents, TransfersTopics.StateEvents, this._logger)
+      }
+    }
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created Eventsourcing-repo of type ${this._eventSourcingRepo.constructor.name}`)
 
-    this._publisher = kafkaMsgPublisher
-    await kafkaMsgPublisher.init()
+    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+    this._logger.isInfoEnabled() && this._logger.info(`TransferCmdHandler - Creating ${appConfig.kafka.producer} transferCmdHandler.kafkaMsgPublisher...`)
+    let clientId = `transferCmdHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
+    const rdKafkaProducerOptions: RDKafkaProducerOptions = {
+      client: {
+        producerConfig: {
+          'metadata.broker.list': appConfig.kafka.host,
+          dr_cb: true,
+          'client.id': clientId,
+          'socket.keepalive.enable': true,
+          'compression.codec': appConfig.kafka.gzipCompression === true ? RDKafkaCompressionTypes.GZIP : RDKafkaCompressionTypes.NONE
+        },
+        topicConfig: {
+          // partitioner: RDKafkaPartioner.MURMUR2_RANDOM // default java algorithm, seems to have worse random distribution for hashing than rdkafka's default
+        }
+      }
+    }
+    this._publisher = new RDKafkaMessagePublisher(rdKafkaProducerOptions, this._logger)
 
-    const agg: TransfersAgg = new TransfersAgg(stateRepo, duplicateRepo, kafkaMsgPublisher, logger)
+    this._logger.isInfoEnabled() && this._logger.info(`TransferCmdHandler - Created kafkaMsgPublisher of type ${this._publisher.constructor.name}`)
 
-    const histoTransferCmdHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+    await this._stateCacheRepo.init()
+    await this._duplicateRepo.init()
+    await this._eventSourcingRepo.init()
+    await this._publisher.init()
+
+    this._transfersAgg = new TransfersAgg(this._stateCacheRepo, this._duplicateRepo, this._eventSourcingRepo, this._publisher, this._logger)
+
+    this._histoTransfersCmdHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
       'transferCmdHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
       'Instrumentation for transferCmdHandler', // Description of metric
       ['success', 'error', 'evtname'] // Define a custom label 'success'
     )
 
-    // ## Setup transferCmdConsumer
-    const transferCmdHandler = async (message: IDomainMessage): Promise<void> => {
-      const histTimer = histoTransferCmdHandlerMetric.startTimer()
-      const evtname = message.msgName ?? 'unknown'
-      try {
-        logger.isInfoEnabled() && logger.info(`TransferCmdHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
-        let transferCmd: CommandMsg | undefined
-        // Transform messages into correct Command
-        switch (message.msgName) {
-          case PrepareTransferCmd.name: {
-            transferCmd = PrepareTransferCmd.fromIDomainMessage(message)
-            break
-          }
-          case AckPayerFundsReservedCmd.name: {
-            transferCmd = AckPayerFundsReservedCmd.fromIDomainMessage(message)
-            break
-          }
-          case AckPayeeFundsCommittedCmd.name: {
-            transferCmd = AckPayeeFundsCommittedCmd.fromIDomainMessage(message)
-            break
-          }
-          case FulfilTransferCmd.name: {
-            transferCmd = FulfilTransferCmd.fromIDomainMessage(message)
-            break
-          }
-          default: {
-            logger.isWarnEnabled() && logger.warn(`TransferCmdHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
-            break
-          }
-        }
-        let processCommandResult: boolean = false
-        if (transferCmd != null) {
-          processCommandResult = await agg.processCommand(transferCmd)
-        } else {
-          logger.isWarnEnabled() && logger.warn('TransferCmdHandler - is Unable to process command')
-        }
-        logger.isInfoEnabled() && logger.info(`TransferCmdHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
-        histTimer({ success: 'true', evtname })
-      } catch (err) {
-        logger.isErrorEnabled() && logger.error(err)
-        histTimer({ success: 'false', error: err.message, evtname })
-      }
-    }
-
-    let transferCmdConsumer: MessageConsumer | undefined
-
-    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating ${appConfig.kafka.consumer as string} transferCmdConsumer...`)
+    this._logger.isInfoEnabled() && this._logger.info(`TransferCmdHandler - Creating ${appConfig.kafka.consumer as string} transferCmdConsumer...`)
     clientId = `transferCmdConsumer-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
-    switch (appConfig.kafka.consumer) {
-      case (KafkaInfraTypes.NODE_KAFKA): {
-        const transferCmdConsumerOptions: KafkaGenericConsumerOptions = {
-          client: {
-            kafkaHost: appConfig.kafka.host,
-            id: clientId,
-            groupId: 'transferCmdGroup',
-            fromOffset: EnumOffset.LATEST,
-            autoCommit: appConfig.kafka.autocommit
-          },
-          topics: [TransfersTopics.Commands]
-        }
-        transferCmdConsumer = new KafkaGenericConsumer(transferCmdConsumerOptions, logger)
-        break
-      }
-      case (KafkaInfraTypes.NODE_KAFKA_STREAM): {
-        const transferCmdConsumerOptions: KafkaGenericConsumerOptions = {
-          client: {
-            kafkaHost: appConfig.kafka.host,
-            id: clientId,
-            groupId: 'transferCmdGroup',
-            fromOffset: EnumOffset.LATEST,
-            autoCommit: appConfig.kafka.autocommit
-          },
-          topics: [TransfersTopics.Commands]
-        }
-        transferCmdConsumer = new KafkaStreamConsumer(transferCmdConsumerOptions, logger)
-        break
-      }
-      case (KafkaInfraTypes.KAFKAJS): {
-        const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
-          client: {
-            client: { // https://kafka.js.org/docs/configuration#options
-              brokers: [appConfig.kafka.host],
-              clientId
-            },
-            consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
-              groupId: 'transferCmdGroup'
-            },
-            consumerRunConfig: {
-              autoCommit: appConfig.kafka.autocommit,
-              autoCommitInterval: appConfig.kafka.autoCommitInterval,
-              autoCommitThreshold: appConfig.kafka.autoCommitThreshold
-            }
-          },
-          topics: [TransfersTopics.Commands]
-        }
-        transferCmdConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
-        break
-      }
-      case (KafkaInfraTypes.NODE_RDKAFKA): {
-        const rdKafkaConsumerOptions: RDKafkaConsumerOptions = {
-          client: {
-            consumerConfig: {
-              'metadata.broker.list': appConfig.kafka.host,
-              'group.id': 'transferCmdGroup',
-              'enable.auto.commit': appConfig.kafka.autocommit,
-              'auto.commit.interval.ms': appConfig.kafka.autoCommitInterval,
-              'client.id': clientId,
-              'socket.keepalive.enable': true,
-              'fetch.min.bytes': appConfig.kafka.fetchMinBytes,
-              'fetch.wait.max.ms': appConfig.kafka.fetchWaitMaxMs
-            },
-            topicConfig: {},
-            rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode
-          },
-          topics: [TransfersTopics.Commands]
-        }
-        transferCmdConsumer = new RDKafkaConsumer(rdKafkaConsumerOptions, logger)
-        break
-      }
-      default: {
-        logger.isWarnEnabled() && logger.warn('TransferCmdHandler - Unable to find a Kafka consumer implementation!')
-        throw new Error('transferCmdConsumer was not created!')
-      }
+
+    const rdKafkaConsumerOptions: RDKafkaConsumerOptions = {
+      client: {
+        consumerConfig: {
+          'metadata.broker.list': appConfig.kafka.host,
+          'group.id': 'transferCmdGroup',
+          'enable.auto.commit': appConfig.kafka.autocommit,
+          'auto.commit.interval.ms': appConfig.kafka.autoCommitInterval,
+          'client.id': clientId,
+          'socket.keepalive.enable': true,
+          'fetch.min.bytes': appConfig.kafka.fetchMinBytes,
+          'fetch.wait.max.ms': appConfig.kafka.fetchWaitMaxMs
+        },
+        topicConfig: {},
+        rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode
+      },
+      topics: [TransfersTopics.Commands]
     }
+    this._consumer = new RDKafkaConsumer(rdKafkaConsumerOptions, this._logger)
 
-    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created kafkaConsumer of type ${transferCmdConsumer.constructor.name}`)
+    this._logger.isInfoEnabled() && this._logger.info(`TransferCmdHandler - Created kafkaConsumer of type ${this._consumer.constructor.name}`)
 
-    this._consumer = transferCmdConsumer
-
-    logger.isInfoEnabled() && logger.info('TransferCmdHandler - Initializing transferCmdConsumer...')
+    this._logger.isInfoEnabled() && this._logger.info('TransferCmdHandler - Initializing transferCmdConsumer...')
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-    await transferCmdConsumer.init(transferCmdHandler, null) // by design we're interested in all commands
+    await this._consumer.init(this._cmdHandler.bind(this), null) // by design we're interested in all commands
+  }
+
+  private async _cmdHandler (message: IDomainMessage): Promise<void> {
+    const histTimer = this._histoTransfersCmdHandlerMetric.startTimer()
+    const evtname = message.msgName ?? 'unknown'
+    try {
+      this._logger.isInfoEnabled() && this._logger.info(`TransferCmdHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+      let transferCmd: CommandMsg | undefined
+      // Transform messages into correct Command
+      switch (message.msgName) {
+        case PrepareTransferCmd.name: {
+          transferCmd = PrepareTransferCmd.fromIDomainMessage(message)
+          break
+        }
+        case AckPayerFundsReservedCmd.name: {
+          transferCmd = AckPayerFundsReservedCmd.fromIDomainMessage(message)
+          break
+        }
+        case AckPayeeFundsCommittedCmd.name: {
+          transferCmd = AckPayeeFundsCommittedCmd.fromIDomainMessage(message)
+          break
+        }
+        case FulfilTransferCmd.name: {
+          transferCmd = FulfilTransferCmd.fromIDomainMessage(message)
+          break
+        }
+        default: {
+          this._logger.isWarnEnabled() && this._logger.warn(`TransferCmdHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+          break
+        }
+      }
+      let processCommandResult: boolean = false
+      if (transferCmd != null) {
+        processCommandResult = await this._transfersAgg.processCommand(transferCmd)
+      } else {
+        this._logger.isWarnEnabled() && this._logger.warn('TransferCmdHandler - is Unable to process command')
+      }
+      this._logger.isInfoEnabled() && this._logger.info(`TransferCmdHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
+      histTimer({ success: 'true', evtname })
+    } catch (err) {
+      this._logger.isErrorEnabled() && this._logger.error(err)
+      histTimer({ success: 'false', error: err.message, evtname })
+    }
   }
 
   async destroy (): Promise<void> {
     await this._consumer.destroy(true)
     await this._publisher.destroy()
-    await this._stateRepo.destroy()
+    await this._stateCacheRepo.destroy()
     await this._duplicateRepo.destroy()
+    await this._eventSourcingRepo.destroy()
   }
 }

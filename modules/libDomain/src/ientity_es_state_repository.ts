@@ -37,12 +37,17 @@
 
 'use strict'
 
-// Exports for Utilities
-export * from './logger_console'
-export * from './logger_moja'
-export * from './crypto'
-export * from './crypto'
-export * from './metrics'
-export * from './env_tools'
-export * from './trace_tools'
-export * from './timeutils'
+import { StateSnapshotMsg, StateEventMsg } from './messages'
+
+export type TESourcingState = {
+  snapshot?: StateSnapshotMsg
+  events: StateEventMsg[]
+}
+
+export interface IESourcingStateRepository {
+  init: () => Promise<void>
+  destroy: () => Promise<void>
+  canCall: () => boolean // for circuit breaker
+
+  load: (id: string) => Promise<TESourcingState | null>
+}

@@ -37,7 +37,7 @@
 
 'use strict'
 
-import { MojaLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
+import { MojaLogger, Metrics, TMetricOptionsType, getEnvValueOrDefault } from '@mojaloop-poc/lib-utilities'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { TApiServerOptions, ApiServer, IRunHandler, KafkaInfraTypes, RdKafkaCommitMode } from '@mojaloop-poc/lib-infrastructure'
 import { ParticipantCmdHandler } from './participantCmdHandler'
@@ -46,6 +46,7 @@ import * as dotenv from 'dotenv'
 import { Command } from 'commander'
 import { resolve as Resolve } from 'path'
 import { RepoInfraTypes } from '../infrastructure'
+import { ParticipantReadsideStateEvtHandler } from './participantReadsideStateEvtHandler'
 
 /* eslint-disable-next-line @typescript-eslint/no-var-requires */
 const pckg = require('../../package.json')
@@ -61,6 +62,7 @@ Program.command('handler')
   .option('--disableApi', 'Disable API server for health & metrics')
   .option('--participantsEvt', 'Start the Participant Evt Handler')
   .option('--participantsCmd', 'Start the Participant Cmd Handler')
+  .option('--participantsReadSideStateEvt', 'Start the Participant Read Side State Handler')
 
   // function to execute when command is uses
   .action(async (args: any): Promise<void> => {
@@ -80,9 +82,6 @@ Program.command('handler')
         host: (process.env.PARTICIPANTS_API_HOST != null) ? process.env.PARTICIPANTS_API_HOST : '0.0.0.0',
         port: (process.env.PARTICIPANTS_API_PORT != null && !isNaN(Number(process.env.PARTICIPANTS_API_PORT)) && process.env.PARTICIPANTS_API_PORT?.trim()?.length > 0) ? Number.parseInt(process.env.PARTICIPANTS_API_PORT) : 3003
       },
-      repo: {
-        type: (process.env.PARTICIPANTS_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.PARTICIPANTS_REPO_TYPE
-      },
       kafka: {
         host: (process.env.KAFKA_HOST != null) ? process.env.KAFKA_HOST : 'localhost:9092',
         consumer: (process.env.KAFKA_CONSUMER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_CONSUMER,
@@ -95,8 +94,16 @@ Program.command('handler')
         fetchMinBytes: (process.env.KAFKA_FETCH_MIN_BYTES != null && !isNaN(Number(process.env.KAFKA_FETCH_MIN_BYTES)) && process.env.KAFKA_FETCH_MIN_BYTES?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_MIN_BYTES) : 1,
         fetchWaitMaxMs: (process.env.KAFKA_FETCH_WAIT_MAX_MS != null && !isNaN(Number(process.env.KAFKA_FETCH_WAIT_MAX_MS)) && process.env.KAFKA_FETCH_WAIT_MAX_MS?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_WAIT_MAX_MS) : 100
       },
-      redis: {
+      state_cache: {
+        type: (process.env.PARTICIPANTS_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.PARTICIPANTS_REPO_TYPE,
         host: process.env.REDIS_HOST
+      },
+      duplicate_store: {
+        type: (process.env.DUPLICATE_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.DUPLICATE_REPO_TYPE,
+        host: getEnvValueOrDefault('REDIS_DUPL_HOST', 'redis://localhost:6379') as string
+      },
+      readside_store: {
+        uri: getEnvValueOrDefault('PARTICIPANTS_READSIDE_MONGO_DB_HOST', 'mongodb://localhost:27017/') as string
       }
     }
 
@@ -120,30 +127,27 @@ Program.command('handler')
 
     // list of all handlers
     const runHandlerList: IRunHandler[] = []
+    const runAllHAndlers = args.participantsEvt === undefined && args.participantsCmd === undefined && args.participantsReadSideStateEvt === undefined
 
-    // start all handlers here
-    if (args.participantsEvt == null && args.participantsCmd == null) {
-      const participantEvtHandler = new ParticipantEvtHandler()
-      await participantEvtHandler.start(appConfig, logger, metrics)
-      runHandlerList.push(participantEvtHandler)
-
-      const participantCmdHandler = new ParticipantCmdHandler()
-      await participantCmdHandler.start(appConfig, logger, metrics)
-      runHandlerList.push(participantCmdHandler)
-    }
-
-    // start only participantsEvtHandler
-    if (args.participantsEvt != null) {
+    // start participantsEvtHandler
+    if (runAllHAndlers || args.participantsEvt != null) {
       const participantEvtHandler = new ParticipantEvtHandler()
       await participantEvtHandler.start(appConfig, logger, metrics)
       runHandlerList.push(participantEvtHandler)
     }
 
-    // start only participantsCmdHandler
-    if (args.participantsCmd != null) {
+    // start participantsCmdHandler
+    if (runAllHAndlers || args.participantsCmd != null) {
       const participantCmdHandler = new ParticipantCmdHandler()
       await participantCmdHandler.start(appConfig, logger, metrics)
       runHandlerList.push(participantCmdHandler)
+    }
+
+    // start participantReadsideStateEvtHandler
+    if (runAllHAndlers || args.participantsReadSideStateEvt != null) {
+      const participantReadsideStateEvtHandler = new ParticipantReadsideStateEvtHandler()
+      await participantReadsideStateEvtHandler.start(appConfig, logger, metrics)
+      runHandlerList.push(participantReadsideStateEvtHandler)
     }
 
     // start only API

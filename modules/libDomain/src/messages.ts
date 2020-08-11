@@ -42,6 +42,7 @@ import { v4 as uuidv4 } from 'uuid'
 
 export enum MessageTypes{
   'STATE_EVENT' =0, // for private event-sourcing events
+  'STATE_SNAPSHOT', // for private event-sourcing snapshot events
   'DOMAIN_EVENT', // public domain events
   'COMMAND', // commands
 }
@@ -59,6 +60,7 @@ export interface IMessage{
   msgKey: string // usually the id of the aggregate (used for partitioning)
   msgTopic: string
   msgPartition: number | null
+  msgOffset: number | null
   // TODO: for later
 
   // source_system_name:string // source system name
@@ -140,6 +142,7 @@ export abstract class DomainMsg implements IDomainMessage {
   msgTimestamp: number = Date.now()
   msgName: string = (this as any).constructor.name
   msgPartition: number | null = null
+  msgOffset: number | null
   traceInfo: TTraceInfo | null = null
 
   abstract msgType: MessageTypes
@@ -172,6 +175,16 @@ export abstract class DomainMsg implements IDomainMessage {
   }
 
   abstract validatePayload (): void
+}
+
+export abstract class StateEventMsg extends DomainMsg {
+  msgType: MessageTypes = MessageTypes.STATE_EVENT
+}
+
+export abstract class StateSnapshotMsg extends DomainMsg {
+  msgType: MessageTypes = MessageTypes.STATE_SNAPSHOT
+  lastEventOffset: number // offset of the last event that was considered for the snapshot
+  eventsPartition: number // partition from the events
 }
 
 export abstract class DomainEventMsg extends DomainMsg {

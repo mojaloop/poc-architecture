@@ -73,6 +73,14 @@ services:
       start_period: 40s
       interval: 30s
 
+  kafka-manager:
+    image: "sheepkiller/kafka-manager"
+    container_name: "kafka-manager"
+    ports:
+      - "9000:9000"
+    environment:
+      ZK_HOSTS: kafka:2181
+
   redis:
     container_name: redis
     image: "redis:5.0.4-alpine"
@@ -102,3 +110,27 @@ services:
       timeout: 20s
       retries: 10
       interval: 30s
+
+  mongodb:
+    image: "mongo"
+    container_name: "mongodb"
+    ports:
+      - "27017:27017"
+    networks:
+      - mojaloop-poc
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+
+  mongo-express:
+    image: mongo-express
+    container_name: "mongo-express"
+    restart: always
+    networks:
+      - mojaloop-poc
+    ports:
+        - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: example
