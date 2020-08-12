@@ -79,7 +79,7 @@ Program.command('handler')
     // # setup application config
     const appConfig = {
       metrics: {
-        prefix: getEnvValueOrDefault('METRIC_PREFIX', 'poc_') as string,
+        prefix: getEnvValueOrDefault('METRIC_PREFIX', 'poc_') as string
       },
       api: {
         host: (process.env.PARTICIPANTS_API_HOST != null) ? process.env.PARTICIPANTS_API_HOST : '0.0.0.0',
