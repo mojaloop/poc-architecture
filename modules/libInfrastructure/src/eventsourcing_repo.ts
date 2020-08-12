@@ -96,6 +96,8 @@ export class EventSourcingStateRepo implements IESourcingStateRepository {
     5. if no offsets were stored before, store them now
      */
 
+    this._logger.isDebugEnabled() && this._logger.debug(`EventSourcingStateRepo.load() - trying to get snapshot offsets from cache for entity id: ${id}...`)
+
     const snapshotOffsets: TEventStoreMessageOffset | null = await this._redisOffsetRepo.load(id)
 
     let partition = -1
@@ -103,8 +105,12 @@ export class EventSourcingStateRepo implements IESourcingStateRepository {
     if (snapshotOffsets != null) {
       partition = snapshotOffsets.partition
       offset = snapshotOffsets.offset
+      this._logger.isDebugEnabled() && this._logger.debug(`EventSourcingStateRepo.load() - snapshot offsets found for entity id: ${id}`)
+    } else {
+      this._logger.isDebugEnabled() && this._logger.debug(`EventSourcingStateRepo - snapshot offsets NOT found for entity id: ${id}`)
     }
 
+    this._logger.isDebugEnabled() && this._logger.debug(`EventSourcingStateRepo.load() - trying to fetch last snapshot for entity id: ${id}...`)
     const snapshotGenMsg = await this._kafkaMsgFetcher.fetchLast(id, this._snapshotsTopic, partition, offset)
 
     let snapshot: StateSnapshotMsg | undefined
@@ -113,13 +119,20 @@ export class EventSourcingStateRepo implements IESourcingStateRepository {
       snapshot = snapshotGenMsg as StateSnapshotMsg
       partition = snapshot.eventsPartition
       offset = snapshot.lastEventOffset
+      this._logger.isDebugEnabled() && this._logger.debug(`EventSourcingStateRepo.load() - snapshot found entity id: ${id}`)
+    } else {
+      this._logger.isDebugEnabled() && this._logger.debug(`EventSourcingStateRepo.load() - snapshot NOT found for entity id: ${id}...`)
     }
 
+    this._logger.isDebugEnabled() && this._logger.debug(`EventSourcingStateRepo.load() - trying to fetch events for entity id: ${id}...`)
     const events = await this._kafkaMsgFetcher.fetchAll(id, this._eventsTopic, partition, offset)
+
+    this._logger.isDebugEnabled() && this._logger.debug(`EventSourcingStateRepo.load() - got ${events.length} events for entity id: ${id}...`)
 
     // if there is a snapshot that was not on the offset cache, then store it
     if (snapshotOffsets === null && snapshotGenMsg !== null && snapshotGenMsg.msgPartition !== null && snapshotGenMsg.msgOffset !== null) {
       process.nextTick(async () => {
+        this._logger.isDebugEnabled() && this._logger.debug(`EventSourcingStateRepo.load() - updating offset cache for entity id: ${id}...`)
         await this._redisOffsetRepo.store({
           aggregateId: id,
           topic: snapshotGenMsg.msgTopic,

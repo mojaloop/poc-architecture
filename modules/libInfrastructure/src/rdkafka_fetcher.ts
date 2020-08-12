@@ -114,31 +114,6 @@ export class RDKafkaFetcher implements IMessageFetcher {
         return resolve(retMsgs)
       })
 
-      /* consumer.on('data', (message: any) => {
-        const msgKey: string | null = message.key != null ? message.key : null
-
-        if (msgKey != null && msgKey === aggregateId) {
-          let msgAsDomainMessage: IDomainMessage | null = null
-          try {
-            msgAsDomainMessage = JSON.parse(message.value.toString()) as IDomainMessage
-            if (msgAsDomainMessage.msgPartition == null) {
-              msgAsDomainMessage.msgPartition = message.partition
-            }
-          } catch (err) {
-            this._logger.isErrorEnabled() && this._logger.error('RDKafkaConsumer Error when JSON.parse()-ing message')
-          }
-
-          if (msgAsDomainMessage != null) {
-            retMsgs.push(msgAsDomainMessage)
-            if (justOne) {
-              // maybe the close will trigger the stream end
-              consumer.disconnect()
-              return resolve(retMsgs)
-            }
-          }
-        }
-      }) */
-
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       consumer.on('ready', async (readyInfo: RDKafka.ReadyInfo, metadata: RDKafka.Metadata) => {
         // get partitions if none was provided
@@ -151,19 +126,6 @@ export class RDKafkaFetcher implements IMessageFetcher {
         }
 
         // OLDTODO check if this is EOF empty and return if it is - actually, the consume(number) sends empty array if EOF
-
-        /*
-        const topars = partitions.map((partition: number) => { return { topic: topic, partition: partition } })
-        const pos = consumer.position(topars)
-        if (pos != null) {
-          debugger
-        }
-
-        const highWatermarks = await this._getTopicHighWatermarks(consumer.getClient(), topic, partitions)
-        if (highWatermarks != null) {
-          debugger
-        }
-        */
 
         if (partitions.length > 0) {
           const assignments: Assignment[] = []
@@ -179,18 +141,27 @@ export class RDKafkaFetcher implements IMessageFetcher {
           consumer.subscribe([topic])
         }
 
+        let messageCounter = 0
+
         const consume = (): void => {
           consumer.consume(1, (err: RDKafka.LibrdKafkaError, messages: RDKafka.Message[]) => {
             if (err !== null) {
-              this._logger.isErrorEnabled() && this._logger.error(err, 'RDKafkaConsumer error fetching messages from kafka')
+              this._logger.isErrorEnabled() && this._logger.error(err, 'RDKafkaFetcher error fetching messages from kafka')
+              consumer.disconnect()
               return resolve([])
             }
             if (messages.length === 0) {
-              this._logger.isDebugEnabled() && this._logger.debug('RDKafkaConsumer empty message set received (interpreting it as EOF), returning')
+              this._logger.isDebugEnabled() && this._logger.debug('RDKafkaFetcher empty message set received (interpreting it as EOF), returning')
+              consumer.disconnect()
               return resolve(retMsgs)
             }
 
             messages.forEach((message: RDKafka.Message) => {
+              messageCounter++
+              if (messageCounter % 100 === 0) {
+                this._logger.isDebugEnabled() && this._logger.debug(`RDKafkaFetcher processed ${messageCounter} messages so far - current partition: ${message.partition} current offset: ${message.offset}`)
+              }
+
               const msgKey: string | null = message.key != null ? message.key.toString() : null
 
               if (msgKey === null || msgKey !== aggregateId) {
@@ -209,18 +180,18 @@ export class RDKafkaFetcher implements IMessageFetcher {
                   msgAsDomainMessage.msgPartition = message.partition
                 }
               } catch (err) {
-                this._logger.isErrorEnabled() && this._logger.error('RDKafkaConsumer Error when JSON.parse()-ing message')
+                this._logger.isErrorEnabled() && this._logger.error('RDKafkaFetcher Error when JSON.parse()-ing message')
               }
 
               if (msgAsDomainMessage !== null) {
                 retMsgs.push(msgAsDomainMessage)
-                if (justOne) {
-                  // maybe the close will trigger the stream end
-                  consumer.disconnect()
-                  return resolve(retMsgs)
-                } else {
-                  return consume()
-                }
+              }
+              if (justOne && retMsgs.length === 1) {
+                // maybe the close will trigger the stream end
+                consumer.disconnect()
+                return resolve(retMsgs)
+              } else {
+                return consume()
               }
             })
           })

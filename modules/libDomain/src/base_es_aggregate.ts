@@ -145,11 +145,11 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
 
     const esState: TESourcingState| null = await this._esRepo.load(aggregateId)
 
-    // TODO fixme - duplicated below on the catch
-    if ((esState === null || (esState.snapshot === null && esState.events === null)) && throwOnNotFound) {
-      this._logger.isDebugEnabled() && this._logger.debug(`Aggregate with id: ${aggregateId} not found - took: ${now('micro') - startTimeMicroSecs} microseconds`)
-      throw new Error('Aggregate not found') // TODO typify these errors
-    }
+    // // TODO fixme - duplicated below on the catch
+    // if ((esState === null || (esState.snapshot === null && esState.events === null)) && throwOnNotFound) {
+    //   this._logger.isDebugEnabled() && this._logger.debug(`Aggregate with id: ${aggregateId} not found - took: ${now('micro') - startTimeMicroSecs} microseconds`)
+    //   throw new Error('Aggregate not found') // TODO typify these errors
+    // }
 
     if (esState?.snapshot != null || (esState?.events != null && esState?.events.length > 0)) {
       // create empty object
@@ -172,9 +172,11 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
       }
 
       this._logger.isDebugEnabled() && this._logger.debug(`Aggregate with id: ${aggregateId} loaded from the event stream - took: ${now('micro') - startTimeMicroSecs} microseconds`)
-    } else if (throwOnNotFound) {
+    } else {
       this._logger.isDebugEnabled() && this._logger.debug(`Aggregate with id: ${aggregateId} not found - took: ${now('micro') - startTimeMicroSecs} microseconds`)
-      throw new Error('Aggregate not found') // TODO typify these errors
+      if (throwOnNotFound) {
+        throw new Error('Aggregate not found') // TODO typify these errors
+      }
     }
   }
 
