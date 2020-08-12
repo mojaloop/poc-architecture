@@ -144,6 +144,8 @@ spec:
               value: {{ .Values.config.event_trace_vendor | quote }}
             - name: UV_THREADPOOL_SIZE
               value: {{ .Values.config.uv_threadpool_size | quote }}
+            - name: METRIC_PREFIX
+              value: {{ .Values.config.metric_prefix | quote }}
 
       # volumes:
       #   - name: {{ template "poc-modules.fullname" . }}-config-volume

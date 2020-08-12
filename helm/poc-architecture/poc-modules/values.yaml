@@ -38,6 +38,7 @@ config:
   event_trace_vendor: mojaloop
   log_level: info
   log_filter: info
+  metric_prefix: poc_
 
 init:
   enabled: true
