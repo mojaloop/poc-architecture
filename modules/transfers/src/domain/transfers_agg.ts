@@ -4,7 +4,7 @@
 
 'use strict'
 
-import { BaseEventSourcingAggregate, IEntityStateRepository, IMessagePublisher, ILogger, IEntityDuplicateRepository, IESourcingStateRepository, TCommandResult } from '@mojaloop-poc/lib-domain'
+import { BaseAggregate, IEntityStateRepository, IMessagePublisher, ILogger, IEntityDuplicateRepository } from '@mojaloop-poc/lib-domain'
 import { DuplicateTransferDetectedEvt, TransferPrepareAcceptedEvt, TransferFulfilledEvt, TransferFulfilledEvtPayload, TransferNotFoundEvt, TransferPreparedEvt, TransferPreparedEvtPayload, InvalidTransferEvt, InvalidTransferEvtPayload, TransferFulfilAcceptedEvt } from '@mojaloop-poc/lib-public-messages'
 import { PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
 import { TransferEntity, TransferState, TransferInternalStates, PrepareTransferData, FulfilTransferData } from './transfer_entity'
@@ -21,40 +21,29 @@ export enum TransfersAggTopics {
   'DomainEvents' = 'TransferDomainEvents',
 }
 
-export class TransfersAgg extends BaseEventSourcingAggregate<TransferEntity, TransferState> {
-  constructor (entityStateRepo: IEntityStateRepository<TransferState>, entityDuplicateRepo: IEntityDuplicateRepository, esStateRepo: IESourcingStateRepository, msgPublisher: IMessagePublisher, logger: ILogger) {
-    super(TransfersFactory.GetInstance(), entityStateRepo, entityDuplicateRepo, esStateRepo, msgPublisher, logger)
+export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
+  private readonly _entityDuplicateRepo: IEntityDuplicateRepository
+
+  constructor (entityStateRepo: IEntityStateRepository<TransferState>, entityDuplicateRepo: IEntityDuplicateRepository, msgPublisher: IMessagePublisher, logger: ILogger) {
+    super(TransfersFactory.GetInstance(), entityStateRepo, msgPublisher, logger)
+
+    this._entityDuplicateRepo = entityDuplicateRepo
 
     this._registerCommandHandler('PrepareTransferCmd', this.processPrepareTransferCommand)
     this._registerCommandHandler('AckPayerFundsReservedCmd', this.processAckPayerFundsReservedCommand)
     this._registerCommandHandler('AckPayeeFundsCommittedCmd', this.processAckPayeeFundsReservedCommand)
     this._registerCommandHandler('FulfilTransferCmd', this.processFulfilTransferCommand)
-
-    // register event handlers
-    this._registerStateEventHandler('TransferPreparedStateEvt', this._applyTransferPreparedStateEvent)
-    this._registerStateEventHandler('TransferStateChangedStateEvt', this._applyTransferStateChangedStateEvent)
-    this._registerStateEventHandler('TransferFulfiledStateEvt', this._applyTransferFulfiledStateEvent)
-
-    // TODO implement snapshot handler
-    // this._setSnapshotHandler(this._applySnapshotHandler)
   }
 
-  async processPrepareTransferCommand (commandMsg: PrepareTransferCmd): Promise<TCommandResult> {
+  async processPrepareTransferCommand (commandMsg: PrepareTransferCmd): Promise<boolean> {
     // try loading first to detect duplicates
 
     const isNotDuplicate: boolean = await this._entityDuplicateRepo.add(commandMsg.payload.transferId)
 
     if (!isNotDuplicate) {
       this.recordDomainEvent(new DuplicateTransferDetectedEvt(commandMsg.payload.transferId))
-      return { success: false, stateEvent: null }
+      return false
     }
-
-    // await this.load(commandMsg.payload.transferId, false)
-
-    // if (this._rootEntity != null) {
-    //   this.recordDomainEvent(new DuplicateTransferDetectedEvt(commandMsg.payload.transferId))
-    //   return false
-    // }
 
     /* TODO: validation of incoming payload */
 
@@ -91,28 +80,17 @@ export class TransfersAgg extends BaseEventSourcingAggregate<TransferEntity, Tra
         ...this._rootEntity!.exportState()
       }
     }
-    const stateEvt: TransferPreparedStateEvt = new TransferPreparedStateEvt(stateEvtPayload)
+    this.recordStateEvent(new TransferPreparedStateEvt(stateEvtPayload))
 
-    return { success: true, stateEvent: stateEvt }
+    return true
   }
 
-  private async _applyTransferPreparedStateEvent (stateEvent: TransferPreparedStateEvt, replayed?: boolean): Promise<void> {
-    const state: TransferState = {
-      ...stateEvent.payload.transfer,
-      created_at: stateEvent.msgTimestamp,
-      updated_at: stateEvent.msgTimestamp,
-      version: 0 // fixed for now?!?!
-    }
-
-    this._rootEntity = this._entity_factory.createFromState(state)
-  }
-
-  async processAckPayerFundsReservedCommand (commandMsg: AckPayerFundsReservedCmd): Promise<TCommandResult> {
+  async processAckPayerFundsReservedCommand (commandMsg: AckPayerFundsReservedCmd): Promise<boolean> {
     await this.load(commandMsg.payload.transferId, false)
 
     if (this._rootEntity === null) {
       this.recordDomainEvent(new TransferNotFoundEvt(commandMsg.payload.transferId))
-      return { success: false, stateEvent: null }
+      return false
     }
 
     if (this._rootEntity.transferInternalState !== TransferInternalStates.RECEIVED_PREPARE) {
@@ -123,7 +101,7 @@ export class TransfersAgg extends BaseEventSourcingAggregate<TransferEntity, Tra
 
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
       this._logger.isWarnEnabled() && this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
-      return { success: false, stateEvent: null }
+      return false
     }
 
     this._rootEntity.acknowledgeTransferReserved()
@@ -147,30 +125,17 @@ export class TransfersAgg extends BaseEventSourcingAggregate<TransferEntity, Tra
         transferInternalState: this._rootEntity.transferInternalState
       }
     }
-    const stateEvt: TransferStateChangedStateEvt = new TransferStateChangedStateEvt(stateEvtPayload)
+    this.recordStateEvent(new TransferStateChangedStateEvt(stateEvtPayload))
 
-    return { success: true, stateEvent: stateEvt }
+    return true
   }
 
-  private async _applyTransferStateChangedStateEvent (stateEvent: TransferFulfiledStateEvt, replayed?: boolean): Promise<void> {
-    if (this._rootEntity === null) {
-      throw new Error('Null root entity found while trying to apply "TransferStateChangedStateEvt"')
-    }
-
-    const state: TransferState = this._rootEntity.exportState()
-
-    state.transferInternalState = stateEvent.payload.transfer.transferInternalState
-
-    // replace the state
-    this._rootEntity = this._entity_factory.createFromState(state)
-  }
-
-  async processFulfilTransferCommand (commandMsg: FulfilTransferCmd): Promise<TCommandResult> {
+  async processFulfilTransferCommand (commandMsg: FulfilTransferCmd): Promise<boolean> {
     await this.load(commandMsg.payload.transferId, false)
 
     if (this._rootEntity === null) {
       this.recordDomainEvent(new TransferNotFoundEvt(commandMsg.payload.transferId))
-      return { success: false, stateEvent: null }
+      return false
     }
 
     if (this._rootEntity.transferInternalState !== TransferInternalStates.RESERVED) {
@@ -181,7 +146,7 @@ export class TransfersAgg extends BaseEventSourcingAggregate<TransferEntity, Tra
 
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
       this._logger.isWarnEnabled() && this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
-      return { success: false, stateEvent: null }
+      return false
     }
 
     /* TODO: validation of incoming payload */
@@ -212,7 +177,7 @@ export class TransfersAgg extends BaseEventSourcingAggregate<TransferEntity, Tra
       invalidTransferEvtPayload.reason = `${err.constructor.name} ${err.message}`
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
       this._logger.isWarnEnabled() && this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
-      return { success: false, stateEvent: null }
+      return false
     }
 
     const transferFulfilAcceptedEvtPayload = {
@@ -235,33 +200,17 @@ export class TransfersAgg extends BaseEventSourcingAggregate<TransferEntity, Tra
         fulfilment: state.fulfilment
       }
     }
-    const stateEvt: TransferFulfiledStateEvt = new TransferFulfiledStateEvt(stateEvtPayload)
+    this.recordStateEvent(new TransferFulfiledStateEvt(stateEvtPayload))
 
-    return { success: true, stateEvent: stateEvt }
+    return true
   }
 
-  private async _applyTransferFulfiledStateEvent (stateEvent: TransferFulfiledStateEvt, replayed?: boolean): Promise<void> {
-    if (this._rootEntity === null) {
-      throw new Error('Null root entity found while trying to apply "TransferFulfiledStateEvt"')
-    }
-
-    const state: TransferState = this._rootEntity.exportState()
-
-    state.transferInternalState = stateEvent.payload.transfer.transferInternalState
-    state.completedTimestamp = stateEvent.payload.transfer.completedTimestamp
-    state.fulfil = stateEvent.payload.transfer.fulfil
-    state.fulfilment = stateEvent.payload.transfer.fulfilment
-
-    // replace the state
-    this._rootEntity = this._entity_factory.createFromState(state)
-  }
-
-  async processAckPayeeFundsReservedCommand (commandMsg: AckPayeeFundsCommittedCmd): Promise<TCommandResult> {
+  async processAckPayeeFundsReservedCommand (commandMsg: AckPayeeFundsCommittedCmd): Promise<boolean> {
     await this.load(commandMsg.payload.transferId, false)
 
     if (this._rootEntity === null) {
       this.recordDomainEvent(new TransferNotFoundEvt(commandMsg.payload.transferId))
-      return { success: false, stateEvent: null }
+      return false
     }
 
     if (this._rootEntity.transferInternalState !== TransferInternalStates.RECEIVED_FULFIL) {
@@ -272,7 +221,7 @@ export class TransfersAgg extends BaseEventSourcingAggregate<TransferEntity, Tra
 
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
       this._logger.isWarnEnabled() && this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
-      return { success: false, stateEvent: null }
+      return false
     }
 
     this._rootEntity.commitTransfer()
@@ -296,8 +245,8 @@ export class TransfersAgg extends BaseEventSourcingAggregate<TransferEntity, Tra
         transferInternalState: this._rootEntity.transferInternalState
       }
     }
-    const stateEvt: TransferStateChangedStateEvt = new TransferStateChangedStateEvt(stateEvtPayload)
+    this.recordStateEvent(new TransferStateChangedStateEvt(stateEvtPayload))
 
-    return { success: true, stateEvent: stateEvt }
+    return true
   }
 }

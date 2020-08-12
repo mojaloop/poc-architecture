@@ -77,7 +77,7 @@ Program.command('handler')
     // # setup application config
     const appConfig = {
       metrics: {
-        prefix: getEnvValueOrDefault('METRIC_PREFIX', 'poc_') as string,
+        prefix: getEnvValueOrDefault('METRIC_PREFIX', 'poc_') as string
       },
       api: {
         host: (process.env.TRANSFERS_API_HOST != null) ? process.env.TRANSFERS_API_HOST : '0.0.0.0',
@@ -95,7 +95,12 @@ Program.command('handler')
         fetchMinBytes: (process.env.KAFKA_FETCH_MIN_BYTES != null && !isNaN(Number(process.env.KAFKA_FETCH_MIN_BYTES)) && process.env.KAFKA_FETCH_MIN_BYTES?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_MIN_BYTES) : 1,
         fetchWaitMaxMs: (process.env.KAFKA_FETCH_WAIT_MAX_MS != null && !isNaN(Number(process.env.KAFKA_FETCH_WAIT_MAX_MS)) && process.env.KAFKA_FETCH_WAIT_MAX_MS?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_WAIT_MAX_MS) : 100
       },
-      state_cache: {
+      // state_cache: {
+      //   type: (process.env.TRANSFERS_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.TRANSFERS_REPO_TYPE,
+      //   host: getEnvValueOrDefault('REDIS_HOST', 'redis://localhost:6379') as string,
+      //   expirationInSeconds: getEnvIntegerOrDefault('REDIS_EXPIRATION_IN_SEC', -1) as number
+      // },
+      entity_state: {
         type: (process.env.TRANSFERS_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.TRANSFERS_REPO_TYPE,
         host: getEnvValueOrDefault('REDIS_HOST', 'redis://localhost:6379') as string,
         expirationInSeconds: getEnvIntegerOrDefault('REDIS_EXPIRATION_IN_SEC', -1) as number
