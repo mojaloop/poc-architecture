@@ -145,6 +145,7 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
 
     const esState: TESourcingState| null = await this._esRepo.load(aggregateId)
 
+    // TODO fixme - duplicated below on the catch
     if ((esState === null || (esState.snapshot === null && esState.events === null)) && throwOnNotFound) {
       this._logger.isDebugEnabled() && this._logger.debug(`Aggregate with id: ${aggregateId} not found - took: ${now('micro') - startTimeMicroSecs} microseconds`)
       throw new Error('Aggregate not found') // TODO typify these errors
@@ -241,11 +242,8 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
       await this.commitEvents(result.stateEvent) // send out the unpublished events regardless
 
       if (this._rootEntity != null) {
-        process.nextTick(async () => {
-          // @ts-expect-error
-          await this._entity_cache_repo.store(this._rootEntity.exportState())
-          this._logger.isInfoEnabled() && this._logger.info(`Aggregate state persisted to repository at the end of command: ${commandMsg.msgName}`)
-        })
+        await this._entity_cache_repo.store(this._rootEntity.exportState())
+        this._logger.info(`Aggregate state persisted to repository at the end of command: ${commandMsg.msgName}`)
       } else {
         throw new Error(`Aggregate doesn't have a valid state after processing command with name ${commandMsg.msgName}`)
       }
