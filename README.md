@@ -105,13 +105,13 @@ npm run start:transfers
 1. ~~Handle currencies with something that can handle arbitrary precision (or at a minimum big numbers, etc)~~
 2. ~~Prometheus Metric Instrumentation & Dashboards - [#1417](https://github.com/mojaloop/project/issues/1417)~~
 3. ~~Tracing Support - [#1417](https://github.com/mojaloop/project/issues/1417)~~
-4. Helm charts for deployment [#1434](https://github.com/mojaloop/project/issues/1434)
+4. ~~Helm charts for deployment [#1434](https://github.com/mojaloop/project/issues/1434)~~
 5. Add support for currency specific ISO precision validations (validation as part of transfer handler or perhaps commands/events?)
 6. Non-inflight Long-term Persistent Storage for Reporting (contains full history of transfers, transfer-state-changes, position-state-changes, participants, etc)
 7. Assign completed transfers to a Settlement Window
 8. Make sure all interfaces start with an 'I' and types start with 'T'
 9. Maybe?? Move the aggregate load logic to the base class (not throwing), so the higher level implementation can start by verifying if the rootEntity exists and checking for consistency
-10. Implement log guards on methods, to avoid parameter expansion (that respects LOG_LEVEL)
+10. ~~Implement log guards on methods, to avoid parameter expansion (that respects LOG_LEVEL)~~
 
 ## Known Issues
 
