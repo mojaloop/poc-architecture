@@ -60,6 +60,8 @@ import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
 import { AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
 import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
 import { RepoInfraTypes } from '../infrastructure'
+import { CachedPersistedRedisTransferStateRepo } from '../infrastructure/cachedpersistedredis_transfer_repo'
+import { CachedRedisTransferStateRepo } from '../infrastructure/cachedredis_transfer_repo'
 
 export class TransferCmdHandler implements IRunHandler {
   private _logger: ILogger
@@ -80,8 +82,15 @@ export class TransferCmdHandler implements IRunHandler {
     // switch (appConfig.state_cache.type) {
     switch (appConfig.entity_state.type) {
       case RepoInfraTypes.REDIS: {
-        // this._entityStateRepo = new RedisTransferStateRepo(appConfig.state_cache.host, logger, appConfig.state_cache.expirationInSeconds)
         this._entityStateRepo = new RedisTransferStateRepo(appConfig.entity_state.host, logger, appConfig.entity_state.expirationInSeconds)
+        break
+      }
+      case RepoInfraTypes.CACHEDREDIS: {
+        this._entityStateRepo = new CachedRedisTransferStateRepo(appConfig.entity_state.host, logger, appConfig.entity_state.expirationInSeconds)
+        break
+      }
+      case RepoInfraTypes.CACHEDPERSISTEDREDIS: {
+        this._entityStateRepo = new CachedPersistedRedisTransferStateRepo(appConfig.entity_state.host, logger, appConfig.entity_state.expirationInSeconds)
         break
       }
       default: { // defaulting to In-Memory

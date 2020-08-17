@@ -42,7 +42,7 @@ import { ILogger } from '@mojaloop-poc/lib-domain'
 import { TransferState } from '../domain/transfer_entity'
 import { ITransfersRepo } from '../domain/transfers_repo'
 
-export class CachedRedisTransferStateRepo implements ITransfersRepo {
+export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
   protected _redisClient!: redis.RedisClient
   private readonly _redisConnStr: string
   private readonly _logger: ILogger
@@ -154,7 +154,29 @@ export class CachedRedisTransferStateRepo implements ITransfersRepo {
 
       this._inMemorylist.set(key, entityState)
 
-      return resolve()
+      let stringValue: string
+      try {
+        stringValue = JSON.stringify(entityState)
+      } catch (err) {
+        this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
+        return reject(err)
+      }
+
+      if (stringValue === null) {
+        return resolve()
+      }
+
+      this._redisClient.setex(key, this._expirationInSeconds, stringValue, (err: Error | null, reply: string) => {
+        if (err != null) {
+          this._logger.isErrorEnabled() && this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
+          return reject(err)
+        }
+        if (reply !== 'OK') {
+          this._logger.isErrorEnabled() && this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
+          return reject(err)
+        }
+        return resolve()
+      })
     })
   }
 
