@@ -50,14 +50,14 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
   private _initialized: boolean = false
   private readonly keyPrefix: string = 'transfer_'
   private readonly _expirationInSeconds: number
-  private readonly _inMemorylist: Map<string, TransferState> = new Map<string, TransferState>()
+  // private readonly _inMemorylist: Map<string, TransferState> = new Map<string, TransferState>()
   private readonly _nodeCache: NodeCache
 
   constructor (connStr: string, logger: ILogger, expirationInSeconds: number = -1) {
     this._redisConnStr = connStr
     this._logger = logger
     this._expirationInSeconds = expirationInSeconds
-    this._nodeCache = new NodeCache( { stdTTL: 100, checkperiod: 120 } );
+    this._nodeCache = new NodeCache({ stdTTL: 100, checkperiod: 120 })
   }
 
   async init (): Promise<void> {
