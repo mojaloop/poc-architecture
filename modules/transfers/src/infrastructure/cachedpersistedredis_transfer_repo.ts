@@ -41,6 +41,7 @@ import * as redis from 'redis'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { TransferState } from '../domain/transfer_entity'
 import { ITransfersRepo } from '../domain/transfers_repo'
+import NodeCache from 'node-cache'
 
 export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
   protected _redisClient!: redis.RedisClient
@@ -50,11 +51,13 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
   private readonly keyPrefix: string = 'transfer_'
   private readonly _expirationInSeconds: number
   private readonly _inMemorylist: Map<string, TransferState> = new Map<string, TransferState>()
+  private readonly _nodeCache: NodeCache
 
   constructor (connStr: string, logger: ILogger, expirationInSeconds: number = -1) {
     this._redisConnStr = connStr
     this._logger = logger
     this._expirationInSeconds = expirationInSeconds
+    this._nodeCache = new NodeCache( { stdTTL: 100, checkperiod: 120 } );
   }
 
   async init (): Promise<void> {
@@ -92,8 +95,8 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
 
       const key: string = this.keyWithPrefix(id)
 
-      if (this._inMemorylist.has(key)) {
-        return resolve(this._inMemorylist.get(key))
+      if (this._nodeCache.has(key)) {
+        return resolve(this._nodeCache.get(key))
       }
 
       this._redisClient.get(key, (err: Error | null, result: string | null) => {
@@ -108,7 +111,7 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
         try {
           const state: TransferState = JSON.parse(result)
 
-          this._inMemorylist.set(key, state)
+          this._nodeCache.set(key, state, this._expirationInSeconds)
 
           return resolve(state)
         } catch (err) {
@@ -125,8 +128,8 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
 
       const key: string = this.keyWithPrefix(id)
 
-      if (this._inMemorylist.has(key)) {
-        this._inMemorylist.delete(key)
+      if (this._nodeCache.has(key)) {
+        this._nodeCache.del(key)
       }
 
       this._redisClient.del(key, (err?: Error|null, result?: number) => {
@@ -152,7 +155,7 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
 
       this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::store - storing ${entityState.id} in-memory only!`)
 
-      this._inMemorylist.set(key, entityState)
+      this._nodeCache.set(key, entityState, this._expirationInSeconds)
 
       let stringValue: string
       try {

@@ -48,9 +48,11 @@
     "@mojaloop-poc/lib-public-messages": "^0.1.0",
     "@mojaloop-poc/lib-utilities": "^0.1.0",
     "@types/dotenv": "^8.2.0",
+    "@types/node-cache": "^4.2.5",
     "base64url": "^3.0.1",
     "commander": "^6.0.0",
     "dotenv": "^8.2.0",
+    "node-cache": "^5.1.0",
     "path": "^0.12.7",
     "redis": "^3.0.2"
   },
