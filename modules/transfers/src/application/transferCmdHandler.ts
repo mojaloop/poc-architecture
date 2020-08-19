@@ -63,6 +63,7 @@ import { RepoInfraTypes } from '../infrastructure'
 import { CachedPersistedRedisTransferStateRepo } from '../infrastructure/cachedpersistedredis_transfer_repo'
 import { CachedRedisTransferStateRepo } from '../infrastructure/cachedredis_transfer_repo'
 import { InMemoryNodeCacheTransferStateRepo } from '../infrastructure/inmemory_node_cache_transfer_repo'
+import { InMemoryTransferDuplicateRepo } from '../infrastructure/inmemory_duplicate_repo'
 
 export class TransferCmdHandler implements IRunHandler {
   private _logger: ILogger
@@ -108,6 +109,10 @@ export class TransferCmdHandler implements IRunHandler {
     switch (appConfig.duplicate_store.type) {
       case RepoInfraTypes.REDIS: {
         this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, 'transfers_duplicate', logger)
+        break
+      }
+      case RepoInfraTypes.MEMORY: {
+        this._duplicateRepo = new InMemoryTransferDuplicateRepo()
         break
       }
       default: {
