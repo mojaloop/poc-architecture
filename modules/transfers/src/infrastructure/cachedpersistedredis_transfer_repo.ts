@@ -57,7 +57,13 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
     this._redisConnStr = connStr
     this._logger = logger
     this._expirationInSeconds = expirationInSeconds
-    this._nodeCache = new NodeCache({ stdTTL: 100, checkperiod: 120 })
+    this._nodeCache = new NodeCache({
+      stdTTL: 100, // (default: 0) the standard ttl as number in seconds for every generated cache element. 0 = unlimited
+      checkperiod: 120, // (default: 600) The period in seconds, as a number, used for the automatic delete check interval. 0 = no periodic check.
+      useClones: false // (default: true) en/disable cloning of variables. If true you'll get a copy of the cached variable. If false you'll save and get just the reference.
+      // deleteOnExpire: true, // (default: true) whether variables will be deleted automatically when they expire. If true the variable will be deleted. If false the variable will remain. You are encouraged to handle the variable upon the event expired by yourself.
+      // maxKeys: -1 // (default: -1) specifies a maximum amount of keys that can be stored in the cache. If a new item is set and the cache is full, an error is thrown and the key will not be saved in the cache. -1 disables the key limit.
+    })
   }
 
   async init (): Promise<void> {

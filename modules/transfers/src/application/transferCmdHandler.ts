@@ -62,6 +62,7 @@ import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_r
 import { RepoInfraTypes } from '../infrastructure'
 import { CachedPersistedRedisTransferStateRepo } from '../infrastructure/cachedpersistedredis_transfer_repo'
 import { CachedRedisTransferStateRepo } from '../infrastructure/cachedredis_transfer_repo'
+import { InMemoryNodeCacheTransferStateRepo } from '../infrastructure/inmemory_node_cache_transfer_repo'
 
 export class TransferCmdHandler implements IRunHandler {
   private _logger: ILogger
@@ -91,6 +92,10 @@ export class TransferCmdHandler implements IRunHandler {
       }
       case RepoInfraTypes.CACHEDPERSISTEDREDIS: {
         this._entityStateRepo = new CachedPersistedRedisTransferStateRepo(appConfig.entity_state.host, logger, appConfig.entity_state.expirationInSeconds)
+        break
+      }
+      case RepoInfraTypes.NODECACHE: {
+        this._entityStateRepo = new InMemoryNodeCacheTransferStateRepo(logger, appConfig.entity_state.expirationInSeconds)
         break
       }
       default: { // defaulting to In-Memory
