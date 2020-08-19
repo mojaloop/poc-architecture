@@ -157,9 +157,8 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
 
       const key: string = this.keyWithPrefix(entityState.id)
 
-      this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::store - storing ${entityState.id} in-memory only!`)
-
       if (!this._inMemorylist.has(key)) {
+        this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::store - storing ${entityState.id} in-memory and redis`)
         this._inMemorylist.set(key, entityState)
 
         let stringValue: string | null = null
@@ -185,6 +184,7 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
           return resolve()
         })
       } else {
+        this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::store - storing ${entityState.id} in-memory only!`)
         this._inMemorylist.set(key, entityState)
         return resolve()
       }
