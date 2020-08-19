@@ -103,11 +103,15 @@ export class RDKafkaProducer extends MessageProducer {
       /* Add config from environmental variables */
       const RDKAFKA_BATCH_NUM_MESSAGES = getEnvIntegerOrDefault('RDKAFKA_BATCH_NUM_MESSAGES', null)
       const RDKAFKA_QUEUE_BUFFERING_MAX_US = getEnvIntegerOrDefault('RDKAFKA_QUEUE_BUFFERING_MAX_US', null)
+      const RDKAFKA_METADATA_REFRESH_INTERVAL_MS = getEnvIntegerOrDefault('RDKAFKA_METADATA_REFRESH_INTERVAL_MS', null)
       if (RDKAFKA_BATCH_NUM_MESSAGES != null) {
         globalConfig['batch.num.messages'] = RDKAFKA_BATCH_NUM_MESSAGES
       }
       if (RDKAFKA_QUEUE_BUFFERING_MAX_US != null) {
         globalConfig['queue.buffering.max.ms'] = RDKAFKA_QUEUE_BUFFERING_MAX_US * 0.001
+      }
+      if (RDKAFKA_METADATA_REFRESH_INTERVAL_MS != null) {
+        globalConfig['topic.metadata.refresh.interval.ms'] = RDKAFKA_METADATA_REFRESH_INTERVAL_MS
       }
 
       /* Topic config: Mix incoming config with default config */
