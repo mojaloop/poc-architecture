@@ -75,6 +75,7 @@ export const extractTraceStateFromMessage = (message: IDomainMessage): any => {
 }
 
 export const injectTraceStateToMessage = (message: IDomainMessage, toInject: any): void => {
+  initEnvVars()
   const payloadEncoded = base64url.encode(JSON.stringify(toInject))
   const vendorWithSign = EVENT_SDK_VENDOR_PREFIX + '='
 
