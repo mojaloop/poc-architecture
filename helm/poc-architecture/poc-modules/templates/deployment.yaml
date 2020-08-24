@@ -146,6 +146,12 @@ spec:
               value: {{ .Values.config.uv_threadpool_size | quote }}
             - name: METRIC_PREFIX
               value: {{ .Values.config.metric_prefix | quote }}
+            - name: PARTICIPANTS_COLLECTION
+              value: {{ .Values.config.perf_multiple_producer_participant_collection | quote }}
+            - name: SIMULATED_DFSPS_CNT
+              value: {{ .Values.config.perf_multiple_producer_simulated_dfsp_cnt | quote }}
+            - name: INJECTED_PER_SECOND
+              value: {{ .Values.config.perf_multiple_producer_injected_per_second | quote }}
 
       # volumes:
       #   - name: {{ template "poc-modules.fullname" . }}-config-volume

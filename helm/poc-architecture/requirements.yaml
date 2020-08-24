@@ -55,6 +55,12 @@ dependencies:
   version: 0.1.0
   repository: "file://./poc-modules"
   condition: devtoolclient.enabled
+# CLI Performance Producer
+- name: poc-modules
+  alias: perftoolclient
+  version: 0.1.0
+  repository: "file://./poc-modules"
+  condition: perftoolclient.enabled
 # We will pull simulator from the official mojaloop helm repo
 - name: simulator
   alias: legacy-simulator
