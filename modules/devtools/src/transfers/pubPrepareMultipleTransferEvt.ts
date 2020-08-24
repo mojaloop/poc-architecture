@@ -5,8 +5,13 @@ import {
 } from '@mojaloop-poc/lib-public-messages'
 import { v4 as uuidv4 } from 'uuid'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { MojaLogger, injectTraceStateToMessage } from '@mojaloop-poc/lib-utilities'
+import { MojaLogger, injectTraceStateToMessage, Metrics, getEnvBoolOrDefault, TMetricOptionsType, getEnvIntegerOrDefault, getEnvValueOrDefault } from '@mojaloop-poc/lib-utilities'
 import { getRandomFsps } from '../utilities/participant'
+import { ApiServer, TApiServerOptions } from '@mojaloop-poc/lib-infrastructure'
+import * as dotenv from 'dotenv'
+
+/* eslint-disable-next-line @typescript-eslint/no-var-requires */
+const pckg = require('../../package.json')
 
 /* eslint-disable @typescript-eslint/no-var-requires */
 const encodePayload = require('@mojaloop/central-services-shared').Util.StreamingProtocol.encodePayload
@@ -20,15 +25,29 @@ const timeout = async (ms: number): Promise<void> => {
   return await new Promise(resolve => setTimeout(resolve, ms))
 }
 
+let histoSendHandlerMetric: any | undefined
+let histoSendPublisheHandlerMetric: any | undefined
+let histoSendConstructHandlerMetric: any | undefined
+let histoSendConstructSingleHandlerMetric: any | undefined
+let histSendAllTimer: any | undefined
+let histSendPublishTimer: any | undefined
+let histSendConstructTimer: any | undefined
+let histSendConstructSingleTimer: any | undefined
+
 let evts: TransferPrepareRequestedEvt[] = []
 let expireDate = new Date()
-const send = async (): Promise<void> => {
+const send = async (metrics?: Metrics | undefined): Promise<void> => {
+  if (metrics !== undefined) histSendAllTimer = histoSendHandlerMetric.startTimer()
+
   const startTime = Date.now()
   evts = []
   expireDate = new Date()
   expireDate.setMinutes(expireDate.getMinutes() + 5)
 
+  if (metrics !== undefined) histSendConstructTimer = histoSendConstructHandlerMetric.startTimer()
   for (let i = 0; i < INJECTED_PER_SECOND; i++) {
+    if (metrics !== undefined) histSendConstructSingleTimer = histoSendConstructSingleHandlerMetric.startTimer()
+
     const fspIds = getRandomFsps()
 
     const preparePayload = {
@@ -79,10 +98,17 @@ const send = async (): Promise<void> => {
     injectTraceStateToMessage(newEvent, { timeApiPrepare: Date.now() })
 
     evts.push(newEvent)
+
+    if (metrics !== undefined) histSendConstructSingleTimer({ success: 'true' })
   }
+  if (metrics !== undefined) histSendConstructTimer({ success: 'true' })
 
   const constructMsgsMs = Date.now() - startTime
+
+  if (metrics !== undefined) histSendPublishTimer = histoSendPublisheHandlerMetric.startTimer()
   await Publisher.publishMessageMultiple(evts)
+  if (metrics !== undefined) histSendPublishTimer({ success: 'true' })
+
   const totalTimeMs = Date.now() - startTime
   const publishMsgsMs = totalTimeMs - constructMsgsMs
 
@@ -95,15 +121,92 @@ const send = async (): Promise<void> => {
   }
 
   await timeout(totalTimeMs > 1000 ? 10 : 1000 - totalTimeMs)
+  if (metrics !== undefined) histSendAllTimer({ success: 'true' })
 }
+
+let apiServer: ApiServer | undefined
 
 /* eslint-disable-next-line @typescript-eslint/explicit-function-return-type */
 const start = async () => {
   logger.isInfoEnabled() && logger.info('Starting pubPrepareMultipleTransferEvt publisher!')
+
+  // TODO: Figure a better way to handle env config here
+  dotenv.config({ path: '../../.env' })
+
+  // # setup application config
+  const appConfig = {
+    api: {
+      isDisabled: getEnvBoolOrDefault('PERFTOOLCLIENT_API_DISABLED'),
+      host: getEnvValueOrDefault('PERFTOOLCLIENT_API_HOST', '0.0.0.0'),
+      port: getEnvIntegerOrDefault('PERFTOOLCLIENT_API_PORT', 4002)
+    }
+  }
+
+  // init metrics
+  const metricsConfig: TMetricOptionsType = {
+    timeout: 5000, // Set the timeout in ms for the underlying prom-client library. Default is '5000'.
+    prefix: 'poc_', // Set prefix for all defined metrics names
+    defaultLabels: { // Set default labels that will be applied to all metrics
+      serviceName: 'perftoolclient'
+    }
+  }
+
+  const metrics = new Metrics(metricsConfig)
+  await metrics.init()
+
+  // start API
+  if (appConfig.api.isDisabled === false) {
+    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+    logger.isInfoEnabled() && logger.info(`Starting pubPrepareMultipleTransferEvt api Server on ${appConfig.api.host}:${appConfig.api.port}`)
+
+    if (metrics !== undefined) {
+      histoSendHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+        'sendAll', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+        'Instrumentation for perfClientTools for a sending a batch of transfers', // Description of metric
+        ['success', 'error'] // Define a custom label 'success'
+      )
+      histoSendConstructSingleHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+        'sendConstructSingle', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+        'Instrumentation for perfClientTools for constructing a single transfer', // Description of metric
+        ['success', 'error'] // Define a custom label 'success'
+      )
+      histoSendConstructHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+        'sendConstruct', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+        'Instrumentation for perfClientTools for constructing a batch of transfers', // Description of metric
+        ['success', 'error'] // Define a custom label 'success'
+      )
+      histoSendPublisheHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+        'sendPublish', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+        'Instrumentation for perfClientTools for publishing a batch of transfers to kafka', // Description of metric
+        ['success', 'error'] // Define a custom label 'success'
+      )
+    }
+
+    const apiServerOptions: TApiServerOptions = {
+      host: appConfig.api.host,
+      port: appConfig.api.port,
+      metricCallback: async () => {
+        return metrics.getMetricsForPrometheus()
+      },
+      healthCallback: async () => {
+        return {
+          status: 'ok',
+          version: pckg.version,
+          name: pckg.name
+        }
+      }
+    }
+    apiServer = new ApiServer(apiServerOptions, logger)
+    await apiServer.init()
+  } else {
+    logger.isInfoEnabled() && logger.info('pubPrepareMultipleTransferEvt api Server disabled')
+  }
+
+  // start publisher
   await Publisher.init()
   await Publisher.publishMessageMultipleInit()
   while (true) {
-    await send()
+    await send(metrics)
   }
 }
 
@@ -111,6 +214,12 @@ const start = async () => {
 /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
 const killProcess = async (): Promise<void> => {
   logger.isInfoEnabled() && logger.info('Exiting process...')
+
+  if (apiServer != null) {
+    logger.isInfoEnabled() && logger.info('Destroying API server...')
+    await apiServer.destroy()
+  }
+
   logger.isInfoEnabled() && logger.info('Destroying handlers...')
   await Publisher.publishMessageMultipleDestroy()
 

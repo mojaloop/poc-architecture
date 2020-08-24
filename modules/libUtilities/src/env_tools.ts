@@ -57,3 +57,16 @@ export const getEnvValueOrDefault = (key: string, defaultValue: any): any => {
 
   return rv
 }
+
+export const getEnvBoolOrDefault = (key: string): any => {
+  const envValue = process.env[key]
+  let rv
+
+  if (envValue != null && envValue.toLowerCase() === 'true') {
+    rv = true
+  } else {
+    rv = false
+  }
+
+  return rv
+}
