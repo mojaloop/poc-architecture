@@ -128,6 +128,10 @@ export class RDKafkaConsumer extends MessageConsumer {
 
                   if (headersObj.msgName !== undefined && !this._msgNames.includes(headersObj.msgName)) {
                     this._logger.isDebugEnabled() && this._logger.debug(`RDKafkaConsumer ignoring message with msgName: ${headersObj.msgName} not in the consumer list of subscribed msgNames`)
+                    // We are ignoring this message, but if we don't commit it and there will be no more messages that we can commit,
+                    // then all the ignored messages will appear "stuck". Everything reports lag.
+                    // Let's commit in NO_WAIT mode.
+                    this._client.commitMessage(messages[0])
                     return consumeRecursiveWrapper()
                   }
                 }
