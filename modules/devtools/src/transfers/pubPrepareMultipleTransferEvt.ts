@@ -20,10 +20,12 @@ const timeout = async (ms: number): Promise<void> => {
   return await new Promise(resolve => setTimeout(resolve, ms))
 }
 
+let evts: TransferPrepareRequestedEvt[] = []
+let expireDate = new Date()
 const send = async (): Promise<void> => {
   const startTime = Date.now()
-  const evts: TransferPrepareRequestedEvt[] = []
-  const expireDate = new Date()
+  evts = []
+  expireDate = new Date()
   expireDate.setMinutes(expireDate.getMinutes() + 5)
 
   for (let i = 0; i < INJECTED_PER_SECOND; i++) {
@@ -81,12 +83,18 @@ const send = async (): Promise<void> => {
 
   const constructMsgsMs = Date.now() - startTime
   await Publisher.publishMessageMultiple(evts)
-  const publishMsgsMs = Date.now() - startTime
+  const totalTimeMs = Date.now() - startTime
+  const publishMsgsMs = totalTimeMs - constructMsgsMs
 
-  // eslint-disable-next-line no-console
-  console.info(`Sending batches of ${INJECTED_PER_SECOND} messages - ${constructMsgsMs} ms to construct - ${publishMsgsMs} ms to publish`)
+  if (totalTimeMs > 1000) {
+    // eslint-disable-next-line no-console
+    console.info(`Sending batches of ${INJECTED_PER_SECOND} messages - ${constructMsgsMs} ms to construct - ${publishMsgsMs} ms to publish - ${totalTimeMs} ms total - NOT COPING`)
+  } else {
+    // eslint-disable-next-line no-console
+    console.info(`Sending batches of ${INJECTED_PER_SECOND} messages - ${constructMsgsMs} ms to construct - ${publishMsgsMs} ms to publish - ${totalTimeMs} ms total`)
+  }
 
-  await timeout(1000)
+  await timeout(totalTimeMs > 1000 ? 10 : 1000 - totalTimeMs)
 }
 
 /* eslint-disable-next-line @typescript-eslint/explicit-function-return-type */
