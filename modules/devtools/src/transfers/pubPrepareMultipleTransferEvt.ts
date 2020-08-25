@@ -99,15 +99,15 @@ const send = async (metrics?: Metrics | undefined): Promise<void> => {
 
     evts.push(newEvent)
 
-    if (metrics !== undefined) histSendConstructSingleTimer({ success: 'true' })
+    if (metrics !== undefined) histSendConstructSingleTimer( { payerId: preparePayload.payerFsp } )
   }
-  if (metrics !== undefined) histSendConstructTimer({ success: 'true' })
+  if (metrics !== undefined) histSendConstructTimer()
 
   const constructMsgsMs = Date.now() - startTime
 
   if (metrics !== undefined) histSendPublishTimer = histoSendPublisheHandlerMetric.startTimer()
   await Publisher.publishMessageMultiple(evts)
-  if (metrics !== undefined) histSendPublishTimer({ success: 'true' })
+  if (metrics !== undefined) histSendPublishTimer()
 
   const totalTimeMs = Date.now() - startTime
   const publishMsgsMs = totalTimeMs - constructMsgsMs
@@ -121,10 +121,11 @@ const send = async (metrics?: Metrics | undefined): Promise<void> => {
   }
 
   await timeout(totalTimeMs > 1000 ? 10 : 1000 - totalTimeMs)
-  if (metrics !== undefined) histSendAllTimer({ success: 'true' })
+  if (metrics !== undefined) histSendAllTimer()
 }
 
 let apiServer: ApiServer | undefined
+let metrics: Metrics | undefined
 
 /* eslint-disable-next-line @typescript-eslint/explicit-function-return-type */
 const start = async () => {
@@ -142,43 +143,43 @@ const start = async () => {
     }
   }
 
-  // init metrics
-  const metricsConfig: TMetricOptionsType = {
-    timeout: 5000, // Set the timeout in ms for the underlying prom-client library. Default is '5000'.
-    prefix: 'poc_', // Set prefix for all defined metrics names
-    defaultLabels: { // Set default labels that will be applied to all metrics
-      serviceName: 'perftoolclient'
-    }
-  }
-
-  const metrics = new Metrics(metricsConfig)
-  await metrics.init()
-
   // start API
   if (appConfig.api.isDisabled === false) {
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
     logger.isInfoEnabled() && logger.info(`Starting pubPrepareMultipleTransferEvt api Server on ${appConfig.api.host}:${appConfig.api.port}`)
 
+    // init metrics
+    const metricsConfig: TMetricOptionsType = {
+      timeout: 5000, // Set the timeout in ms for the underlying prom-client library. Default is '5000'.
+      prefix: 'poc_', // Set prefix for all defined metrics names
+      defaultLabels: { // Set default labels that will be applied to all metrics
+        serviceName: 'perftoolclient'
+      }
+    }
+
+    metrics = new Metrics(metricsConfig)
+    await metrics.init()
+
     if (metrics !== undefined) {
       histoSendHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
         'sendAll', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
         'Instrumentation for perfClientTools for a sending a batch of transfers', // Description of metric
-        ['success', 'error'] // Define a custom label 'success'
+        [] // Define a custom label 'success'
       )
       histoSendConstructSingleHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
         'sendConstructSingle', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
         'Instrumentation for perfClientTools for constructing a single transfer', // Description of metric
-        ['success', 'error'] // Define a custom label 'success'
+        [ 'payerId' ] // Define a custom label 'success'
       )
       histoSendConstructHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
         'sendConstruct', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
         'Instrumentation for perfClientTools for constructing a batch of transfers', // Description of metric
-        ['success', 'error'] // Define a custom label 'success'
+        [] // Define a custom label 'success'
       )
       histoSendPublisheHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
         'sendPublish', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
         'Instrumentation for perfClientTools for publishing a batch of transfers to kafka', // Description of metric
-        ['success', 'error'] // Define a custom label 'success'
+        [] // Define a custom label 'success'
       )
     }
 
@@ -186,7 +187,7 @@ const start = async () => {
       host: appConfig.api.host,
       port: appConfig.api.port,
       metricCallback: async () => {
-        return metrics.getMetricsForPrometheus()
+        return metrics!.getMetricsForPrometheus()
       },
       healthCallback: async () => {
         return {
