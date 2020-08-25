@@ -26,7 +26,7 @@ const timeout = async (ms: number): Promise<void> => {
 }
 
 let histoSendHandlerMetric: any | undefined
-let histoSendPublisheHandlerMetric: any | undefined
+let histoSendPublishHandlerMetric: any | undefined
 let histoSendConstructHandlerMetric: any | undefined
 let histoSendConstructSingleHandlerMetric: any | undefined
 let histSendAllTimer: any | undefined
@@ -99,13 +99,13 @@ const send = async (metrics?: Metrics | undefined): Promise<void> => {
 
     evts.push(newEvent)
 
-    if (metrics !== undefined) histSendConstructSingleTimer( { payerId: preparePayload.payerFsp } )
+    if (metrics !== undefined) histSendConstructSingleTimer({ payerId: preparePayload.payerFsp })
   }
   if (metrics !== undefined) histSendConstructTimer()
 
   const constructMsgsMs = Date.now() - startTime
 
-  if (metrics !== undefined) histSendPublishTimer = histoSendPublisheHandlerMetric.startTimer()
+  if (metrics !== undefined) histSendPublishTimer = histoSendPublishHandlerMetric.startTimer()
   await Publisher.publishMessageMultiple(evts)
   if (metrics !== undefined) histSendPublishTimer()
 
@@ -169,14 +169,14 @@ const start = async () => {
       histoSendConstructSingleHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
         'sendConstructSingle', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
         'Instrumentation for perfClientTools for constructing a single transfer', // Description of metric
-        [ 'payerId' ] // Define a custom label 'success'
+        ['payerId'] // Define a custom label 'success'
       )
       histoSendConstructHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
         'sendConstruct', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
         'Instrumentation for perfClientTools for constructing a batch of transfers', // Description of metric
         [] // Define a custom label 'success'
       )
-      histoSendPublisheHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+      histoSendPublishHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
         'sendPublish', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
         'Instrumentation for perfClientTools for publishing a batch of transfers to kafka', // Description of metric
         [] // Define a custom label 'success'

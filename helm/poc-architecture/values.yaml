@@ -5,7 +5,7 @@ global: {}
 
 parameters:
   poc_architecture_image : &poc_architecture_image "mojaloop/poc-architecture"
-  poc_architecture_tag : &poc_architecture_tag "v0.57-es"
+  poc_architecture_tag : &poc_architecture_tag "v0.59-es"
   kafka_autocommit: &kafka_autocommit true
   kafka_producer_gzip: &kafka_producer_gzip true
   kafka_replicas: &kafka_replicas 1
@@ -2963,6 +2963,9 @@ perftoolclient:
     perf_multiple_producer_injected_per_second: 50
     perf_multiple_producer_participant_collection: perf1
     perf_multiple_producer_simulated_dfsp_cnt: 16
+    perf_multiple_producer_api_disabed: true
+    perf_multiple_producer_api_host: 0.0.0.0
+    perf_multiple_producer_api_port: 4002
 
   init:
     enabled: false

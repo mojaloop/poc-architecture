@@ -152,6 +152,12 @@ spec:
               value: {{ .Values.config.perf_multiple_producer_simulated_dfsp_cnt | quote }}
             - name: INJECTED_PER_SECOND
               value: {{ .Values.config.perf_multiple_producer_injected_per_second | quote }}
+            - name: PERFTOOLCLIENT_API_DISABLED
+              value: {{ .Values.config.perf_multiple_producer_api_disabed | quote }}
+            - name: PERFTOOLCLIENT_API_HOST
+              value: {{ .Values.config.perf_multiple_producer_api_host | quote }}
+            - name: PERFTOOLCLIENT_API_PORT
+              value: {{ .Values.config.perf_multiple_producer_api_port | quote }}
 
       # volumes:
       #   - name: {{ template "poc-modules.fullname" . }}-config-volume
