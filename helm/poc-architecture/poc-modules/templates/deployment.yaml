@@ -153,7 +153,7 @@ spec:
             - name: INJECTED_PER_SECOND
               value: {{ .Values.config.perf_multiple_producer_injected_per_second | quote }}
             - name: PERFTOOLCLIENT_API_DISABLED
-              value: {{ .Values.config.perf_multiple_producer_api_disabed | quote }}
+              value: {{ .Values.config.perf_multiple_producer_api_disabled | quote }}
             - name: PERFTOOLCLIENT_API_HOST
               value: {{ .Values.config.perf_multiple_producer_api_host | quote }}
             - name: PERFTOOLCLIENT_API_PORT
