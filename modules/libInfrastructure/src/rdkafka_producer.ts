@@ -92,8 +92,19 @@ export class RDKafkaProducer extends MessageProducer {
     return await new Promise((resolve, reject) => {
       this._logger.isInfoEnabled() && this._logger.info('RDKafkaProducer initialising...')
 
+      let debug
+      if (this._logger.isDebugEnabled()) {
+        debug = 'broker'
+      }
+
+      const RDKAFKA_STATS_INT_MS = getEnvIntegerOrDefault('RDKAFKA_STATS_INT_MS', 0)
+
       /* Global config: Mix incoming config with default config */
-      const defaultGlobalConfig: RDKafka.ProducerGlobalConfig = {}
+      const defaultGlobalConfig: RDKafka.ProducerGlobalConfig = {
+        'statistics.interval.ms': RDKAFKA_STATS_INT_MS,
+        // event_cb: true,
+        debug // broker,topic,msg
+      }
 
       const globalConfig = {
         ...defaultGlobalConfig,
@@ -129,28 +140,52 @@ export class RDKafkaProducer extends MessageProducer {
       this._client = new RDKafka.HighLevelProducer(globalConfig, topicConfig)
       this._client.connect(undefined, (err: RDKafka.LibrdKafkaError | null, data: RDKafka.Metadata) => {
         if (err !== null) {
-          this._logger.isInfoEnabled() && this._logger.info('RDKafkaProducer failed to connect with error:', err)
+          this._logger.isErrorEnabled() && this._logger.error('RDKafkaProducer::connect - failed to connect with error:', err)
           reject(err)
         }
       })
 
-      this._client.on('ready', () => {
-        this._logger.isInfoEnabled() && this._logger.info('RDKafkaProducer ...connected !')
+      this._client.on('ready', (info: RDKafka.ReadyInfo, metadata: RDKafka.Metadata) => {
+        this._logger.isInfoEnabled() && this._logger.info(`RDKafkaProducer::event.ready - info: ${JSON.stringify(info, null, 2)}`)
+        this._logger.isInfoEnabled() && this._logger.info(`RDKafkaProducer::event.ready - metadata: ${JSON.stringify(metadata)}`)
+        // this._logger.isInfoEnabled() && this._logger.info(`RDKafkaProducer::event.ready - metadata: ${JSON.stringify(metadata, null, 2)}`)
         resolve()
       })
 
-      this._client.on('event.error', () => {
-        this._logger.isErrorEnabled() && this._logger.error('RDKafkaProducer ...error !')
+      this._client.on('event.error', (error: RDKafka.LibrdKafkaError) => {
+        this._logger.isErrorEnabled() && this._logger.error(`RDKafkaProducer::event.error - ${JSON.stringify(error, null, 2)}`)
+      })
+
+      this._client.on('event.throttle', (eventData: any) => {
+        this._logger.isWarnEnabled() && this._logger.warn(`RDKafkaProducer::event.throttle - ${JSON.stringify(eventData, null, 2)}`)
+      })
+
+      // this._client.on('event.event', (eventData: any) => {
+      //   this._logger.isErrorEnabled() && this._logger.error(`RDKafkaProducer::event.event - ${JSON.stringify(eventData)}`)
+      // })
+
+      this._client.on('event.log', (eventData: any) => {
+        this._logger.isDebugEnabled() && this._logger.debug(`RDKafkaProducer::event.log - ${JSON.stringify(eventData, null, 2)}`)
+      })
+
+      /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+      this._client.on('event.stats', (eventData: any) => {
+        /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+        this._logger.isInfoEnabled() && this._logger.info(`RDKafkaProducer::event.stats - ${eventData.message}`)
+      })
+
+      this._client.on('disconnected', (metrics: RDKafka.ClientMetrics) => {
+        this._logger.isErrorEnabled() && this._logger.error(`RDKafkaProducer::event.disconnected - ${JSON.stringify(metrics, null, 2)}`)
       })
     })
   }
 
   async destroy (): Promise<void> {
     return await new Promise((resolve, reject) => {
-      this._logger.isInfoEnabled() && this._logger.info('RDKafkaProducer disconnect()-ing...')
+      this._logger.isInfoEnabled() && this._logger.info('RDKafkaProducer::destroy - disconnect()-ing...')
       this._client.disconnect((err: any, _data: RDKafka.ClientMetrics) => {
         if (err !== null) {
-          this._logger.isErrorEnabled() && this._logger.error('RDKafkaProducer disconnect() failed', err)
+          this._logger.isErrorEnabled() && this._logger.error('RDKafkaProducer::destroy disconnect() failed', err)
           reject(err)
         } else {
           resolve()

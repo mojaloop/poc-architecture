@@ -25,6 +25,8 @@ config:
   rdkafka_commit_wait_mode: commit-msg-sync
   rdkafka_batch_num_messages: null
   rdkafka_queue_buffering_max_us: null
+  # use null if we wish to disable the rdkafka internal stats being printed
+  rdkafka_stats_interval_ms: null
   measure_kafka_group_id: ''
   simulator_host: '$release_name-legacy-simulator'
   uv_threadpool_size: 7

@@ -34,7 +34,7 @@
 
 'use strict'
 
-import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
+import { ConsoleLogger, getEnvIntegerOrDefault } from '@mojaloop-poc/lib-utilities'
 import * as RDKafka from 'node-rdkafka'
 import { ILogger, IDomainMessage } from '@mojaloop-poc/lib-domain'
 import { MessageConsumer, Options } from './imessage_consumer'
@@ -80,8 +80,18 @@ export class RDKafkaConsumer extends MessageConsumer {
         this._logger.isInfoEnabled() && this._logger.info('RDKafkaConsumer not filtering msg names (all will be received)')
       }
 
+      const RDKAFKA_STATS_INT_MS = getEnvIntegerOrDefault('RDKAFKA_STATS_INT_MS', 0)
+
+      let debug
+      if (this._logger.isDebugEnabled()) {
+        debug = 'consumer'
+      }
+
       /* Global config: Mix incoming config with default config */
       const defaultGlobalConfig: RDKafka.ConsumerGlobalConfig = {
+        'statistics.interval.ms': RDKAFKA_STATS_INT_MS,
+        // event_cb: true,
+        debug // consumer,cgrp,topic,fetch
       }
       const globalConfig = {
         ...defaultGlobalConfig,
@@ -99,6 +109,39 @@ export class RDKafkaConsumer extends MessageConsumer {
       /* Start and connect the client */
       this._client = new RDKafka.KafkaConsumer(globalConfig, topicConfig)
       this._client.connect()
+
+      this._client.on('ready', (info: RDKafka.ReadyInfo, metadata: RDKafka.Metadata) => {
+        this._logger.isInfoEnabled() && this._logger.info(`RDKafkaConsumer::event.ready - info: ${JSON.stringify(info, null, 2)}`)
+        this._logger.isInfoEnabled() && this._logger.info(`RDKafkaConsumer::event.ready - metadata: ${JSON.stringify(metadata)}`)
+        // this._logger.isInfoEnabled() && this._logger.info(`RDKafkaConsumer::event.ready - metadata: ${JSON.stringify(metadata, null, 2)}`)
+        resolve()
+      })
+
+      this._client.on('event.error', (error: RDKafka.LibrdKafkaError) => {
+        this._logger.isErrorEnabled() && this._logger.error(`RDKafkaConsumer::event.error - ${JSON.stringify(error, null, 2)}`)
+      })
+
+      this._client.on('event.throttle', (eventData: any) => {
+        this._logger.isWarnEnabled() && this._logger.warn(`RDKafkaConsumer::event.throttle - ${JSON.stringify(eventData, null, 2)}`)
+      })
+
+      // this._client.on('event.event', (eventData: any) => {
+      //   this._logger.isErrorEnabled() && this._logger.error(`RDKafkaConsumer::event.event - ${JSON.stringify(eventData)}`)
+      // })
+
+      this._client.on('event.log', (eventData: any) => {
+        this._logger.isDebugEnabled() && this._logger.debug(`RDKafkaConsumer::event.log - ${JSON.stringify(eventData, null, 2)}`)
+      })
+
+      /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+      this._client.on('event.stats', (eventData: any) => {
+        /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+        this._logger.isInfoEnabled() && this._logger.info(`RDKafkaConsumer::event.stats - ${eventData.message}`)
+      })
+
+      this._client.on('disconnected', (metrics: RDKafka.ClientMetrics) => {
+        this._logger.isErrorEnabled() && this._logger.error(`RDKafkaConsumer::event.disconnected - ${JSON.stringify(metrics, null, 2)}`)
+      })
 
       const autoCommitEnabled = this._options.client.consumerConfig['enable.auto.commit']
       const commitWaitMode = this._options.client.rdKafkaCommitWaitMode

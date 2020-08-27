@@ -134,6 +134,8 @@ spec:
               value: {{ .Values.config.rdkafka_batch_num_messages | quote }}
             - name: RDKAFKA_QUEUE_BUFFERING_MAX_US
               value: {{ .Values.config.rdkafka_queue_buffering_max_us | quote }}
+            - name: RDKAFKA_STATS_INT_MS
+              value: {{ .Values.config.rdkafka_stats_interval_ms | quote }}
             - name: KAFKA_FETCH_MIN_BYTES
               value: {{ .Values.config.kafka_fetch_min_bytes | quote }}
             - name: KAFKA_FETCH_WAIT_MAX_MS
