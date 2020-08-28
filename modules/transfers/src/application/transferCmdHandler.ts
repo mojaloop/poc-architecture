@@ -84,15 +84,15 @@ export class TransferCmdHandler implements IRunHandler {
     // switch (appConfig.state_cache.type) {
     switch (appConfig.entity_state.type) {
       case RepoInfraTypes.REDIS: {
-        this._entityStateRepo = new RedisTransferStateRepo(appConfig.entity_state.host, logger, appConfig.entity_state.expirationInSeconds)
+        this._entityStateRepo = new RedisTransferStateRepo(appConfig.entity_state.host, appConfig.entity_state.clustered, logger, appConfig.entity_state.expirationInSeconds)
         break
       }
       case RepoInfraTypes.CACHEDREDIS: {
-        this._entityStateRepo = new CachedRedisTransferStateRepo(appConfig.entity_state.host, logger, appConfig.entity_state.expirationInSeconds)
+        this._entityStateRepo = new CachedRedisTransferStateRepo(appConfig.entity_state.host, appConfig.entity_state.clustered, logger, appConfig.entity_state.expirationInSeconds)
         break
       }
       case RepoInfraTypes.CACHEDPERSISTEDREDIS: {
-        this._entityStateRepo = new CachedPersistedRedisTransferStateRepo(appConfig.entity_state.host, logger, appConfig.entity_state.expirationInSeconds)
+        this._entityStateRepo = new CachedPersistedRedisTransferStateRepo(appConfig.entity_state.host, appConfig.entity_state.clustered, logger, appConfig.entity_state.expirationInSeconds)
         break
       }
       case RepoInfraTypes.NODECACHE: {
@@ -108,7 +108,7 @@ export class TransferCmdHandler implements IRunHandler {
     logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating Duplicate-repo of type ${appConfig.duplicate_store.type as string}`)
     switch (appConfig.duplicate_store.type) {
       case RepoInfraTypes.REDIS: {
-        this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, 'transfers_duplicate', logger)
+        this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, appConfig.duplicate_store.clustered, 'transfers_duplicate', logger)
         break
       }
       case RepoInfraTypes.MEMORY: {
@@ -116,7 +116,7 @@ export class TransferCmdHandler implements IRunHandler {
         break
       }
       default: {
-        this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, 'transfers_duplicate', logger)
+        this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, appConfig.duplicate_store.clustered, 'transfers_duplicate', logger)
       }
     }
     logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created Duplicate-repo of type ${this._duplicateRepo.constructor.name}`)

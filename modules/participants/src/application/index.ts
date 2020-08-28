@@ -37,7 +37,13 @@
 
 'use strict'
 
-import { MojaLogger, Metrics, TMetricOptionsType, getEnvValueOrDefault } from '@mojaloop-poc/lib-utilities'
+import {
+  MojaLogger,
+  Metrics,
+  TMetricOptionsType,
+  getEnvValueOrDefault,
+  getEnvBoolOrDefault
+} from '@mojaloop-poc/lib-utilities'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { TApiServerOptions, ApiServer, IRunHandler, KafkaInfraTypes, RdKafkaCommitMode } from '@mojaloop-poc/lib-infrastructure'
 import { ParticipantCmdHandler } from './participantCmdHandler'
@@ -99,7 +105,8 @@ Program.command('handler')
       },
       state_cache: {
         type: (process.env.PARTICIPANTS_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.PARTICIPANTS_REPO_TYPE,
-        host: process.env.REDIS_HOST
+        host: process.env.REDIS_HOST,
+        clustered: getEnvBoolOrDefault('PARTICIPANTS_REPO_CLUSTERED')
       },
       duplicate_store: {
         type: (process.env.DUPLICATE_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.DUPLICATE_REPO_TYPE,
