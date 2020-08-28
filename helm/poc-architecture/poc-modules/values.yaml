@@ -4,7 +4,7 @@
 replicaCount: 1
 image:
   repository: mojaloop/poc-architecture
-  tag: v0.61-es
+  tag: v0.63-es
   command: 'cd modules/transfers && node dist/application/index.js handler --config ../../.env'
 
 config:
@@ -37,8 +37,11 @@ config:
   redis_persisted_host: 'redis://$release_name-redis-master:6379'
   # Supported repo Types: memory, redis, cachedredis
   participants_repo_type: redis
+  participants_repo_clustered: false
   transfers_repo_type: redis
+  transfers_repo_clustered: false
   duplicate_repo_type: redis
+  duplicate_repo_clustered: false
   event_trace_vendor: mojaloop
   log_level: info
   log_filter: info
