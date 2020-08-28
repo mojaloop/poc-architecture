@@ -37,7 +37,7 @@
 
 'use strict'
 
-import { ConsoleLogger, getEnvIntegerOrDefault } from '@mojaloop-poc/lib-utilities'
+import { ConsoleLogger, getEnvIntegerOrDefault, getEnvValueOrDefault } from '@mojaloop-poc/lib-utilities'
 import { ILogger, IMessage } from '@mojaloop-poc/lib-domain'
 import { MessageProducer, Options } from './imessage_producer'
 import * as RDKafka from 'node-rdkafka'
@@ -92,18 +92,18 @@ export class RDKafkaProducer extends MessageProducer {
     return await new Promise((resolve, reject) => {
       this._logger.isInfoEnabled() && this._logger.info('RDKafkaProducer initialising...')
 
-      let debug
-      if (this._logger.isDebugEnabled()) {
-        debug = 'broker'
-      }
-
       const RDKAFKA_STATS_INT_MS = getEnvIntegerOrDefault('RDKAFKA_STATS_INT_MS', 0)
 
       /* Global config: Mix incoming config with default config */
       const defaultGlobalConfig: RDKafka.ProducerGlobalConfig = {
-        'statistics.interval.ms': RDKAFKA_STATS_INT_MS,
+        'statistics.interval.ms': RDKAFKA_STATS_INT_MS
         // event_cb: true,
-        debug // broker,topic,msg
+        // debug // broker,topic,msg
+      }
+
+      const debug = getEnvValueOrDefault('RDKAFKA_DEBUG_PRODUCER', null)
+      if (debug !== null) {
+        defaultGlobalConfig.debug = debug
       }
 
       const globalConfig = {

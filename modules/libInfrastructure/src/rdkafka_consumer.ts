@@ -34,7 +34,7 @@
 
 'use strict'
 
-import { ConsoleLogger, getEnvIntegerOrDefault } from '@mojaloop-poc/lib-utilities'
+import { ConsoleLogger, getEnvIntegerOrDefault, getEnvValueOrDefault } from '@mojaloop-poc/lib-utilities'
 import * as RDKafka from 'node-rdkafka'
 import { ILogger, IDomainMessage } from '@mojaloop-poc/lib-domain'
 import { MessageConsumer, Options } from './imessage_consumer'
@@ -82,17 +82,18 @@ export class RDKafkaConsumer extends MessageConsumer {
 
       const RDKAFKA_STATS_INT_MS = getEnvIntegerOrDefault('RDKAFKA_STATS_INT_MS', 0)
 
-      let debug
-      if (this._logger.isDebugEnabled()) {
-        debug = 'consumer'
-      }
-
       /* Global config: Mix incoming config with default config */
       const defaultGlobalConfig: RDKafka.ConsumerGlobalConfig = {
-        'statistics.interval.ms': RDKAFKA_STATS_INT_MS,
+        'statistics.interval.ms': RDKAFKA_STATS_INT_MS
         // event_cb: true,
-        debug // consumer,cgrp,topic,fetch
+        // debug // consumer,cgrp,topic,fetch
       }
+
+      const debug = getEnvStringOrDefault('RDKAFKA_DEBUG_CONSUMER', null)
+      if (debug !== null) {
+        defaultGlobalConfig.debug = debug
+      }
+
       const globalConfig = {
         ...defaultGlobalConfig,
         ...this._options.client.consumerConfig
