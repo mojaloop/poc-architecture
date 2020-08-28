@@ -37,15 +37,20 @@
 
 'use strict'
 
-import * as redis from 'redis'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { TransferState } from '../domain/transfer_entity'
 import { ITransfersRepo } from '../domain/transfers_repo'
 import NodeCache from 'node-cache'
+import * as redis from 'redis'
+// @ts-expect-error
+import RedisClustr = require('redis-clustr')
 
 export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
   protected _redisClient!: redis.RedisClient
+  protected _redisCluster!: RedisClustr
   private readonly _redisConnStr: string
+  private readonly _redisConnClusterHost: string
+  private readonly _redisConnClusterPort: number
   private readonly _logger: ILogger
   private _initialized: boolean = false
   private readonly keyPrefix: string = 'transfer_'
@@ -64,11 +69,19 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
       // deleteOnExpire: true, // (default: true) whether variables will be deleted automatically when they expire. If true the variable will be deleted. If false the variable will remain. You are encouraged to handle the variable upon the event expired by yourself.
       // maxKeys: -1 // (default: -1) specifies a maximum amount of keys that can be stored in the cache. If a new item is set and the cache is full, an error is thrown and the key will not be saved in the cache. -1 disables the key limit.
     })
+
+    const splited = connStr.split('//')[1]
+    this._redisConnClusterHost = splited.split(':')[0]
+    this._redisConnClusterPort = Number.parseInt(splited.split(':')[1])
   }
 
   async init (): Promise<void> {
     return await new Promise((resolve, reject) => {
-      this._redisClient = redis.createClient({ url: this._redisConnStr })
+      this._redisCluster = new RedisClustr({
+        servers: [{ host: this._redisConnClusterHost, port: this._redisConnClusterPort }]
+      })
+
+      this._redisClient = this._redisCluster.createClient({ url: this._redisConnStr })
 
       this._redisClient.on('ready', () => {
         this._logger.isInfoEnabled() && this._logger.info('Redis client ready')

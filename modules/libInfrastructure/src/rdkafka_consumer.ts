@@ -89,7 +89,7 @@ export class RDKafkaConsumer extends MessageConsumer {
         // debug // consumer,cgrp,topic,fetch
       }
 
-      const debug = getEnvStringOrDefault('RDKAFKA_DEBUG_CONSUMER', null)
+      const debug = getEnvValueOrDefault('RDKAFKA_DEBUG_CONSUMER', null)
       if (debug !== null) {
         defaultGlobalConfig.debug = debug
       }

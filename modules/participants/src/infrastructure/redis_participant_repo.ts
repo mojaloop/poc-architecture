@@ -42,10 +42,15 @@ import { ILogger } from '@mojaloop-poc/lib-domain'
 import { ParticipantState } from '../domain/participant_entity'
 import { IParticipantRepo } from '../domain/participant_repo'
 import { ParticipantAccountTypes, ParticipantEndpoint } from '@mojaloop-poc/lib-public-messages'
+// @ts-expect-error
+import RedisClustr = require('redis-clustr')
 
 export class RedisParticipantStateRepo implements IParticipantRepo {
   protected _redisClient!: redis.RedisClient
+  protected _redisCluster!: RedisClustr
   private readonly _redisConnStr: string
+  private readonly _redisConnClusterHost: string
+  private readonly _redisConnClusterPort: number
   private readonly _logger: ILogger
   private _initialized: boolean = false
   private readonly keyPrefix: string = 'participant_'
@@ -53,11 +58,19 @@ export class RedisParticipantStateRepo implements IParticipantRepo {
   constructor (connStr: string, logger: ILogger) {
     this._redisConnStr = connStr
     this._logger = logger
+
+    const splited = connStr.split('//')[1]
+    this._redisConnClusterHost = splited.split(':')[0]
+    this._redisConnClusterPort = Number.parseInt(splited.split(':')[1])
   }
 
   async init (): Promise<void> {
     return await new Promise((resolve, reject) => {
-      this._redisClient = redis.createClient({ url: this._redisConnStr })
+      this._redisCluster = new RedisClustr({
+        servers: [{ host: this._redisConnClusterHost, port: this._redisConnClusterPort }]
+      })
+
+      this._redisClient = this._redisCluster.createClient({ url: this._redisConnStr })
 
       this._redisClient.on('ready', () => {
         this._logger.isInfoEnabled() && this._logger.info('Redis client ready')

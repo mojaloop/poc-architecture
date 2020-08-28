@@ -27,7 +27,7 @@
   ],
   "scripts": {
     "start": "npm run participants",
-    "participants": "tsc && node dist/application/index.js handler --config ../../.env",
+    "participants": "tsc && node dist/application/index.js handler --config ../../.env --participantsEvt --participantsCmd",
     "build": "tsc",
     "watch": "tsc -w",
     "clean": "rm -Rf dist",
@@ -54,7 +54,8 @@
     "dotenv": "^8.2.0",
     "mongodb": "^3.6.0",
     "path": "^0.12.7",
-    "redis": "^3.0.2"
+    "redis": "^3.0.2",
+    "redis-clustr": "^1.7.0"
   },
   "devDependencies": {
     "@types/kafka-node": "^3.0.0",
