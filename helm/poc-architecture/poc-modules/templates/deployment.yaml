@@ -136,6 +136,10 @@ spec:
               value: {{ .Values.config.rdkafka_queue_buffering_max_us | quote }}
             - name: RDKAFKA_STATS_INT_MS
               value: {{ .Values.config.rdkafka_stats_interval_ms | quote }}
+            - name: RDKAFKA_DEBUG_CONSUMER
+              value: {{ .Values.config.rdkafka_debug_consumer | quote }}
+            - name: RDKAFKA_DEBUG_PRODUCER
+              value: {{ .Values.config.rdkafka_debug_producer | quote }}
             - name: KAFKA_FETCH_MIN_BYTES
               value: {{ .Values.config.kafka_fetch_min_bytes | quote }}
             - name: KAFKA_FETCH_WAIT_MAX_MS
