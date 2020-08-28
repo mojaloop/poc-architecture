@@ -73,7 +73,7 @@ export class ParticipantEvtHandler implements IRunHandler {
 
     logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Creating Statecache of type ${CachedRedisParticipantStateRepo.name}`)
 
-    const repo: IParticipantRepo = new CachedRedisParticipantStateRepo(appConfig.state_cache.host, logger)
+    const repo: IParticipantRepo = new CachedRedisParticipantStateRepo(appConfig.state_cache.host, appConfig.state_cache.clustered, logger)
 
     this._repo = repo
     await repo.init()

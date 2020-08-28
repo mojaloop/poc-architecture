@@ -43,7 +43,7 @@ import RedisClustr = require('redis-clustr')
 
 export class RedisMessageOffsetRepo implements IMessageOffsetRepo {
   protected _redisClient!: redis.RedisClient
-  protected _redisCluster!: RedisClustr
+  protected _redisClustered: boolean
   private readonly _redisConnStr: string
   private readonly _redisConnClusterHost: string
   private readonly _redisConnClusterPort: number
@@ -51,11 +51,12 @@ export class RedisMessageOffsetRepo implements IMessageOffsetRepo {
   private _initialized: boolean = false
   private readonly _keyPrefix: string
 
-  constructor (connStr: string, keyPrefix: string, logger: ILogger) {
+  constructor (connStr: string, clusteredRedis: boolean, keyPrefix: string, logger: ILogger) {
     this._redisConnStr = connStr
     this._logger = logger
-    this._keyPrefix = keyPrefix
+    this._redisClustered = clusteredRedis
 
+    this._keyPrefix = keyPrefix
     const splited = connStr.split('//')[1]
     this._redisConnClusterHost = splited.split(':')[0]
     this._redisConnClusterPort = Number.parseInt(splited.split(':')[1])
@@ -63,11 +64,13 @@ export class RedisMessageOffsetRepo implements IMessageOffsetRepo {
 
   async init (): Promise<void> {
     return await new Promise((resolve, reject) => {
-      this._redisCluster = new RedisClustr({
-        servers: [{ host: this._redisConnClusterHost, port: this._redisConnClusterPort }]
-      })
-
-      this._redisClient = this._redisCluster.createClient({ url: this._redisConnStr })
+      if (this._redisClustered) {
+        this._redisClient = new RedisClustr({
+          servers: [{ host: this._redisConnClusterHost, port: this._redisConnClusterPort }]
+        })
+      } else {
+        this._redisClient = redis.createClient({ url: this._redisConnStr })
+      }
 
       this._redisClient.on('ready', () => {
         this._logger.info('Redis client ready')

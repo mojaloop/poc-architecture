@@ -55,7 +55,7 @@ export class EventSourcingStateRepo implements IESourcingStateRepository {
   protected _redisOffsetRepo!: IMessageOffsetRepo
   protected _kafkaMsgFetcher!: IMessageFetcher
 
-  constructor (redisConnStr: string, kafkaHost: string, aggregateName: string, snapshotTopic: string, stateEventsTopic: string, logger: ILogger) {
+  constructor (redisConnStr: string, clusteredRedis: boolean, kafkaHost: string, aggregateName: string, snapshotTopic: string, stateEventsTopic: string, logger: ILogger) {
     this._redisConnStr = redisConnStr
     this._kafkahost = kafkaHost
     this._logger = logger
@@ -64,7 +64,7 @@ export class EventSourcingStateRepo implements IESourcingStateRepository {
     this._snapshotsTopic = snapshotTopic
     this._eventsTopic = stateEventsTopic
 
-    this._redisOffsetRepo = new RedisMessageOffsetRepo(this._redisConnStr, `${this._aggregateName}Offsets_`, this._logger)
+    this._redisOffsetRepo = new RedisMessageOffsetRepo(this._redisConnStr, clusteredRedis, `${this._aggregateName}Offsets_`, this._logger)
     this._kafkaMsgFetcher = new RDKafkaFetcher(this._kafkahost, `${this._aggregateName}EventSourcingRepo`, this._logger)
   }
 

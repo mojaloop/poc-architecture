@@ -47,7 +47,7 @@ import RedisClustr = require('redis-clustr')
 
 export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
   protected _redisClient!: redis.RedisClient
-  protected _redisCluster!: RedisClustr
+  protected _redisClustered: boolean
   private readonly _redisConnStr: string
   private readonly _redisConnClusterHost: string
   private readonly _redisConnClusterPort: number
@@ -58,8 +58,9 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
   // private readonly _inMemorylist: Map<string, TransferState> = new Map<string, TransferState>()
   private readonly _nodeCache: NodeCache
 
-  constructor (connStr: string, logger: ILogger, expirationInSeconds: number = -1) {
+  constructor (connStr: string, clusteredRedis: boolean, logger: ILogger, expirationInSeconds: number = -1) {
     this._redisConnStr = connStr
+    this._redisClustered = clusteredRedis
     this._logger = logger
     this._expirationInSeconds = expirationInSeconds
     this._nodeCache = new NodeCache({
@@ -77,11 +78,13 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
 
   async init (): Promise<void> {
     return await new Promise((resolve, reject) => {
-      this._redisCluster = new RedisClustr({
-        servers: [{ host: this._redisConnClusterHost, port: this._redisConnClusterPort }]
-      })
-
-      this._redisClient = this._redisCluster.createClient({ url: this._redisConnStr })
+      if (this._redisClustered) {
+        this._redisClient = new RedisClustr({
+          servers: [{ host: this._redisConnClusterHost, port: this._redisConnClusterPort }]
+        })
+      } else {
+        this._redisClient = redis.createClient({ url: this._redisConnStr })
+      }
 
       this._redisClient.on('ready', () => {
         this._logger.isInfoEnabled() && this._logger.info('Redis client ready')
