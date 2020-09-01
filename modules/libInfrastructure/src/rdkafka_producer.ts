@@ -102,7 +102,7 @@ export class RDKafkaProducer extends MessageProducer {
       }
 
       const debug = getEnvValueOrDefault('RDKAFKA_DEBUG_PRODUCER', null)
-      if (debug !== null) {
+      if ((debug !== null) && (debug !== '')) {
         defaultGlobalConfig.debug = debug
       }
 

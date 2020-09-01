@@ -110,7 +110,8 @@ Program.command('handler')
       },
       duplicate_store: {
         type: (process.env.DUPLICATE_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.DUPLICATE_REPO_TYPE,
-        host: getEnvValueOrDefault('REDIS_DUPL_HOST', 'redis://localhost:6379') as string
+        host: getEnvValueOrDefault('REDIS_DUPL_HOST', 'redis://localhost:6379') as string,
+        clustered: getEnvBoolOrDefault('PARTICIPANTS_REPO_CLUSTERED')
       },
       readside_store: {
         uri: getEnvValueOrDefault('PARTICIPANTS_READSIDE_MONGO_DB_HOST', 'mongodb://localhost:27017/') as string
