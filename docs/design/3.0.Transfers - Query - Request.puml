@@ -37,7 +37,7 @@
 
 @startuml
 ' declate title
-title 3.0. Transfer GET Request
+title 3.0. Transfer Query Request
 
 autonumber
 ' Actor Keys:
