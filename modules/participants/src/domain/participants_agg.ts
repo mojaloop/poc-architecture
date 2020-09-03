@@ -252,7 +252,8 @@ export class ParticpantsAgg extends BaseEventSourcingAggregate<ParticipantEntity
         participant: {
           id: this._rootEntity.id,
           currency: commandMsg.payload.currency,
-          currentPosition: currentPosition
+          currentPosition: currentPosition,
+          partition: this._rootEntity.partition
         }
       }
       const stateEvt: ParticipantPositionChangedStateEvt = new ParticipantPositionChangedStateEvt(stateEvtPayload)
@@ -351,7 +352,8 @@ export class ParticpantsAgg extends BaseEventSourcingAggregate<ParticipantEntity
         participant: {
           id: this._rootEntity.id,
           currency: commandMsg.payload.currency,
-          currentPosition: currentPosition
+          currentPosition: currentPosition,
+          partition: this._rootEntity.partition
         }
       }
       const stateEvt: ParticipantPositionChangedStateEvt = new ParticipantPositionChangedStateEvt(stateEvtPayload)
