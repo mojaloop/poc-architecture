@@ -38,6 +38,7 @@ config:
   # Supported repo Types: memory, redis, cachedredis
   participants_repo_type: redis
   participants_repo_clustered: false
+  participants_query_repo_url: 'mongodb://root:example@$release_name-mongodb:27017/'
   transfers_repo_type: redis
   transfers_repo_clustered: false
   duplicate_repo_type: redis

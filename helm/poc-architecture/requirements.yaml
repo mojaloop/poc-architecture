@@ -37,6 +37,11 @@ dependencies:
   version: 0.1.0
   repository: "file://./poc-modules"
   condition: participants-cmd.enabled
+- name: poc-modules
+  alias: participants-query
+  version: 0.1.0
+  repository: "file://./poc-modules"
+  condition: participants-query.enabled
 # Devtools (simulators, publishers, etc)
 - name: poc-modules
   alias: simulator-dev-tool

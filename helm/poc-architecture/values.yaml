@@ -2164,6 +2164,89 @@ participants-cmd:
     externalPort: 80
     internalPort: 3000
 
+participants-query:
+  enabled: true
+  # Default values for poc-participants.
+  # This is a YAML-formatted file.
+  # Declare variables to be passed into your templates.
+  replicaCount: 1
+  image:
+    repository: *poc_architecture_image
+    tag: *poc_architecture_tag
+    command: "cd modules/participants && node dist/application/index.js handler --participantsReadSideStateEvt --config ../../.env"
+    # command: "sleep 300"
+    # repository: solsson/kafka
+    # tag: latest
+    # pullPolicy: Always
+    # command: "sleep 100"
+
+  config:
+    # this can be set if the dependency chart for kafka is disabled. If 'kafka_host' is commented out, then the name of the dependency chart will be used.
+    kafka_host: '$release_name-kafka'
+    kafka_port: 9092
+    # Supported consumers: kafkajs, node-kafka, node-kafka-stream, node-rdkafka
+    kafka_consumer: *kafka_consumer
+    # Supported producers: kafkajs, node-kafka, node-rdkafka
+    kafka_producer: *kafka_producer
+    kafka_producer_gzip: *kafka_producer_gzip
+    kafka_autocommit: *kafka_autocommit
+    kafka_autocommit_interval: 100
+    kafka_autocommit_threshold: 1000
+    simulator_host: '$release_name-legacy-simulator'
+    uv_threadpool_size: 7
+    # redis_host: 'redis://$release_name-redis-master:6379'
+    redis_host: 'redis://$release_name-redis-participants-master:6379'
+    redis_persisted_host: 'redis://$release_name-redis-master:6379'
+    # Supported repo Types: memory, redis, cachedredis, cachedpersistedredis
+    participants_repo_type: *participants_repo_type
+    participants_repo_clustered: false
+    participants_query_repo_url: 'mongodb://root:example@$release_name-mongodb:27017/'
+    # Supported repo Types: memory, redis, cachedredis
+    transfers_repo_type: *transfers_repo_type
+    # Supported repo Types: memory, redis, cachedredis
+    duplicate_repo_type: *duplicate_repo_type
+
+    log_level: info
+    log_filter: 'error, warn, info, debug'
+
+  init:
+    enabled: true
+    image:
+      name: wait-for-kafka
+      repository: solsson/kafka
+      tag: latest
+      pullPolicy: Always
+      command: "until ./bin/kafka-broker-api-versions.sh --bootstrap-server $kafka_host:$kafka_port; do echo waiting for Kafka; sleep 2; done;"
+      env: {}
+
+  readinessProbe:
+    enabled: false
+    httpGet:
+      path: /health
+    initialDelaySeconds: 60
+    periodSeconds: 15
+  livenessProbe:
+    enabled: false
+    httpGet:
+      path: /health
+    initialDelaySeconds: 30
+    periodSeconds: 15
+
+  ## metric configuration for prometheus instrumentation
+  metrics:
+    ## flag to enable/disable the metrics end-points
+    enabled: false
+    config:
+      timeout: 5000
+      prefix: moja_
+      defaultLabels:
+        serviceName: poc-participants-service
+
+  service:
+    type: ClusterIP
+    externalPort: 80
+    internalPort: 3000
+
 transfer-evt:
   enabled: true
   # Default values for poc-transfers.
