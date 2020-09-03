@@ -37,7 +37,7 @@
 
 @startuml
 ' declate title
-title Duplicate Validation Match
+title 1.1. Duplicate Validation Match
 
 autonumber
 ' Actor Keys:
@@ -60,7 +60,7 @@ entity "Transfers\nQuery\nHandler" as TRANSFER_QUERY
 ' entity "ParticipantsCmd" as ePARTICIPANT
 ' database "Transfer Store" as dTRANSFER
 ' database "Participant Store" as dPARTICIPANT
-database "Transers\nCmd Duplicate\nStore" as STORE_DUPLICATE
+database "Transers\nCmd Duplicate\nStore" as TRANSFERS_DUPLICATE_STORE
 ' database "Transfer Query Store" as TRANSFER_QUERY_STORE
 ' collections "Topic: TransferQuery" as TOPIC_TRANSFER_QUERY
 collections "Topic: TransfersDomainEvt" as TOPIC_TRANSFERS_EVT
@@ -80,7 +80,7 @@ end box
 
 box "Command Services" #LightYellow
   participant TRANSFERS
-  participant STORE_DUPLICATE
+  participant TRANSFERS_DUPLICATE_STORE
   participant TOPIC_TRANSFERS_EVT
 end box
 
@@ -96,38 +96,38 @@ MLAPI --> TOPIC_MLINGRESS_EVT: Publish TransferPrepareRequestedEVT
 
 TOPIC_MLINGRESS_EVT --> TRANSFERS: Consume TransferPrepareRequestedEVT - Transfer Prepare request from PayerFSP
 
-TRANSFERS -> STORE_DUPLICATE: Add TransferId to SET
+  TRANSFERS -> TRANSFERS_DUPLICATE_STORE: Add TransferId to SET
 
-STORE_DUPLICATE -> TRANSFERS: Return failure - Transfer already a SET Member
+  TRANSFERS_DUPLICATE_STORE -> TRANSFERS: Return failure - Transfer already a SET Member
 
-TRANSFERS -> TRANSFERS: Validate Duplicate Store Result
+  TRANSFERS -> TRANSFERS: Validate Duplicate Store Result
 
-alt Validate Duplicate Detected (validate against false positives if using a Bloom Filter)
-  TRANSFERS <-> TRANSFER_QUERY: Query Transfer (This is only needed if we use Bloom Filters)
- 
-  TRANSFERS -> TRANSFERS: Confirm Duplicate based on Query result
+  alt Validate Duplicate Detected (validate against false positives if using a Bloom Filter)
   
-  alt Duplicate Detected Confirmed
+    TRANSFERS <-> TRANSFER_QUERY: Query Transfer (This is only needed if we use Bloom Filters)
+  
+    TRANSFERS -> TRANSFERS: Confirm Duplicate based on Query result
+    
+    alt Duplicate Detected Confirmed
 
-    TRANSFERS --> TOPIC_TRANSFERS_EVT: Publish - DuplicateTransferDetectedEvt
+      TRANSFERS --> TOPIC_TRANSFERS_EVT: Publish - DuplicateTransferDetectedEvt
 
-    TOPIC_TRANSFERS_EVT --> TRANSFER_QUERY: Consume - DuplicateTransferDetectedEvt
-
-    TRANSFER_QUERY -> TRANSFER_QUERY: Validate Transfer state
-    alt Transfer.status === 'COMMITTED' || Transfer.status === 'ABORTED'
-      TRANSFER_QUERY --> TOPIC_TRANSFER_QUERY_RESPONSE: Publish - DuplicateTransferDetectedQueryResponse
-      TOPIC_TRANSFER_QUERY_RESPONSE --> MLAPI: Consume - DuplicateTransferDetectedQueryResponse
-      MLAPI <-> PAYER: PUT Transfer (Transfer Payload as a GET request)
-      MLAPI --> TOPIC_NOTIFICATIONS_EVT: Publish AckNotificationEvt
-    else Transfer.status is in a non-final state
-      TRANSFER_QUERY -> TRANSFER_QUERY: Do nothiing
+      TOPIC_TRANSFERS_EVT --> TRANSFER_QUERY: Consume - DuplicateTransferDetectedEvt
+        TRANSFER_QUERY -> TRANSFER_QUERY: Validate Transfer state
+        alt Transfer.status === 'COMMITTED' || Transfer.status === 'ABORTED'
+          TRANSFER_QUERY --> TOPIC_TRANSFER_QUERY_RESPONSE: Publish - DuplicateTransferDetectedQueryResponse
+          TOPIC_TRANSFER_QUERY_RESPONSE --> MLAPI: Consume - DuplicateTransferDetectedQueryResponse
+          MLAPI <-> PAYER: PUT Transfer (Transfer Payload as a GET request)
+          MLAPI --> TOPIC_NOTIFICATIONS_EVT: Publish AckNotificationEvt
+        else Transfer.status is in a non-final state
+          TRANSFER_QUERY -> TRANSFER_QUERY: Do nothiing
+        end
+    else No Duplicate Found
+      TRANSFERS -> TRANSFERS: Process TransferPrepareRequestedEVT - Ref Happy Path Sequence Diagram
     end
-  else No Duplicate Found
-    TRANSFERS -> TRANSFERS: Process TransferPrepareRequestedEVT - See Happy Path Sequence Diagram
-  end
 
-else No Duplicate Found (Bloon filters do not provide False negatives)
- TRANSFERS -> TRANSFERS: Process TransferPrepareRequestedEVT - See Happy Path Sequence Diagram
-end
+  else No Duplicate Found (Bloon filters do not provide False negatives)
+  TRANSFERS -> TRANSFERS: Process TransferPrepareRequestedEVT - Ref Happy Path Sequence Diagram
+  end
 
 @enduml
