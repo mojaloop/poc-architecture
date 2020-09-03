@@ -145,3 +145,6 @@ dist/
 **/test/**/**.js
 **/test/**/**.js.map
 **/test/**/**.d.ts
+
+# PlantUML
+**/out/**/**.*
