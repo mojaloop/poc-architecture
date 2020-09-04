@@ -2004,6 +2004,1649 @@ redis-persisted:
     ##
     create: false
 
+redis-cluster:
+  enabled: false
+  ## Global Docker image parameters
+  ## Please, note that this will override the image parameters, including dependencies, configured to use the global value
+  ## Current available global Docker image parameters: imageRegistry and imagePullSecrets
+  ##
+  global:
+    #   imageRegistry: myRegistryName
+    #   imagePullSecrets:
+    #     - myRegistryKeySecretName
+    #   storageClass: myStorageClass
+    redis: {}
+
+  ## Bitnami Redis image version
+  ## ref: https://hub.docker.com/r/bitnami/redis/tags/
+  ##
+  image:
+    registry: docker.io
+    repository: bitnami/redis-cluster
+    ## Bitnami Redis image tag
+    ## ref: https://github.com/bitnami/bitnami-docker-redis#supported-tags-and-respective-dockerfile-links
+    ##
+    tag: 6.0.7-debian-10-r0
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
+    ##
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+    ##
+    pullSecrets:
+    #   - myRegistryKeySecretName
+
+  ## String to partially override redis.fullname template (will maintain the release name)
+  ##
+  nameOverride:
+
+  ## String to fully override redis.fullname template
+  ##
+  fullnameOverride:
+
+  ## Redis Cluster settings
+  ##
+  cluster:
+    ## Enable the creation of a Job that will execute the proper command to create the Redis Cluster.
+    ##
+    init: true
+    ## Number of Redis nodes to be deployed
+    ##
+    nodes: 6
+    ## Parameter to be passed as --cluster-replicas to the redis-cli --cluster create
+    ## 1 means that we want a replica for every master created
+    ##
+    replicas: 1
+
+    ## Configuration to access the Redis Cluster from outside the Kubernetes cluster
+    ##
+    externalAccess:
+      enabled: false
+      service:
+        ## Type of service for external access. At this moment only LoadBalancer is supported.
+        ##
+        type: LoadBalancer
+        ## Port used when service type is LoadBalancer
+        ##
+        port: 6379
+        ## Array of load balancer IPs for each Redis node. Length must be the same as cluster.nodes
+        ##
+        loadBalancerIP: []
+        ## Service annotations done as key:value pairs
+        ##
+        annotations: {}
+
+    ## This section allows to update the Redis cluster nodes.
+    ##
+    update:
+      ## Setting this to true a hook will add nodes to the Redis cluster after the upgrade.
+      ## currentNumberOfNodes is required
+      ##
+      addNodes: false
+      ## Set to the number of nodes that are already deployed
+      ##
+      currentNumberOfNodes: 6
+      ## When using external access set the new externalIPs here as an array
+      ##
+      newExternalIPs: []
+
+  redis:
+    ## Custom command to override image cmd
+    ##
+    command: []
+
+    ## Custom args for the custom command:
+    ##
+    args: []
+
+    # Whether to use AOF Persistence mode or not
+    # It is strongly recommended to use this type when dealing with clusters
+    #
+    # ref: https://redis.io/topics/persistence#append-only-file
+    # ref: https://redis.io/topics/cluster-tutorial#creating-and-using-a-redis-cluster
+    useAOFPersistence: "yes"
+
+    # Redis port
+    port: 6379
+
+    ## lifecycleHooks for the container to automate configuration before or after startup.
+    ##
+    lifecycleHooks:
+
+    ## Extra volumes to add to the deployment
+    ##
+    extraVolumes: []
+
+    ## Extra volume mounts to add to the container
+    ##
+    extraVolumeMounts: []
+
+    ## Custom Liveness probe
+    ##
+    customLivenessProbe: {}
+
+    ## Custom Rediness probe
+    ##
+    customReadinessProbe: {}
+
+    ## Extra init containers to add to the deployment
+    ##
+    initContainers: []
+
+    ## Extra sidecar containers to add to the deployment
+    ##
+    sidecars: []
+
+    ## Pod extra labels
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+    ##
+    podLabels: {}
+
+    ## Priority class name
+    ##
+    priorityClassName:
+
+    ## Additional Redis configuration for the nodes
+    ## ref: https://redis.io/topics/config
+    ##
+    configmap:
+
+    ## An array to add extra env vars
+    ## For example:
+    ##
+    extraEnvVars: []
+    #  - name: BEARER_AUTH
+    #    value: true
+
+    ## ConfigMap with extra environment variables
+    ##
+    extraEnvVarsCM:
+
+    ## Secret with extra environment variables
+    ##
+    extraEnvVarsSecret:
+
+    ## Redis additional annotations
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+    ##
+    podAnnotations: {}
+
+    ## Redis resource requests and limits
+    ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    ##
+    resources: {}
+    #   requests:
+    #     memory: 256Mi
+    #     cpu: 100m
+
+    ## Use an alternate scheduler, e.g. "stork".
+    ## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
+    ##
+    schedulerName:
+
+    ## Configure extra options for Redis liveness and readiness probes
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/#configure-probes)
+    ##
+    livenessProbe:
+      enabled: true
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 5
+      successThreshold: 1
+      failureThreshold: 5
+    readinessProbe:
+      enabled: true
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 1
+      successThreshold: 1
+      failureThreshold: 5
+
+    ## Redis Node selectors and tolerations for pod assignment
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#taints-and-tolerations-beta-feature
+    ##
+    # nodeSelector: {"beta.kubernetes.io/arch": "amd64"}
+    nodeSelector:
+    tolerations: []
+    ## Redis pod/node affinity/anti-affinity
+    ##
+    affinity: {}
+    ## Pod topology spread constraints
+    ## https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
+    ## The value is evaluated as a template
+    ##
+    topologySpreadConstraints: []
+    ## The busPort should be obtained adding 10000 to the redisPort. By default: 10000 + 6379 = 16379
+    ##
+    busPort: 16379
+
+  ## Cluster init job settings
+  ##
+  initJob:
+    ## Number of seconds the Job to create the cluster will be waiting for the Nodes to be ready.
+    ##
+    activeDeadlineSeconds: 600
+    ## Container command (using container default if not set)
+    ##
+    command:
+
+    ## Container args (using container default if ot set)
+    ##
+    args:
+
+    ## Job annotations
+    ##
+    annotations: {}
+
+    ## Pod annotations
+    ##
+    podAnnotations: {}
+
+    ## An array to add extra env vars
+    ## For example:
+    ##
+    extraEnvVars: []
+    #  - name: BEARER_AUTH
+    #    value: true
+
+    ## ConfigMap with extra environment variables
+    ##
+    extraEnvVarsCM:
+
+    ## Secret with extra environment variables
+    ##
+    extraEnvVarsSecret:
+
+    ## Extra volumes to add to the deployment
+    ##
+    extraVolumes: []
+
+    ## Extra volume mounts to add to the container
+    ##
+    extraVolumeMounts: []
+
+    ## Extra init containers to add to the deployment
+    ##
+    initContainers: []
+    ## Node labels for pod assignment. Evaluated as a template.
+    ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
+    ##
+    nodeSelector: {}
+    ## Pod extra labels
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+    ##
+    podLabels: {}
+    ## Tolerations for pod assignment. Evaluated as a template.
+    ## Ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+    ##
+    tolerations: []
+    ## Affinity for pod assignment. Evaluated as a template.
+    ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+    ##
+    affinity: {}
+    ## Container resource requests and limits
+    ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    ##
+    resources:
+      ## We usually recommend not to specify default resources and to leave this as a conscious
+      ## choice for the user. This also increases chances charts run on environments with little
+      ## resources, such as Minikube. If you do want to specify resources, uncomment the following
+      ## lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+      ##
+      limits: {}
+      ##   cpu: 500m
+      ##   memory: 1Gi
+      ##
+      requests: {}
+      ##   cpu: 250m
+      ##   memory: 256Mi
+      ##
+
+  ## Cluster init job settings
+  ##
+  updateJob:
+    ## Number of seconds the Job to create the cluster will be waiting for the Nodes to be ready.
+    ##
+    activeDeadlineSeconds: 600
+    ## Container command (using container default if not set)
+    ##
+    command:
+
+    ## Container args (using container default if ot set)
+    ##
+    args:
+
+    ## Job annotations
+    ##
+    annotations: {}
+
+    ## Pod annotations
+    ##
+    podAnnotations: {}
+
+    ## Pod extra labels
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+    ##
+    podLabels: {}
+
+    ## An array to add extra env vars
+    ## For example:
+    ##
+    extraEnvVars: []
+    #  - name: BEARER_AUTH
+    #    value: true
+
+    ## ConfigMap with extra environment variables
+    ##
+    extraEnvVarsCM:
+
+    ## Secret with extra environment variables
+    ##
+    extraEnvVarsSecret:
+
+    ## Extra volumes to add to the deployment
+    ##
+    extraVolumes: []
+
+    ## Extra volume mounts to add to the container
+    ##
+    extraVolumeMounts: []
+
+    ## Extra init containers to add to the deployment
+    ##
+    initContainers: []
+
+    ## Node labels for pod assignment. Evaluated as a template.
+    ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
+    ##
+    nodeSelector:
+
+    ## Tolerations for pod assignment. Evaluated as a template.
+    ## Ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+    ##
+    tolerations: []
+
+    ## Redis pod/node affinity/anti-affinity
+    ##
+    affinity: {}
+    ## Container resource requests and limits
+    ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    ##
+    resources:
+      ## We usually recommend not to specify default resources and to leave this as a conscious
+      ## choice for the user. This also increases chances charts run on environments with little
+      ## resources, such as Minikube. If you do want to specify resources, uncomment the following
+      ## lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+      ##
+      limits: {}
+      ##   cpu: 500m
+      ##   memory: 1Gi
+      ##
+      requests: {}
+      ##   cpu: 250m
+      ##   memory: 256Mi
+      ##
+
+  networkPolicy:
+    ## Specifies whether a NetworkPolicy should be created
+    ##
+    enabled: false
+
+    ## The Policy model to apply. When set to false, only pods with the correct
+    ## client label will have network access to the port Redis is listening
+    ## on. When true, Redis will accept connections from any source
+    ## (with the correct destination port).
+    ##
+    allowExternal: true
+
+    ## Allow connections from other namespacess. Just set label for namespace and set label for pods (optional).
+    ##
+    ingressNSMatchLabels: {}
+    ingressNSPodMatchLabels: {}
+
+  serviceAccount:
+    ## Specifies whether a ServiceAccount should be created
+    ##
+    create: false
+    ## The name of the ServiceAccount to use.
+    ## If not set and create is true, a name is generated using the fullname template
+    ##
+    name:
+
+  rbac:
+    ## Specifies whether RBAC resources should be created
+    ##
+    create: false
+
+    role:
+      ## Rules to create. It follows the role specification
+      # rules:
+      #  - apiGroups:
+      #    - extensions
+      #    resources:
+      #      - podsecuritypolicies
+      #    verbs:
+      #      - use
+      #    resourceNames:
+      #      - gce.unprivileged
+      rules: []
+
+  ## Redis pod Security Context
+  ##
+  podSecurityContext:
+    enabled: true
+    fsGroup: 1001
+    runAsUser: 1001
+    ## sysctl settings
+    ##
+    ## Uncomment the setting below to increase the net.core.somaxconn value
+    ##
+    sysctls:
+    # - name: net.core.somaxconn
+    #   value: "10000"
+
+  ## Limits the number of pods of the replicated application that are down simultaneously from voluntary disruptions
+  ## ref: https://kubernetes.io/docs/concepts/workloads/pods/disruptions
+  ##
+  podDisruptionBudget: {}
+  ## Min number of pods that must still be available after the eviction
+  ##
+  #   minAvailable: 1
+  ## Max number of pods that can be unavailable after the eviction
+  ##
+  #   maxUnavailable: 1
+
+  ## Containers Security Context
+  ##
+  containerSecurityContext:
+    enabled: true
+    runAsUser: 1001
+    ## sysctl settings
+    ##
+    ## Uncomment the setting below to increase the net.core.somaxconn value
+    ##
+    sysctls:
+    # - name: net.core.somaxconn
+    #   value: "10000"
+
+  ## Use password authentication
+  ##
+  usePassword: false
+  ## Redis password
+  ## Defaults to a random 10-character alphanumeric string if not set and usePassword is true
+  ## ref: https://github.com/bitnami/bitnami-docker-redis#setting-the-server-password-on-first-run
+  ##
+  password: ""
+  ## Use existing secret (ignores previous password)
+  ##
+  existingSecret:
+  ## Password key to be retrieved from Redis secret
+  ##
+  existingSecretPasswordKey:
+
+  ## Mount secrets as files instead of environment variables
+  ##
+  usePasswordFile: false
+
+  ##
+  ## TLS configuration
+  ##
+  tls:
+    # Enable TLS traffic
+    enabled: false
+    #
+    # Whether to require clients to authenticate or not.
+    authClients: true
+    #
+    # Name of the Secret that contains the certificates
+    certificatesSecret:
+    #
+    # Certificate filename
+    certFilename:
+    #
+    # Certificate Key filename
+    certKeyFilename:
+    #
+    # CA Certificate filename
+    certCAFilename:
+    #
+    # File containing DH params (in order to support DH based ciphers)
+    dhParamsFilename:
+
+  ## Annotations for all the deployed objects
+  ##
+  commonAnnotations:
+
+  ## Labels for all the deployed objects
+  ##
+  commonLabels:
+
+  ## Redis Service properties for standalone mode.
+  ##
+  service:
+    port: 6379
+
+    ## Provide any additional annotations which may be required. This can be used to
+    ## set the LoadBalancer service type to internal only.
+    ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#internal-load-balancer
+    ##
+    annotations: {}
+    labels: {}
+
+    ## Set the service type.
+    ## Setting this to LoadBalancer may require corresponding service annotations for loadbalancer creation to succeed.
+    ## Currently supported types are ClusterIP (default) and LoadBalancer
+    ##
+    type: ClusterIP
+
+    ## If service.type is LoadBalancer, request a specific static IP address if supported by the cloud provider.
+    ## otherwise leave blank
+    # loadBalancerIP:
+
+  ## Enable persistence using Persistent Volume Claims
+  ## ref: http://kubernetes.io/docs/user-guide/persistent-volumes/
+  ##
+  persistence:
+    enabled: false
+    ## The path the volume will be mounted at, useful when using different
+    ## Redis images.
+    ##
+    path: /bitnami/redis/data
+    ## The subdirectory of the volume to mount to, useful in dev environments
+    ## and one PV for multiple services.
+    ##
+    subPath: ""
+    ## Redis data Persistent Volume Storage Class
+    ## If defined, storageClassName: <storageClass>
+    ## If set to "-", storageClassName: "", which disables dynamic provisioning
+    ## If undefined (the default) or set to null, no storageClassName spec is
+    ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+    ##   GKE, AWS & OpenStack)
+    ##
+    storageClass:
+    accessModes:
+      - ReadWriteOnce
+    size: 8Gi
+    ## Persistent Volume selectors
+    ## https://kubernetes.io/docs/concepts/storage/persistent-volumes/#selector
+    ##
+    matchLabels: {}
+    matchExpressions: {}
+
+  ## Update strategy, can be set to RollingUpdate or onDelete by default.
+  ## https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#updating-statefulsets
+  ##
+  statefulset:
+    updateStrategy: RollingUpdate
+    ## Partition update strategy
+    ## https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#partitions
+    ##
+    rollingUpdatePartition:
+
+  ## Prometheus Exporter / Metrics
+  ##
+  metrics:
+    enabled: false
+
+    image:
+      registry: docker.io
+      repository: bitnami/redis-exporter
+      tag: 1.11.1-debian-10-r3
+      pullPolicy: IfNotPresent
+      ## Optionally specify an array of imagePullSecrets.
+      ## Secrets must be manually created in the namespace.
+      ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+      ##
+      pullSecrets:
+      #   - myRegistryKeySecretName
+
+    ## Metrics exporter resource requests and limits
+    ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    ##
+    resources: {}
+
+    ## Extra arguments for Metrics exporter, for example:
+    ## extraArgs:
+    ##   check-keys: myKey,myOtherKey
+    ##
+    extraArgs: {}
+
+    ## Metrics exporter pod Annotation and Labels
+    ##
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9121"
+    podLabels: {}
+
+    # Enable this if you're using https://github.com/coreos/prometheus-operator
+    serviceMonitor:
+      enabled: false
+      ## Specify a namespace if needed
+      ##
+      namespace:
+      ## fallback to the prometheus default unless specified
+      ##
+      interval:
+
+    ## Custom PrometheusRule to be defined
+    ## The value is evaluated as a template, so, for example, the value can depend on .Release or .Chart
+    ## ref: https://github.com/coreos/prometheus-operator#customresourcedefinitions
+    ##
+    prometheusRule:
+      enabled: false
+      additionalLabels: {}
+      namespace: ""
+      rules: []
+      ## These are just examples rules, please adapt them to your needs.
+      ## Make sure to constraint the rules to the current postgresql service.
+      #  - alert: RedisDown
+      #    expr: redis_up{service="{{ template "common.names.fullname" . }}-metrics"} == 0
+      #    for: 2m
+      #    labels:
+      #      severity: error
+      #    annotations:
+      #      summary: Redis instance {{ "{{ $instance }}" }} down
+      #      description: Redis instance {{ "{{ $instance }}" }} is down.
+      #  - alert: RedisMemoryHigh
+      #    expr: >
+      #       redis_memory_used_bytes{service="{{ template "common.names.fullname" . }}-metrics"} * 100
+      #       /
+      #       redis_memory_max_bytes{service="{{ template "common.names.fullname" . }}-metrics"}
+      #       > 90 =< 100
+      #    for: 2m
+      #    labels:
+      #      severity: error
+      #    annotations:
+      #      summary: Redis instance {{ "{{ $instance }}" }} is using too much memory
+      #      description: Redis instance {{ "{{ $instance }}" }} is using {{ "{{ $value }}" }}% of its available memory.
+      #  - alert: RedisKeyEviction
+      #    expr: increase(redis_evicted_keys_total{service="{{ template "common.names.fullname" . }}-metrics"}[5m]) > 0
+      #    for: 1s
+      #    labels:
+      #      severity: error
+      #    annotations:
+      #      summary: Redis instance {{ "{{ $instance }}" }} has evicted keys
+      #      description: Redis instance {{ "{{ $instance }}" }} has evicted {{ "{{ $value }}" }} keys in the last 5 minutes.
+
+    ## Metrics exporter pod priorityClassName
+    # priorityClassName: {}
+    service:
+      type: ClusterIP
+      ## Use serviceLoadBalancerIP to request a specific static IP,
+      ## otherwise leave blank
+      ##
+      loadBalancerIP:
+      annotations: {}
+      labels: {}
+
+  ##
+  ## Init containers parameters:
+  ## volumePermissions: Change the owner of the persist volume mountpoint to RunAsUser:fsGroup
+  ##
+  volumePermissions:
+    enabled: false
+    image:
+      registry: docker.io
+      repository: bitnami/minideb
+      tag: buster
+      pullPolicy: Always
+      ## Optionally specify an array of imagePullSecrets.
+      ## Secrets must be manually created in the namespace.
+      ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+      ##
+      pullSecrets:
+      #   - myRegistryKeySecretName
+    resources: {}
+    # resources:
+    #   requests:
+    #     memory: 128Mi
+    #     cpu: 100m
+
+  ## Sysctl InitContainer
+  ## used to perform sysctl operation to modify Kernel settings (needed sometimes to avoid warnings)
+  ##
+  sysctlImage:
+    enabled: false
+    command: []
+    registry: docker.io
+    repository: bitnami/minideb
+    tag: buster
+    pullPolicy: Always
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+    ##
+    pullSecrets:
+    #   - myRegistryKeySecretName
+    mountHostSys: false
+    resources: {}
+    # resources:
+    #   requests:
+    #     memory: 128Mi
+    #     cpu: 100m
+
+  ## PodSecurityPolicy configuration
+  ## ref: https://kubernetes.io/docs/concepts/policy/pod-security-policy/
+  ##
+  podSecurityPolicy:
+    ## Specifies whether a PodSecurityPolicy should be created
+    ##
+    create: false
+
+  ## Array with extra yaml to deploy with the chart. Evaluated as a template
+  ##
+  extraDeploy: []
+
+monogodb-sharded:
+  enabled: false
+  ## Global Docker image parameters
+  ## Please, note that this will override the image parameters, including dependencies, configured to use the global value
+  ## Current available global Docker image parameters: imageRegistry, imagePullSecrets and storageClass
+  ##
+
+  gShards: &gShards 1
+  # gReplicas=1 is simple a master node
+  gReplicas: &gReplicas 1
+
+  global: {}
+  #   imageRegistry: myRegistryName
+  #   imagePullSecrets:
+  #     - myRegistryKeySecretName
+  #   storageClass: myStorageClass
+
+  ## Bitnami MongoDB Sharded image version
+  ## ref: https://hub.docker.com/r/bitnami/mongodb-sharded/tags/
+  ##
+  image:
+    registry: docker.io
+    repository: bitnami/mongodb-sharded
+    tag: 4.4.0-debian-10-r1
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
+    ##
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+    ##
+    pullSecrets:
+
+    ## Set to true if you would like to see extra information on logs
+    ## It turns on Bitnami debugging in minideb-extras-base
+    ## ref:  https://github.com/bitnami/minideb-extras-base
+    ##
+    debug: false
+
+  ## String to partially override mongodb.fullname template (will maintain the release name)
+  ##
+  nameOverride:
+
+  ## String to fully override mongodb.fullname template
+  ##
+  fullnameOverride:
+
+  ## MongoDB credentials
+  ##
+
+  ## MongoDB root password
+  ## If set to null it will be randomly generated
+  ## ref: https://github.com/bitnami/bitnami-docker-mongodb/blob/master/README.md#setting-the-root-password-on-first-run
+  ##
+  ## mongodbRootPassword: password
+  ##
+  mongodbRootPassword:
+
+  ## Replica Set key (shared for shards and config servers)
+  ## ref:
+  ##
+  ## replicaSetKey: testkey123
+  ##
+  replicaSetKey:
+
+  ## Name of a secret containing all the credentials above
+  ## ref:
+  ##
+  ## existingSecret: name-of-existing-secret
+  ##
+  existingSecret:
+
+  ## Mount credentials as files instead of using environment variables
+  ##
+  usePasswordFile: false
+
+  ## Number of MongoDB Shards
+  ## ref: https://docs.mongodb.com/manual/core/sharded-cluster-shards/
+  ##
+  shards: *gShards
+
+  ## Shard replica set properties
+  ## ref: https://docs.mongodb.com/manual/replication/index.html
+  ##
+  shardsvr:
+    ## Properties for data nodes (primary and secondary)
+    ##
+    dataNode:
+      ## Number of replicas. A value of replicas=1 is simply a primary node
+      ##
+      replicas: *gReplicas
+      ## Configure resource requests and limits
+      ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+      ##
+      resources: {}
+      ## MongoDB additional command line flags
+      ##
+      ## Can be used to specify command line flags, for example:
+      ##
+      ## mongodbExtraFlags:
+      ##  - "--wiredTigerCacheSizeGB=2"
+      ##
+      mongodbExtraFlags: []
+      ## Pod priority
+      ## https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/
+      ##
+      priorityClassName:
+      ## Node selector
+      ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+      ##
+      nodeSelector: {}
+      ## Affinity
+      ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+      ##
+      affinity: {}
+      ## Tolerations
+      ## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+      ##
+      tolerations: []
+      ## podManagementPolicy for the statefulset, allows parallel startup of pods
+      ## ref: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#pod-management-policies
+      ##
+      podManagementPolicy: OrderedReady
+      ## updateStrategy for MongoDB Primary, Secondary and Arbitrer statefulsets
+      ## ref: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#update-strategies
+      ##
+      updateStrategy:
+        type: RollingUpdate
+      ## Entries for the MongoDB config file. For documentation of all options, see:
+      ## ref: http://docs.mongodb.org/manual/reference/configuration-options/
+      ##
+      config:
+      ## Name of a ConfigMap containing a MongoDB config file (cannot be used at the same time as config)
+      ## ref: http://docs.mongodb.org/manual/reference/configuration-options/
+      ##
+      configCM:
+      ## An array to add extra env vars
+      ## For example:
+      ## extraEnvVars:
+      ##  - name: KIBANA_ELASTICSEARCH_URL
+      ##    value: test
+      ##
+      extraEnvVars: []
+      ## Name of a ConfigMap containing extra env vars
+      ##
+      extraEnvVarsCM:
+      ## Name of a Secret containing extra env vars
+      ##
+      extraEnvVarsSecret:
+      ## Add sidecars to the pod
+      ## For example:
+      ## sidecars:
+      ##   - name: your-image-name
+      ##     image: your-image
+      ##     imagePullPolicy: Always
+      ##     ports:
+      ##       - name: portname
+      ##         containerPort: 1234
+      ##
+      sidecars: []
+      ## Add init containers to the pod
+      ## For example:
+      ## initcontainers:
+      ##   - name: your-image-name
+      ##     image: your-image
+      ##     imagePullPolicy: Always
+      ##
+      initContainers: []
+      ## Additional pod annotations
+      ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+      ##
+      podAnnotations: {}
+      ## Additional pod labels
+      ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+      ##
+      podLabels: {}
+      ## Array to add extra volumes
+      ##
+      extraVolumes: []
+      ## Array to add extra mounts (normally used with extraVolumes)
+      ##
+      extraVolumeMounts: []
+      ## Use an alternate scheduler, e.g. "stork".
+      ## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
+      ##
+      schedulerName:
+      ## Pod disruption budget
+      ##
+      pdb:
+        enabled: false
+        ## Use 0 to disable
+        ##
+        minAvailable: 0
+        ## Use 0 to disable
+        ##
+        maxUnavailable: 1
+      ## K8s Service Account.
+      ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+      ##
+      serviceAccount:
+        ## Specifies whether a ServiceAccount should be created for shardsvr.
+        ##
+        create: false
+        ## The name of the ServiceAccount to use.
+        ## If not set and create is true, a name is generated using the XXX.fullname template
+        ##
+        # name:
+
+    ## Properties for arbiter nodes
+    ## ref: https://docs.mongodb.com/manual/tutorial/add-replica-set-arbiter/
+    ##
+    arbiter:
+      ## Number of arbiter nodes
+      ##
+      replicas: 0
+      ## Configure resource requests and limits
+      ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+      ##
+      resources: {}
+      ## MongoDB additional command line flags
+      ##
+      ## Can be used to specify command line flags, for example:
+      ##
+      ## mongodbExtraFlags:
+      ##  - "--wiredTigerCacheSizeGB=2"
+      ##
+      mongodbExtraFlags: []
+      ## Pod priority
+      ## https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/
+      ##
+      priorityClassName:
+      ## Node selector
+      ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+      ##
+      nodeSelector: {}
+      ## Affinity
+      ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+      ##
+      affinity: {}
+      ## Tolerations
+      ## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+      ##
+      tolerations: []
+      ## podManagementPolicy for the statefulset, allows parallel startup of pods
+      ## ref: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#pod-management-policies
+      ##
+      podManagementPolicy: OrderedReady
+      ## updateStrategy for MongoDB Primary, Secondary and Arbitrer statefulsets
+      ## ref: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#update-strategies
+      ##
+      updateStrategy:
+        type: RollingUpdate
+      ## Entries for the MongoDB config file. For documentation of all options, see:
+      ## ref: http://docs.mongodb.org/manual/reference/configuration-options/
+      ##
+      config:
+      ## Name of a ConfigMap containing a MongoDB config file (cannot be used at the same time as config)
+      ## ref: http://docs.mongodb.org/manual/reference/configuration-options/
+      ##
+      configCM:
+      ## An array to add extra env vars
+      ## For example:
+      ## extraEnvVars:
+      ##  - name: KIBANA_ELASTICSEARCH_URL
+      ##    value: test
+      ##
+      extraEnvVars:
+      ## Name of a ConfigMap containing extra env vars
+      ##
+      extraEnvVarsCM:
+      ## Name of a Secret containing extra env vars
+      ##
+      extraEnvVarsSecret:
+      ## Add sidecars to the pod
+      ## For example:
+      ## sidecars:
+      ##   - name: your-image-name
+      ##     image: your-image
+      ##     imagePullPolicy: Always
+      ##     ports:
+      ##       - name: portname
+      ##         containerPort: 1234
+      ##
+      sidecars: []
+      ## Add init containers to the pod
+      ## For example:
+      ## initcontainers:
+      ##   - name: your-image-name
+      ##     image: your-image
+      ##     imagePullPolicy: Always
+      ##
+      initContainers: []
+      ## Additional pod annotations
+      ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+      ##
+      podAnnotations: {}
+      ## Additional pod labels
+      ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+      ##
+      podLabels: {}
+      ## Array to add extra volumes
+      ##
+      extraVolumes: []
+      ## Array to add extra mounts (normally used with extraVolumes)
+      ##
+      extraVolumeMounts: []
+      ## Use an alternate scheduler, e.g. "stork".
+      ## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
+      ##
+      schedulerName:
+      ## K8s Service Account.
+      ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+      ##
+      serviceAccount:
+        ## Specifies whether a ServiceAccount should be created for shardsvr arbiter nodes.
+        ##
+        create: false
+        ## The name of the ServiceAccount to use.
+        ## If not set and create is true, a name is generated using the XXX.fullname template
+        ##
+        # name:
+    ## Enable persistence using Persistent Volume Claims
+    ## ref: http://kubernetes.io/docs/user-guide/persistent-volumes/
+    ##
+    persistence:
+      enabled: false
+      ## The path the volume will be mounted at, useful when using different
+      ## MongoDB images.
+      ##
+      mountPath: /bitnami/mongodb
+
+      ## The subdirectory of the volume to mount to, useful in dev environments
+      ## and one PV for multiple services.
+      ##
+      subPath: ""
+
+      ## mongodb data Persistent Volume Storage Class
+      ## If defined, storageClassName: <storageClass>
+      ## If set to "-", storageClassName: "", which disables dynamic provisioning
+      ## If undefined (the default) or set to null, no storageClassName spec is
+      ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+      ##   GKE, AWS & OpenStack)
+      ##
+      # storageClass: "-"
+      accessModes:
+        - ReadWriteOnce
+      ## PersistentVolumeClaim size
+      ##
+      size: 8Gi
+      ## Additional volume annotations
+      ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+      ##
+      annotations: {}
+
+  ## Config Server replica set properties
+  ## ref: https://docs.mongodb.com/manual/core/sharded-cluster-config-servers/
+  ##
+  configsvr:
+    ## Number of replicas. A value of replicas=1 is simply a primary node
+    ##
+    replicas: *gReplicas
+    ## Configure resource requests and limits
+    ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    ##
+    resources: {}
+    ## MongoDB additional command line flags
+    ##
+    ## Can be used to specify command line flags, for example:
+    ##
+    ## mongodbExtraFlags:
+    ##  - "--wiredTigerCacheSizeGB=2"
+    ##
+    mongodbExtraFlags: []
+    ## Pod priority
+    ## https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/
+    ##
+    priorityClassName:
+    ## Node selector
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+    ##
+    nodeSelector: {}
+    ## Affinity
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+    ##
+    affinity: {}
+    ## Tolerations
+    ## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+    ##
+    tolerations: []
+    ## podManagementPolicy for the statefulset, allows parallel startup of pods
+    ## ref: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#pod-management-policies
+    ##
+    podManagementPolicy: OrderedReady
+    ## updateStrategy for MongoDB Primary, Secondary and Arbitrer statefulsets
+    ## ref: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#update-strategies
+    ##
+    updateStrategy:
+      type: RollingUpdate
+    ## Entries for the MongoDB config file. For documentation of all options, see:
+    ## ref: http://docs.mongodb.org/manual/reference/configuration-options/
+    ##
+    config:
+    ## Name of a ConfigMap containing a MongoDB config file (cannot be used at the same time as config)
+    ## ref: http://docs.mongodb.org/manual/reference/configuration-options/
+    ##
+    configCM:
+    ## An array to add extra env vars
+    ## For example:
+    ## extraEnvVars:
+    ##  - name: KIBANA_ELASTICSEARCH_URL
+    ##    value: test
+    ##
+    extraEnvVars:
+    ## Name of a ConfigMap containing extra env vars
+    ##
+    extraEnvVarsCM:
+    ## Name of a Secret containing extra env vars
+    ##
+    extraEnvVarsSecret:
+    ## Add sidecars to the pod
+    ## For example:
+    ## sidecars:
+    ##   - name: your-image-name
+    ##     image: your-image
+    ##     imagePullPolicy: Always
+    ##     ports:
+    ##       - name: portname
+    ##         containerPort: 1234
+    ##
+    sidecars: []
+    ## Add init containers to the pod
+    ## For example:
+    ## initcontainers:
+    ##   - name: your-image-name
+    ##     image: your-image
+    ##     imagePullPolicy: Always
+    ##
+    initContainers: []
+    ## Additional pod annotations
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+    ##
+    podAnnotations: {}
+    ## Additional pod labels
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+    ##
+    podLabels: {}
+    ## Array to add extra volumes
+    ##
+    extraVolumes: []
+    ## Array to add extra mounts (normally used with extraVolumes)
+    ##
+    extraVolumeMounts: []
+    ## Use an alternate scheduler, e.g. "stork".
+    ## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
+    ##
+    schedulerName:
+    ## Pod disruption budget
+    ##
+    pdb:
+      enabled: false
+      ## Use 0 to disable
+      ##
+      minAvailable: 0
+      ## Use 0 to disable
+      ##
+      maxUnavailable: 1
+    ## Enable persistence using Persistent Volume Claims
+    ## ref: http://kubernetes.io/docs/user-guide/persistent-volumes/
+    ##
+    persistence:
+      enabled: false
+      ## The path the volume will be mounted at, useful when using different
+      ## MongoDB images.
+      ##
+      mountPath: /bitnami/mongodb
+
+      ## The subdirectory of the volume to mount to, useful in dev environments
+      ## and one PV for multiple services.
+      ##
+      subPath: ""
+
+      ## mongodb data Persistent Volume Storage Class
+      ## If defined, storageClassName: <storageClass>
+      ## If set to "-", storageClassName: "", which disables dynamic provisioning
+      ## If undefined (the default) or set to null, no storageClassName spec is
+      ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+      ##   GKE, AWS & OpenStack)
+      ##
+      # storageClass: "-"
+      accessModes:
+        - ReadWriteOnce
+      ## PersistentVolumeClaim size
+      ##
+      size: 8Gi
+      ## Additional volume annotations
+      ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+      ##
+      annotations: {}
+    ## K8s Service Account.
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+    ##
+    serviceAccount:
+      ## Specifies whether a ServiceAccount should be created for configsvr.
+      ##
+      create: false
+      ## The name of the ServiceAccount to use.
+      ## If not set and create is true, a name is generated using the XXX.fullname template
+      ##
+      # name:
+
+    ## Use a external config server instead of deploying one
+    ##
+    external:
+      ## Host name of the config server primary node
+      ##
+      host:
+      ## Root password of the config server primary node
+      ##
+      rootPassword:
+      ## Name of the replica set
+      ##
+      replicasetName:
+      ## Replica set key
+      ##
+      replicasetKey:
+
+  ## Mongos properties
+  ## ref: https://docs.mongodb.com/manual/reference/program/mongos/#bin.mongos
+  ##
+  mongos:
+    ## Number of replicas
+    ##
+    replicas: *gReplicas
+    ## Configure resource requests and limits
+    ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    ##
+    resources: {}
+    ## MongoDB additional command line flags
+    ##
+    ## Can be used to specify command line flags, for example:
+    ##
+    ## mongodbExtraFlags:
+    ##  - "--wiredTigerCacheSizeGB=2"
+    ##
+    mongodbExtraFlags: []
+    ## Pod priority
+    ## https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/
+    ##
+    priorityClassName:
+    ## Node selector
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+    ##
+    nodeSelector: {}
+    ## Affinity
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+    ##
+    affinity: {}
+    ## Tolerations
+    ## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+    ##
+    tolerations: []
+    ## updateStrategy for MongoDB Primary, Secondary and Arbitrer statefulsets
+    ## ref: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#update-strategies
+    ##
+    updateStrategy:
+      type: RollingUpdate
+    ## Entries for the MongoDB config file. For documentation of all options, see:
+    ## ref: http://docs.mongodb.org/manual/reference/configuration-options/
+    ##
+    config:
+    ## Name of a ConfigMap containing a MongoDB config file (cannot be used at the same time as config)
+    ## ref: http://docs.mongodb.org/manual/reference/configuration-options/
+    ##
+    configCM:
+    ## An array to add extra env vars
+    ## For example:
+    ## extraEnvVars:
+    ##  - name: KIBANA_ELASTICSEARCH_URL
+    ##    value: test
+    ##
+    extraEnvVars:
+    ## Name of a ConfigMap containing extra env vars
+    ##
+    extraEnvVarsCM:
+    ## Name of a Secret containing extra env vars
+    ##
+    extraEnvVarsSecret:
+    ## Add sidecars to the pod
+    ## For example:
+    ## sidecars:
+    ##   - name: your-image-name
+    ##     image: your-image
+    ##     imagePullPolicy: Always
+    ##     ports:
+    ##       - name: portname
+    ##         containerPort: 1234
+    ##
+    sidecars: []
+    ## Add init containers to the pod
+    ## For example:
+    ## initcontainers:
+    ##   - name: your-image-name
+    ##     image: your-image
+    ##     imagePullPolicy: Always
+    ##
+    initContainers: []
+    ## Additional pod annotations
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+    ##
+    podAnnotations: {}
+    ## Additional pod labels
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+    ##
+    podLabels: {}
+    ## Array to add extra volumes
+    ##
+    extraVolumes: []
+    ## Array to add extra mounts (normally used with extraVolumes)
+    ##
+    extraVolumeMounts: []
+    ## Use an alternate scheduler, e.g. "stork".
+    ## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
+    ##
+    schedulerName:
+    ## Pod disruption budget
+    ##
+    pdb:
+      enabled: false
+      ## Use 0 to disable
+      ##
+      minAvailable: 0
+      ## Use 0 to disable
+      ##
+      maxUnavailable: 1
+    ## K8s Service Account.
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+    ##
+    serviceAccount:
+      ## Specifies whether a ServiceAccount should be created for mongos.
+      ##
+      create: false
+      ## The name of the ServiceAccount to use.
+      ## If not set and create is true, a name is generated using the XXX.fullname template
+      ##
+      # name:
+
+  ## Properties for all of the pods in the cluster (shards, config servers and mongos)
+  ##
+  common:
+    ## Use hostnames instead of IP addresses
+    ##
+    useHostnames: true
+    ## Whether enable/disable IPv6 on MongoDB
+    ## ref: https://github.com/bitnami/bitnami-docker-mongodb/blob/master/README.md#enabling/disabling-ipv6
+    ##
+    mongodbEnableIPv6: false
+    ## Whether enable/disable DirectoryPerDB on MongoDB
+    ## ref: https://github.com/bitnami/bitnami-docker-mongodb/blob/master/README.md#enabling/disabling-directoryperdb
+    ##
+    mongodbDirectoryPerDB: false
+    ## System log verbosity level
+    ## ref: https://docs.mongodb.com/manual/reference/program/mongo/#cmdoption-mongo-ipv6
+    ##
+    mongodbSystemLogVerbosity: 0
+    ## MongoDB System Log configuration
+    ## ref: https://github.com/bitnami/bitnami-docker-mongodb#configuring-system-log-verbosity-level
+    ##
+    mongodbDisableSystemLog: false
+    ## Maximum peer node waiting timeout (in seconds)
+    ##
+    mongodbMaxWaitTimeout: 120
+    ## Configmap with init scripts to execute
+    ##
+    initScriptsCM:
+    ## Secret with init scripts to execute (for sensitive data)
+    ##
+    initScriptsSecret:
+    ## An array to add extra env vars
+    ## For example:
+    ## extraEnvVars:
+    ##  - name: KIBANA_ELASTICSEARCH_URL
+    ##    value: test
+    ##
+    extraEnvVars:
+    ## Name of a ConfigMap containing extra env vars
+    ##
+    extraEnvVarsCM:
+    ## Name of a Secret containing extra env vars
+    ##
+    extraEnvVarsSecret:
+    ## Add sidecars to the pod
+    ## For example:
+    ## sidecars:
+    ##   - name: your-image-name
+    ##     image: your-image
+    ##     imagePullPolicy: Always
+    ##     ports:
+    ##       - name: portname
+    ##         containerPort: 1234
+    ##
+    sidecars: []
+    ## Add init containers to the pod
+    ## For example:
+    ## initcontainers:
+    ##   - name: your-image-name
+    ##     image: your-image
+    ##     imagePullPolicy: Always
+    ##
+    initContainers: []
+    ## Additional pod annotations
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+    ##
+    podAnnotations: {}
+    ## Additional pod labels
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+    ##
+    podLabels: {}
+    ## Array to add extra volumes
+    ##
+    extraVolumes: []
+    ## Array to add extra mounts (normally used with extraVolumes)
+    ##
+    extraVolumeMounts: []
+    ## K8s Service Account.
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+    ##
+    serviceAccount:
+      ## Specifies whether a ServiceAccount should be created for all Pods.
+      ##
+      create: false
+      ## The name of the ServiceAccount to use.
+      ## If not set and create is true, a name is generated using the XXX.fullname template
+      ##
+      # name:
+
+  ## Init containers parameters:
+  ## volumePermissions: Change the owner and group of the persistent volume mountpoint to runAsUser:fsGroup values from the securityContext section.
+  ##
+  volumePermissions:
+    enabled: false
+    image:
+      registry: docker.io
+      repository: bitnami/minideb
+      tag: buster
+      pullPolicy: Always
+      ## Optionally specify an array of imagePullSecrets.
+      ## Secrets must be manually created in the namespace.
+      ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+      ##
+      # pullSecrets:
+      #   - myRegistryKeySecretName
+    resources: {}
+
+  ## Pod Security Context
+  ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  ##
+  securityContext:
+    enabled: true
+    fsGroup: 1001
+    runAsUser: 1001
+    runAsNonRoot: true
+
+  ## Kubernetes Cluster Domain
+  ## ref: https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/#introduction
+  ##
+  clusterDomain: cluster.local
+
+  ## Kubernetes service type
+  ## ref: https://kubernetes.io/docs/concepts/services-networking/service/
+  ##
+  service:
+    ## Specify an explicit service name
+    ##
+    name:
+    ## Additional service annotations
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+    ##
+    annotations: {}
+    ## Service type
+    ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
+    ##
+    type: ClusterIP
+    ## External traffic policy
+    ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
+    ##
+    externalTrafficPolicy: Cluster
+    ## MongoDB Service port and Container Port
+    ##
+    port: 27017
+    ## Set a fixed service ClusterIP addrress
+    ## ref: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.16/#servicespec-v1-core
+    ##
+    clusterIP:
+    ## Specify the nodePort value for the LoadBalancer and NodePort service types.
+    ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
+    ##
+    nodePort:
+
+    ## Specify the externalIP value ClusterIP service type.
+    ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#external-ips
+    ##
+    externalIPs: []
+
+    ## Specify the loadBalancerIP value for LoadBalancer service types.
+    ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#loadbalancer
+    ##
+    loadBalancerIP:
+
+    ## Specify the loadBalancerSourceRanges value for LoadBalancer service types.
+    ## ref: https://kubernetes.io/docs/tasks/access-application-cluster/configure-cloud-provider-firewall/#restrict-access-for-loadbalancer-service
+    ##
+    loadBalancerSourceRanges: []
+    ## Extra ports to expose (normally used with the `sidecar` value)
+    ##
+    extraPorts: []
+    ## Specify the sessionAffinity setting for the service. Can be "None" or "ClientIP".
+    ## If "ClientIP", consecutive client requests will be directed to the same mongos Pod
+    ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#virtual-ips-and-service-proxies
+    ##
+    sessionAffinity: None
+
+  ## Configure extra options for liveness and readiness probes
+  ## This applies to all the MongoDB in the sharded cluster
+  ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/#configure-probes)
+  ##
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+
+  ## Prometheus Exporter / Metrics
+  ##
+  metrics:
+    enabled: true
+
+    image:
+      registry: docker.io
+      repository: bitnami/mongodb-exporter
+      tag: 0.11.1-debian-10-r8
+      pullPolicy: Always
+      ## Optionally specify an array of imagePullSecrets.
+      ## Secrets must be manually created in the namespace.
+      ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+      ##
+      # pullSecrets:
+      #   - myRegistryKeySecretName
+
+    ## String with extra arguments to the metrics exporter
+    ## ref: https://github.com/dcu/mongodb_exporter/blob/master/mongodb_exporter.go
+    ##
+    extraArgs: ""
+
+    ## Metrics exporter resource requests and limits
+    ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    ##
+    # resources: {}
+
+    ## Metrics exporter liveness and readiness probes
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/#configure-probes)
+    ##
+    livenessProbe:
+      enabled: false
+      initialDelaySeconds: 15
+      periodSeconds: 5
+      timeoutSeconds: 5
+      failureThreshold: 3
+      successThreshold: 1
+    readinessProbe:
+      enabled: false
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 1
+      failureThreshold: 3
+      successThreshold: 1
+
+    ## Metrics exporter pod Annotation
+    ##
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9216"
+
+    # Enable this if you're using https://github.com/coreos/prometheus-operator
+    serviceMonitor:
+      enabled: false
+      namespace: monitoring
+      # fallback to the prometheus default unless specified
+      # interval: 10s
+      ## Defaults to what's used if you follow CoreOS [Prometheus Install Instructions](https://github.com/bitnami/charts/tree/master/bitnami/prometheus-operator#tldr)
+      ## [Prometheus Selector Label](https://github.com/bitnami/charts/tree/master/bitnami/prometheus-operator#prometheus-operator-1)
+      ## [Kube Prometheus Selector Label](https://github.com/bitnami/charts/tree/master/bitnami/prometheus-operator#exporters)
+      ##
+      selector:
+        prometheus: kube-prometheus
+
 participants-evt:
   enabled: true
   # Default values for poc-participants.

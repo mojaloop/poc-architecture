@@ -99,3 +99,13 @@ dependencies:
   repository: https://charts.bitnami.com/bitnami
   alias: redis
   condition: redis.enabled
+- name: redis-cluster
+  version: 3.2.2
+  repository: https://charts.bitnami.com/bitnami
+  alias: redis-cluster
+  condition: redis-cluster.enabled
+# - name: mongodb-sharded
+#   version: 2.1.0
+#   repository: https://charts.bitnami.com/bitnami
+#   alias: mongodb-sharded
+#   condition: mongodb-sharded.enabled
