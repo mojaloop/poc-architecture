@@ -90,6 +90,11 @@ box "Query Services" #LightCyan
 end box
 
 ' start flow
+
+' TODO:
+' - Where do we check the duplicte hash? In the Command or Read side?
+'
+
 PAYER <-> MLAPI: POST Transfer Request
 
 MLAPI --> TOPIC_MLINGRESS_EVT: Publish TransferPrepareRequestedEVT

@@ -128,8 +128,8 @@ TOPIC_TRANSFERS_EVT --> PARTICIPANTS_EVT: Consume TransferFulfilAcceptedEvt
 
 TOPIC_PARTICIPANTS_CMD --> PARTICIPANTS_CMD: Consume CommitPayeeFundsCmd
 
-  PARTICIPANTS_CMD <-> PARTICIPANTS_STORE: Load PayerFSP (<color:red>in-memory</color>)
-  PARTICIPANTS_CMD -> PARTICIPANTS_CMD: Validate PayerFSP Participant - Ref <color:red>"Invalid Participants on Fulfil Callback"</color> Exception Scenario
+  PARTICIPANTS_CMD <-> PARTICIPANTS_STORE: Load PayeeFSP (<color:red>in-memory</color>)
+  PARTICIPANTS_CMD -> PARTICIPANTS_CMD: Validate PayeeFSP Participant - Ref <color:red>"Invalid Participants on Fulfil Callback"</color> Exception Scenario
   'PARTICIPANTS_CMD --> TOPIC_PARTICIPANTS_EVT: Publish InvalidParticipantEvt with PayerFSP.id - Ref Invalid Participant Flow
 
   PARTICIPANTS_CMD <-> PARTICIPANTS_STORE: Load PayerFSP (<color:red>no-in-memory</color>)
