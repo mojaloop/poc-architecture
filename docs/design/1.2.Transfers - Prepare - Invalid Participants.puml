@@ -136,12 +136,12 @@ TOPIC_PARTICIPANTS_CMD --> PARTICIPANTS_CMD: Consume ReservePayerFundsCmd
 
     TOPIC_TRANSFERS_CMD --> TRANSFERS_CMD: Consume TransferRejectCmd
       TRANSFERS_CMD -> TRANSFERS_CMD: Load Transfer (<color:red>in-memory</color>) - Ref <color:red>"Consistency Miss-match for Transfers"</color> Exception Scenario
-      TRANSFERS_CMD -> TRANSFERS_CMD: Update Transfer state with status <b>"ABORTED_ERROR"</b>
+      TRANSFERS_CMD -> TRANSFERS_CMD: Update Transfer state with status <b>"ABORTED_ERROR"</b>, reason <b>"3202"</b>
       ''## Do we publish any event since we do not want to communicate that the Payer is invalid?
       TRANSFERS_CMD --> TOPIC_TRANSFERS_EVT: Publish TransferRejectedEvt
 
     TOPIC_TRANSFERS_EVT --> MLAPI: Consume TransferRejectedEvt
-      MLAPI <-> MLAPI: Log Transfer <b><color:red>Error: 3202</color></b>
+      MLAPI <-> MLAPI: Log Transfer <b><color:red>Error: 3202</color></b> <i>(Not responding to PayerFSP due to security concerns)</i>
       
       'MLAPI <-> PAYER: PUT Transfer <b><color:red>Error: 3202</color></b>
       'MLAPI --> TOPIC_NOTIFICATIONS_EVT: Publish AckNotificationEvt
@@ -158,7 +158,7 @@ TOPIC_PARTICIPANTS_CMD --> PARTICIPANTS_CMD: Consume ReservePayerFundsCmd
     TOPIC_TRANSFERS_CMD --> TRANSFERS_CMD: Consume TransferRejectCmd
       
       TRANSFERS_CMD -> TRANSFERS_CMD: Load Transfer (<color:red>in-memory</color>) - Ref <color:red>"Consistency Miss-match for Transfers"</color> Exception Scenario
-      TRANSFERS_CMD -> TRANSFERS_CMD: Update Transfer state with status <b>"ABORTED_ERROR"</b>
+      TRANSFERS_CMD -> TRANSFERS_CMD: Update Transfer state with status <b>"ABORTED_ERROR"</b>, reason <b>"3203"</b>
       TRANSFERS_CMD --> TOPIC_TRANSFERS_EVT: Publish TransferRejectedEvt
 
     TOPIC_TRANSFERS_EVT --> MLAPI: Consume TransferRejectedEvt

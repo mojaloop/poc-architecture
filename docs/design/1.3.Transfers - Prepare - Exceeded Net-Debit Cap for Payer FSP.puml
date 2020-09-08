@@ -143,7 +143,7 @@ TOPIC_PARTICIPANTS_CMD --> PARTICIPANTS_CMD: Consume ReservePayerFundsCmd
   TOPIC_TRANSFERS_CMD --> TRANSFERS_CMD: Consume TransferRejectCmd
 
     TRANSFERS_CMD -> TRANSFERS_CMD: Load Transfer (<color:red>in-memory</color>) - Ref <color:red>"Consistency Miss-match for Transfers"</color> Exception Scenario
-    TRANSFERS_CMD -> TRANSFERS_CMD: Update Transfer state with status <b>"ABORTED_ERROR"</b>
+    TRANSFERS_CMD -> TRANSFERS_CMD: Update Transfer state with status <b>"ABORTED_ERROR"</b>, reason <b>"4001"</b>
 
     TRANSFERS_CMD --> TOPIC_TRANSFERS_EVT: Publish TransferRejectedEvt
 
