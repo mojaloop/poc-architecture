@@ -19,6 +19,10 @@ parameters:
   transfers_repo_type: &transfers_repo_type redis
   # Supported repo Types: memory, redis, cachedredis
   duplicate_repo_type: &duplicate_repo_type redis
+  redis_persisted_shards: &redis_persisted_shards 1
+  redis_persisted_replicas: &redis_persisted_replicas 0
+  redis_cache_shards: &redis_cache_shards 1
+  redis_cache_replicas: &redis_cache_replicas 0
   redis_expiration_in_sec: &redis_expiration_in_sec 1800
 
 
@@ -2004,8 +2008,9 @@ redis-persisted:
     ##
     create: false
 
-redis-cluster:
-  enabled: false
+redis-cluster-persisted:
+  enabled: true
+  nameOverride: redis-cluster-persisted
   ## Global Docker image parameters
   ## Please, note that this will override the image parameters, including dependencies, configured to use the global value
   ## Current available global Docker image parameters: imageRegistry and imagePullSecrets
@@ -2055,11 +2060,11 @@ redis-cluster:
     init: true
     ## Number of Redis nodes to be deployed
     ##
-    nodes: 6
+    nodes: *redis_persisted_shards
     ## Parameter to be passed as --cluster-replicas to the redis-cli --cluster create
     ## 1 means that we want a replica for every master created
     ##
-    replicas: 1
+    replicas: *redis_persisted_replicas
 
     ## Configuration to access the Redis Cluster from outside the Kubernetes cluster
     ##
@@ -2152,7 +2157,101 @@ redis-cluster:
     ## Additional Redis configuration for the nodes
     ## ref: https://redis.io/topics/config
     ##
-    configmap:
+    configmap: |-
+      ### Config Reference: https://raw.githubusercontent.com/antirez/redis/5.0/redis.conf
+      ## https://redis.io/topics/persistence#append-only-file - Enable AOF
+      appendonly yes
+      # appendonly no
+      ## https://redis.io/topics/persistence#append-only-file - Specify the update log criteria, there are three possible values:
+      ##   no: indicates the operating system and other data synced to disk cache (fast)
+      ##   always: after every operation indicates the update manually call fsync () writes data to disk (slower, security)
+      ##   everysec: represents a second synchronous (compromise, the default value)
+      # appendfsync everysec
+      ## Disable RDB persistence, AOF persistence already enabled.
+      save ""
+      # The fsync() call tells the Operating System to actually write data on disk
+      # instead of waiting for more data in the output buffer. Some OS will really flush
+      # data on disk, some other OS will just try to do it ASAP.
+      #
+      # Redis supports three different modes:
+      #
+      # no: don't fsync, just let the OS flush the data when it wants. Faster.
+      # always: fsync after every write to the append only log. Slow, Safest.
+      # everysec: fsync only one time every second. Compromise.
+      #
+      # The default is "everysec", as that's usually the right compromise between
+      # speed and data safety. It's up to you to understand if you can relax this to
+      # "no" that will let the operating system flush the output buffer when
+      # it wants, for better performances (but if you can live with the idea of
+      # some data loss consider the default persistence mode tha's snapshotting),
+      # or on the contrary, use "always" that's very slow but a bit safer than
+      # everysec.
+      #
+      # More details please check the following article:
+      # http://antirez.com/post/redis-persistence-demystified.html
+      #
+      # If unsure, use "everysec".
+      appendfsync always
+      # appendfsync everysec
+      # appendfsync no
+      ############################## MEMORY MANAGEMENT ################################
+      # Set a memory usage limit to the specified amount of bytes.
+      # When the memory limit is reached Redis will try to remove keys
+      # according to the eviction policy selected (see maxmemory-policy).
+      #
+      # If Redis can't remove keys according to the policy, or if the policy is
+      # set to 'noeviction', Redis will start to reply with errors to commands
+      # that would use more memory, like SET, LPUSH, and so on, and will continue
+      # to reply to read-only commands like GET.
+      #
+      # This option is usually useful when using Redis as an LRU or LFU cache, or to
+      # set a hard memory limit for an instance (using the 'noeviction' policy).
+      #
+      # WARNING: If you have replicas attached to an instance with maxmemory on,
+      # the size of the output buffers needed to feed the replicas are subtracted
+      # from the used memory count, so that network problems / resyncs will
+      # not trigger a loop where keys are evicted, and in turn the output
+      # buffer of replicas is full with DELs of keys evicted triggering the deletion
+      # of more keys, and so forth until the database is completely emptied.
+      #
+      # In short... if you have replicas attached it is suggested that you set a lower
+      # limit for maxmemory so that there is some free RAM on the system for replica
+      # output buffers (but this is not needed if the policy is 'noeviction').
+      #
+      # maxmemory <bytes>
+      maxmemory 25gb
+  
+      # MAXMEMORY POLICY: how Redis will select what to remove when maxmemory
+      # is reached. You can select among five behaviors:
+      #
+      # volatile-lru -> Evict using approximated LRU among the keys with an expire set.
+      # allkeys-lru -> Evict any key using approximated LRU.
+      # volatile-lfu -> Evict using approximated LFU among the keys with an expire set.
+      # allkeys-lfu -> Evict any key using approximated LFU.
+      # volatile-random -> Remove a random key among the ones with an expire set.
+      # allkeys-random -> Remove a random key, any key.
+      # volatile-ttl -> Remove the key with the nearest expire time (minor TTL)
+      # noeviction -> Don't evict anything, just return an error on write operations.
+      #
+      # LRU means Least Recently Used
+      # LFU means Least Frequently Used
+      #
+      # Both LRU, LFU and volatile-ttl are implemented using approximated
+      # randomized algorithms.
+      #
+      # Note: with any of the above policies, Redis will return an error on write
+      #       operations, when there are no suitable keys for eviction.
+      #
+      #       At the date of writing these commands are: set setnx setex append
+      #       incr decr rpush lpush rpushx lpushx linsert lset rpoplpush sadd
+      #       sinter sinterstore sunion sunionstore sdiff sdiffstore zadd zincrby
+      #       zunionstore zinterstore hset hsetnx hmset hincrby incrby decrby
+      #       getset mset msetnx exec sort
+      #
+      # The default is:
+      #
+      # maxmemory-policy noeviction
+      # maxmemory-policy volatile-ttl
 
     ## An array to add extra env vars
     ## For example:
@@ -2215,6 +2314,7 @@ redis-cluster:
     ## Redis pod/node affinity/anti-affinity
     ##
     affinity: {}
+    
     ## Pod topology spread constraints
     ## https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
     ## The value is evaluated as a template
@@ -2284,10 +2384,12 @@ redis-cluster:
     ## Ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
     ##
     tolerations: []
-    ## Affinity for pod assignment. Evaluated as a template.
-    ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
-    ##
+    # ## Affinity for pod assignment. Evaluated as a template.
+    # ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+    # ##
     affinity: {}
+    
+    ##
     ## Container resource requests and limits
     ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
     ##
@@ -2373,6 +2475,8 @@ redis-cluster:
     ## Redis pod/node affinity/anti-affinity
     ##
     affinity: {}
+
+    ##
     ## Container resource requests and limits
     ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
     ##
@@ -2590,7 +2694,7 @@ redis-cluster:
   ## Prometheus Exporter / Metrics
   ##
   metrics:
-    enabled: false
+    enabled: true
 
     image:
       registry: docker.io
@@ -2603,6 +2707,850 @@ redis-cluster:
       ##
       pullSecrets:
       #   - myRegistryKeySecretName
+
+    tolerations: []
+    affinity: {}
+
+    ## Metrics exporter resource requests and limits
+    ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    ##
+    resources: {}
+
+    ## Extra arguments for Metrics exporter, for example:
+    ## extraArgs:
+    ##   check-keys: myKey,myOtherKey
+    ##
+    extraArgs: {}
+
+    ## Metrics exporter pod Annotation and Labels
+    ##
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9121"
+    podLabels: {}
+
+    # Enable this if you're using https://github.com/coreos/prometheus-operator
+    serviceMonitor:
+      enabled: false
+      ## Specify a namespace if needed
+      ##
+      namespace:
+      ## fallback to the prometheus default unless specified
+      ##
+      interval:
+
+    ## Custom PrometheusRule to be defined
+    ## The value is evaluated as a template, so, for example, the value can depend on .Release or .Chart
+    ## ref: https://github.com/coreos/prometheus-operator#customresourcedefinitions
+    ##
+    prometheusRule:
+      enabled: false
+      additionalLabels: {}
+      namespace: ""
+      rules: []
+      ## These are just examples rules, please adapt them to your needs.
+      ## Make sure to constraint the rules to the current postgresql service.
+      #  - alert: RedisDown
+      #    expr: redis_up{service="{{ template "common.names.fullname" . }}-metrics"} == 0
+      #    for: 2m
+      #    labels:
+      #      severity: error
+      #    annotations:
+      #      summary: Redis instance {{ "{{ $instance }}" }} down
+      #      description: Redis instance {{ "{{ $instance }}" }} is down.
+      #  - alert: RedisMemoryHigh
+      #    expr: >
+      #       redis_memory_used_bytes{service="{{ template "common.names.fullname" . }}-metrics"} * 100
+      #       /
+      #       redis_memory_max_bytes{service="{{ template "common.names.fullname" . }}-metrics"}
+      #       > 90 =< 100
+      #    for: 2m
+      #    labels:
+      #      severity: error
+      #    annotations:
+      #      summary: Redis instance {{ "{{ $instance }}" }} is using too much memory
+      #      description: Redis instance {{ "{{ $instance }}" }} is using {{ "{{ $value }}" }}% of its available memory.
+      #  - alert: RedisKeyEviction
+      #    expr: increase(redis_evicted_keys_total{service="{{ template "common.names.fullname" . }}-metrics"}[5m]) > 0
+      #    for: 1s
+      #    labels:
+      #      severity: error
+      #    annotations:
+      #      summary: Redis instance {{ "{{ $instance }}" }} has evicted keys
+      #      description: Redis instance {{ "{{ $instance }}" }} has evicted {{ "{{ $value }}" }} keys in the last 5 minutes.
+
+    ## Metrics exporter pod priorityClassName
+    # priorityClassName: {}
+    service:
+      type: ClusterIP
+      ## Use serviceLoadBalancerIP to request a specific static IP,
+      ## otherwise leave blank
+      ##
+      loadBalancerIP:
+      annotations: {}
+      labels: {}
+
+  ##
+  ## Init containers parameters:
+  ## volumePermissions: Change the owner of the persist volume mountpoint to RunAsUser:fsGroup
+  ##
+  volumePermissions:
+    enabled: false
+    image:
+      registry: docker.io
+      repository: bitnami/minideb
+      tag: buster
+      pullPolicy: Always
+      ## Optionally specify an array of imagePullSecrets.
+      ## Secrets must be manually created in the namespace.
+      ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+      ##
+      pullSecrets:
+      #   - myRegistryKeySecretName
+    resources: {}
+    # resources:
+    #   requests:
+    #     memory: 128Mi
+    #     cpu: 100m
+
+  ## Sysctl InitContainer
+  ## used to perform sysctl operation to modify Kernel settings (needed sometimes to avoid warnings)
+  ##
+  sysctlImage:
+    enabled: false
+    command: []
+    registry: docker.io
+    repository: bitnami/minideb
+    tag: buster
+    pullPolicy: Always
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+    ##
+    pullSecrets:
+    #   - myRegistryKeySecretName
+    mountHostSys: false
+    resources: {}
+    # resources:
+    #   requests:
+    #     memory: 128Mi
+    #     cpu: 100m
+
+  ## PodSecurityPolicy configuration
+  ## ref: https://kubernetes.io/docs/concepts/policy/pod-security-policy/
+  ##
+  podSecurityPolicy:
+    ## Specifies whether a PodSecurityPolicy should be created
+    ##
+    create: false
+
+  ## Array with extra yaml to deploy with the chart. Evaluated as a template
+  ##
+  extraDeploy: []
+
+redis-cluster-cache:
+  enabled: true
+  nameOverride: redis-cluster-cache
+  ## Global Docker image parameters
+  ## Please, note that this will override the image parameters, including dependencies, configured to use the global value
+  ## Current available global Docker image parameters: imageRegistry and imagePullSecrets
+  ##
+  global:
+    #   imageRegistry: myRegistryName
+    #   imagePullSecrets:
+    #     - myRegistryKeySecretName
+    #   storageClass: myStorageClass
+    redis: {}
+
+  ## Bitnami Redis image version
+  ## ref: https://hub.docker.com/r/bitnami/redis/tags/
+  ##
+  image:
+    registry: docker.io
+    repository: bitnami/redis-cluster
+    ## Bitnami Redis image tag
+    ## ref: https://github.com/bitnami/bitnami-docker-redis#supported-tags-and-respective-dockerfile-links
+    ##
+    tag: 6.0.7-debian-10-r0
+    ## Specify a imagePullPolicy
+    ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
+    ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
+    ##
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+    ##
+    pullSecrets:
+    #   - myRegistryKeySecretName
+
+  ## String to partially override redis.fullname template (will maintain the release name)
+  ##
+  nameOverride:
+
+  ## String to fully override redis.fullname template
+  ##
+  fullnameOverride:
+
+  ## Redis Cluster settings
+  ##
+  cluster:
+    ## Enable the creation of a Job that will execute the proper command to create the Redis Cluster.
+    ##
+    init: true
+    ## Number of Redis nodes to be deployed
+    ##
+    nodes: *redis_cache_shards
+    ## Parameter to be passed as --cluster-replicas to the redis-cli --cluster create
+    ## 1 means that we want a replica for every master created
+    ##
+    replicas: *redis_cache_replicas
+
+    ## Configuration to access the Redis Cluster from outside the Kubernetes cluster
+    ##
+    externalAccess:
+      enabled: false
+      service:
+        ## Type of service for external access. At this moment only LoadBalancer is supported.
+        ##
+        type: LoadBalancer
+        ## Port used when service type is LoadBalancer
+        ##
+        port: 6379
+        ## Array of load balancer IPs for each Redis node. Length must be the same as cluster.nodes
+        ##
+        loadBalancerIP: []
+        ## Service annotations done as key:value pairs
+        ##
+        annotations: {}
+
+    ## This section allows to update the Redis cluster nodes.
+    ##
+    update:
+      ## Setting this to true a hook will add nodes to the Redis cluster after the upgrade.
+      ## currentNumberOfNodes is required
+      ##
+      addNodes: false
+      ## Set to the number of nodes that are already deployed
+      ##
+      currentNumberOfNodes: 6
+      ## When using external access set the new externalIPs here as an array
+      ##
+      newExternalIPs: []
+
+  redis:
+    ## Custom command to override image cmd
+    ##
+    command: []
+
+    ## Custom args for the custom command:
+    ##
+    args: []
+
+    # Whether to use AOF Persistence mode or not
+    # It is strongly recommended to use this type when dealing with clusters
+    #
+    # ref: https://redis.io/topics/persistence#append-only-file
+    # ref: https://redis.io/topics/cluster-tutorial#creating-and-using-a-redis-cluster
+    useAOFPersistence: "yes"
+
+    # Redis port
+    port: 6379
+
+    ## lifecycleHooks for the container to automate configuration before or after startup.
+    ##
+    lifecycleHooks:
+
+    ## Extra volumes to add to the deployment
+    ##
+    extraVolumes: []
+
+    ## Extra volume mounts to add to the container
+    ##
+    extraVolumeMounts: []
+
+    ## Custom Liveness probe
+    ##
+    customLivenessProbe: {}
+
+    ## Custom Rediness probe
+    ##
+    customReadinessProbe: {}
+
+    ## Extra init containers to add to the deployment
+    ##
+    initContainers: []
+
+    ## Extra sidecar containers to add to the deployment
+    ##
+    sidecars: []
+
+    ## Pod extra labels
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+    ##
+    podLabels: {}
+
+    ## Priority class name
+    ##
+    priorityClassName:
+
+    ## Additional Redis configuration for the nodes
+    ## ref: https://redis.io/topics/config
+    ##
+    configmap: |-
+      ### Config Reference: https://raw.githubusercontent.com/antirez/redis/5.0/redis.conf
+      ## https://redis.io/topics/persistence#append-only-file - Enable AOF
+      appendonly yes
+      # appendonly no
+      ## https://redis.io/topics/persistence#append-only-file - Specify the update log criteria, there are three possible values:
+      ##   no: indicates the operating system and other data synced to disk cache (fast)
+      ##   always: after every operation indicates the update manually call fsync () writes data to disk (slower, security)
+      ##   everysec: represents a second synchronous (compromise, the default value)
+      # appendfsync everysec
+      ## Disable RDB persistence, AOF persistence already enabled.
+      save ""
+      # The fsync() call tells the Operating System to actually write data on disk
+      # instead of waiting for more data in the output buffer. Some OS will really flush
+      # data on disk, some other OS will just try to do it ASAP.
+      #
+      # Redis supports three different modes:
+      #
+      # no: don't fsync, just let the OS flush the data when it wants. Faster.
+      # always: fsync after every write to the append only log. Slow, Safest.
+      # everysec: fsync only one time every second. Compromise.
+      #
+      # The default is "everysec", as that's usually the right compromise between
+      # speed and data safety. It's up to you to understand if you can relax this to
+      # "no" that will let the operating system flush the output buffer when
+      # it wants, for better performances (but if you can live with the idea of
+      # some data loss consider the default persistence mode tha's snapshotting),
+      # or on the contrary, use "always" that's very slow but a bit safer than
+      # everysec.
+      #
+      # More details please check the following article:
+      # http://antirez.com/post/redis-persistence-demystified.html
+      #
+      # If unsure, use "everysec".
+      # appendfsync always
+      # appendfsync everysec
+      appendfsync no
+      ############################## MEMORY MANAGEMENT ################################
+      # Set a memory usage limit to the specified amount of bytes.
+      # When the memory limit is reached Redis will try to remove keys
+      # according to the eviction policy selected (see maxmemory-policy).
+      #
+      # If Redis can't remove keys according to the policy, or if the policy is
+      # set to 'noeviction', Redis will start to reply with errors to commands
+      # that would use more memory, like SET, LPUSH, and so on, and will continue
+      # to reply to read-only commands like GET.
+      #
+      # This option is usually useful when using Redis as an LRU or LFU cache, or to
+      # set a hard memory limit for an instance (using the 'noeviction' policy).
+      #
+      # WARNING: If you have replicas attached to an instance with maxmemory on,
+      # the size of the output buffers needed to feed the replicas are subtracted
+      # from the used memory count, so that network problems / resyncs will
+      # not trigger a loop where keys are evicted, and in turn the output
+      # buffer of replicas is full with DELs of keys evicted triggering the deletion
+      # of more keys, and so forth until the database is completely emptied.
+      #
+      # In short... if you have replicas attached it is suggested that you set a lower
+      # limit for maxmemory so that there is some free RAM on the system for replica
+      # output buffers (but this is not needed if the policy is 'noeviction').
+      #
+      # maxmemory <bytes>
+      maxmemory 25gb
+  
+      # MAXMEMORY POLICY: how Redis will select what to remove when maxmemory
+      # is reached. You can select among five behaviors:
+      #
+      # volatile-lru -> Evict using approximated LRU among the keys with an expire set.
+      # allkeys-lru -> Evict any key using approximated LRU.
+      # volatile-lfu -> Evict using approximated LFU among the keys with an expire set.
+      # allkeys-lfu -> Evict any key using approximated LFU.
+      # volatile-random -> Remove a random key among the ones with an expire set.
+      # allkeys-random -> Remove a random key, any key.
+      # volatile-ttl -> Remove the key with the nearest expire time (minor TTL)
+      # noeviction -> Don't evict anything, just return an error on write operations.
+      #
+      # LRU means Least Recently Used
+      # LFU means Least Frequently Used
+      #
+      # Both LRU, LFU and volatile-ttl are implemented using approximated
+      # randomized algorithms.
+      #
+      # Note: with any of the above policies, Redis will return an error on write
+      #       operations, when there are no suitable keys for eviction.
+      #
+      #       At the date of writing these commands are: set setnx setex append
+      #       incr decr rpush lpush rpushx lpushx linsert lset rpoplpush sadd
+      #       sinter sinterstore sunion sunionstore sdiff sdiffstore zadd zincrby
+      #       zunionstore zinterstore hset hsetnx hmset hincrby incrby decrby
+      #       getset mset msetnx exec sort
+      #
+      # The default is:
+      #
+      # maxmemory-policy noeviction
+      # maxmemory-policy volatile-ttl
+
+    ## An array to add extra env vars
+    ## For example:
+    ##
+    extraEnvVars: []
+    #  - name: BEARER_AUTH
+    #    value: true
+
+    ## ConfigMap with extra environment variables
+    ##
+    extraEnvVarsCM:
+
+    ## Secret with extra environment variables
+    ##
+    extraEnvVarsSecret:
+
+    ## Redis additional annotations
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+    ##
+    podAnnotations: {}
+
+    ## Redis resource requests and limits
+    ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    ##
+    resources: {}
+    #   requests:
+    #     memory: 256Mi
+    #     cpu: 100m
+
+    ## Use an alternate scheduler, e.g. "stork".
+    ## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
+    ##
+    schedulerName:
+
+    ## Configure extra options for Redis liveness and readiness probes
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/#configure-probes)
+    ##
+    livenessProbe:
+      enabled: true
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 5
+      successThreshold: 1
+      failureThreshold: 5
+    readinessProbe:
+      enabled: true
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 1
+      successThreshold: 1
+      failureThreshold: 5
+
+    ## Redis Node selectors and tolerations for pod assignment
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+    ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#taints-and-tolerations-beta-feature
+    ##
+    # nodeSelector: {"beta.kubernetes.io/arch": "amd64"}
+    nodeSelector:
+    tolerations: []
+
+    ## Redis pod/node affinity/anti-affinity
+    ##
+    affinity: {}
+
+    ## Pod topology spread constraints
+    ## https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
+    ## The value is evaluated as a template
+    ##
+    topologySpreadConstraints: []
+    ## The busPort should be obtained adding 10000 to the redisPort. By default: 10000 + 6379 = 16379
+    ##
+    busPort: 16379
+
+  ## Cluster init job settings
+  ##
+  initJob:
+    ## Number of seconds the Job to create the cluster will be waiting for the Nodes to be ready.
+    ##
+    activeDeadlineSeconds: 600
+    ## Container command (using container default if not set)
+    ##
+    command:
+
+    ## Container args (using container default if ot set)
+    ##
+    args:
+
+    ## Job annotations
+    ##
+    annotations: {}
+
+    ## Pod annotations
+    ##
+    podAnnotations: {}
+
+    ## An array to add extra env vars
+    ## For example:
+    ##
+    extraEnvVars: []
+    #  - name: BEARER_AUTH
+    #    value: true
+
+    ## ConfigMap with extra environment variables
+    ##
+    extraEnvVarsCM:
+
+    ## Secret with extra environment variables
+    ##
+    extraEnvVarsSecret:
+
+    ## Extra volumes to add to the deployment
+    ##
+    extraVolumes: []
+
+    ## Extra volume mounts to add to the container
+    ##
+    extraVolumeMounts: []
+
+    ## Extra init containers to add to the deployment
+    ##
+    initContainers: []
+    ## Node labels for pod assignment. Evaluated as a template.
+    ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
+    ##
+    nodeSelector: {}
+    ## Pod extra labels
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+    ##
+    podLabels: {}
+    ## Tolerations for pod assignment. Evaluated as a template.
+    ## Ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+    ##
+    tolerations: []
+    # ## Affinity for pod assignment. Evaluated as a template.
+    # ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+    # ##
+    affinity: {}
+
+    ##
+    ## Container resource requests and limits
+    ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    ##
+    resources:
+      ## We usually recommend not to specify default resources and to leave this as a conscious
+      ## choice for the user. This also increases chances charts run on environments with little
+      ## resources, such as Minikube. If you do want to specify resources, uncomment the following
+      ## lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+      ##
+      limits: {}
+      ##   cpu: 500m
+      ##   memory: 1Gi
+      ##
+      requests: {}
+      ##   cpu: 250m
+      ##   memory: 256Mi
+      ##
+
+  ## Cluster init job settings
+  ##
+  updateJob:
+    ## Number of seconds the Job to create the cluster will be waiting for the Nodes to be ready.
+    ##
+    activeDeadlineSeconds: 600
+    ## Container command (using container default if not set)
+    ##
+    command:
+
+    ## Container args (using container default if ot set)
+    ##
+    args:
+
+    ## Job annotations
+    ##
+    annotations: {}
+
+    ## Pod annotations
+    ##
+    podAnnotations: {}
+
+    ## Pod extra labels
+    ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+    ##
+    podLabels: {}
+
+    ## An array to add extra env vars
+    ## For example:
+    ##
+    extraEnvVars: []
+    #  - name: BEARER_AUTH
+    #    value: true
+
+    ## ConfigMap with extra environment variables
+    ##
+    extraEnvVarsCM:
+
+    ## Secret with extra environment variables
+    ##
+    extraEnvVarsSecret:
+
+    ## Extra volumes to add to the deployment
+    ##
+    extraVolumes: []
+
+    ## Extra volume mounts to add to the container
+    ##
+    extraVolumeMounts: []
+
+    ## Extra init containers to add to the deployment
+    ##
+    initContainers: []
+
+    ## Node labels for pod assignment. Evaluated as a template.
+    ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
+    ##
+    nodeSelector:
+
+    ## Tolerations for pod assignment. Evaluated as a template.
+    ## Ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+    ##
+    tolerations: []
+
+    ## Redis pod/node affinity/anti-affinity
+    ##
+    affinity: {}
+
+    ##
+    ## Container resource requests and limits
+    ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    ##
+    resources:
+      ## We usually recommend not to specify default resources and to leave this as a conscious
+      ## choice for the user. This also increases chances charts run on environments with little
+      ## resources, such as Minikube. If you do want to specify resources, uncomment the following
+      ## lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+      ##
+      limits: {}
+      ##   cpu: 500m
+      ##   memory: 1Gi
+      ##
+      requests: {}
+      ##   cpu: 250m
+      ##   memory: 256Mi
+      ##
+
+  networkPolicy:
+    ## Specifies whether a NetworkPolicy should be created
+    ##
+    enabled: false
+
+    ## The Policy model to apply. When set to false, only pods with the correct
+    ## client label will have network access to the port Redis is listening
+    ## on. When true, Redis will accept connections from any source
+    ## (with the correct destination port).
+    ##
+    allowExternal: true
+
+    ## Allow connections from other namespacess. Just set label for namespace and set label for pods (optional).
+    ##
+    ingressNSMatchLabels: {}
+    ingressNSPodMatchLabels: {}
+
+  serviceAccount:
+    ## Specifies whether a ServiceAccount should be created
+    ##
+    create: false
+    ## The name of the ServiceAccount to use.
+    ## If not set and create is true, a name is generated using the fullname template
+    ##
+    name:
+
+  rbac:
+    ## Specifies whether RBAC resources should be created
+    ##
+    create: false
+
+    role:
+      ## Rules to create. It follows the role specification
+      # rules:
+      #  - apiGroups:
+      #    - extensions
+      #    resources:
+      #      - podsecuritypolicies
+      #    verbs:
+      #      - use
+      #    resourceNames:
+      #      - gce.unprivileged
+      rules: []
+
+  ## Redis pod Security Context
+  ##
+  podSecurityContext:
+    enabled: true
+    fsGroup: 1001
+    runAsUser: 1001
+    ## sysctl settings
+    ##
+    ## Uncomment the setting below to increase the net.core.somaxconn value
+    ##
+    sysctls:
+    # - name: net.core.somaxconn
+    #   value: "10000"
+
+  ## Limits the number of pods of the replicated application that are down simultaneously from voluntary disruptions
+  ## ref: https://kubernetes.io/docs/concepts/workloads/pods/disruptions
+  ##
+  podDisruptionBudget: {}
+  ## Min number of pods that must still be available after the eviction
+  ##
+  #   minAvailable: 1
+  ## Max number of pods that can be unavailable after the eviction
+  ##
+  #   maxUnavailable: 1
+
+  ## Containers Security Context
+  ##
+  containerSecurityContext:
+    enabled: true
+    runAsUser: 1001
+    ## sysctl settings
+    ##
+    ## Uncomment the setting below to increase the net.core.somaxconn value
+    ##
+    sysctls:
+    # - name: net.core.somaxconn
+    #   value: "10000"
+
+  ## Use password authentication
+  ##
+  usePassword: false
+  ## Redis password
+  ## Defaults to a random 10-character alphanumeric string if not set and usePassword is true
+  ## ref: https://github.com/bitnami/bitnami-docker-redis#setting-the-server-password-on-first-run
+  ##
+  password: ""
+  ## Use existing secret (ignores previous password)
+  ##
+  existingSecret:
+  ## Password key to be retrieved from Redis secret
+  ##
+  existingSecretPasswordKey:
+
+  ## Mount secrets as files instead of environment variables
+  ##
+  usePasswordFile: false
+
+  ##
+  ## TLS configuration
+  ##
+  tls:
+    # Enable TLS traffic
+    enabled: false
+    #
+    # Whether to require clients to authenticate or not.
+    authClients: true
+    #
+    # Name of the Secret that contains the certificates
+    certificatesSecret:
+    #
+    # Certificate filename
+    certFilename:
+    #
+    # Certificate Key filename
+    certKeyFilename:
+    #
+    # CA Certificate filename
+    certCAFilename:
+    #
+    # File containing DH params (in order to support DH based ciphers)
+    dhParamsFilename:
+
+  ## Annotations for all the deployed objects
+  ##
+  commonAnnotations:
+
+  ## Labels for all the deployed objects
+  ##
+  commonLabels:
+
+  ## Redis Service properties for standalone mode.
+  ##
+  service:
+    port: 6379
+
+    ## Provide any additional annotations which may be required. This can be used to
+    ## set the LoadBalancer service type to internal only.
+    ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#internal-load-balancer
+    ##
+    annotations: {}
+    labels: {}
+
+    ## Set the service type.
+    ## Setting this to LoadBalancer may require corresponding service annotations for loadbalancer creation to succeed.
+    ## Currently supported types are ClusterIP (default) and LoadBalancer
+    ##
+    type: ClusterIP
+
+    ## If service.type is LoadBalancer, request a specific static IP address if supported by the cloud provider.
+    ## otherwise leave blank
+    # loadBalancerIP:
+
+  ## Enable persistence using Persistent Volume Claims
+  ## ref: http://kubernetes.io/docs/user-guide/persistent-volumes/
+  ##
+  persistence:
+    enabled: false
+    ## The path the volume will be mounted at, useful when using different
+    ## Redis images.
+    ##
+    path: /bitnami/redis/data
+    ## The subdirectory of the volume to mount to, useful in dev environments
+    ## and one PV for multiple services.
+    ##
+    subPath: ""
+    ## Redis data Persistent Volume Storage Class
+    ## If defined, storageClassName: <storageClass>
+    ## If set to "-", storageClassName: "", which disables dynamic provisioning
+    ## If undefined (the default) or set to null, no storageClassName spec is
+    ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+    ##   GKE, AWS & OpenStack)
+    ##
+    storageClass:
+    accessModes:
+      - ReadWriteOnce
+    size: 8Gi
+    ## Persistent Volume selectors
+    ## https://kubernetes.io/docs/concepts/storage/persistent-volumes/#selector
+    ##
+    matchLabels: {}
+    matchExpressions: {}
+
+  ## Update strategy, can be set to RollingUpdate or onDelete by default.
+  ## https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#updating-statefulsets
+  ##
+  statefulset:
+    updateStrategy: RollingUpdate
+    ## Partition update strategy
+    ## https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#partitions
+    ##
+    rollingUpdatePartition:
+
+  ## Prometheus Exporter / Metrics
+  ##
+  metrics:
+    enabled: true
+
+    image:
+      registry: docker.io
+      repository: bitnami/redis-exporter
+      tag: 1.11.1-debian-10-r3
+      pullPolicy: IfNotPresent
+      ## Optionally specify an array of imagePullSecrets.
+      ## Secrets must be manually created in the namespace.
+      ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+      ##
+      pullSecrets:
+      #   - myRegistryKeySecretName
+
+    tolerations: []
+    affinity: {}
 
     ## Metrics exporter resource requests and limits
     ## ref: http://kubernetes.io/docs/user-guide/compute-resources/

@@ -102,8 +102,13 @@ dependencies:
 - name: redis-cluster
   version: 3.2.2
   repository: https://charts.bitnami.com/bitnami
-  alias: redis-cluster
-  condition: redis-cluster.enabled
+  alias: redis-cluster-cache
+  condition: redis-cluster-cache.enabled
+- name: redis-cluster
+  version: 3.2.2
+  repository: https://charts.bitnami.com/bitnami
+  alias: redis-cluster-persisted
+  condition: redis-cluster-persisted.enabled
 # - name: mongodb-sharded
 #   version: 2.1.0
 #   repository: https://charts.bitnami.com/bitnami
