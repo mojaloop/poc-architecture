@@ -37,14 +37,15 @@
 
 'use strict'
 
-import * as redis from 'redis'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { TransferState } from '../domain/transfer_entity'
 import { ITransfersRepo } from '../domain/transfers_repo'
+import NodeCache from 'node-cache'
+import * as redis from 'redis'
 // @ts-expect-error
 import RedisClustr = require('redis-clustr')
 
-export class RedisTransferStateRepo implements ITransfersRepo {
+export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
   protected _redisClient!: redis.RedisClient
   protected _redisClustered: boolean
   private readonly _redisConnStr: string
@@ -54,12 +55,21 @@ export class RedisTransferStateRepo implements ITransfersRepo {
   private _initialized: boolean = false
   private readonly keyPrefix: string = 'transfer_'
   private readonly _expirationInSeconds: number
+  // private readonly _inMemorylist: Map<string, TransferState> = new Map<string, TransferState>()
+  private readonly _nodeCache: NodeCache
 
   constructor (connStr: string, clusteredRedis: boolean, logger: ILogger, expirationInSeconds: number = -1) {
     this._redisConnStr = connStr
     this._redisClustered = clusteredRedis
     this._logger = logger
     this._expirationInSeconds = expirationInSeconds
+    this._nodeCache = new NodeCache({
+      stdTTL: 100, // (default: 0) the standard ttl as number in seconds for every generated cache element. 0 = unlimited
+      checkperiod: 120, // (default: 600) The period in seconds, as a number, used for the automatic delete check interval. 0 = no periodic check.
+      useClones: false // (default: true) en/disable cloning of variables. If true you'll get a copy of the cached variable. If false you'll save and get just the reference.
+      // deleteOnExpire: true, // (default: true) whether variables will be deleted automatically when they expire. If true the variable will be deleted. If false the variable will remain. You are encouraged to handle the variable upon the event expired by yourself.
+      // maxKeys: -1 // (default: -1) specifies a maximum amount of keys that can be stored in the cache. If a new item is set and the cache is full, an error is thrown and the key will not be saved in the cache. -1 disables the key limit.
+    })
 
     const splited = connStr.split('//')[1]
     this._redisConnClusterHost = splited.split(':')[0]
@@ -107,6 +117,10 @@ export class RedisTransferStateRepo implements ITransfersRepo {
 
       const key: string = this.keyWithPrefix(id)
 
+      if (this._nodeCache.has(key)) {
+        return resolve(this._nodeCache.get(key))
+      }
+
       this._redisClient.get(key, (err: Error | null, result: string | null) => {
         if (err != null) {
           this._logger.isErrorEnabled() && this._logger.error(err, 'Error fetching entity state from redis - for key: ' + key)
@@ -118,6 +132,9 @@ export class RedisTransferStateRepo implements ITransfersRepo {
         }
         try {
           const state: TransferState = JSON.parse(result)
+
+          this._nodeCache.set(key, state, this._expirationInSeconds)
+
           return resolve(state)
         } catch (err) {
           this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state from redis - for key: ' + key)
@@ -132,6 +149,10 @@ export class RedisTransferStateRepo implements ITransfersRepo {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
 
       const key: string = this.keyWithPrefix(id)
+
+      if (this._nodeCache.has(key)) {
+        this._nodeCache.del(key)
+      }
 
       this._redisClient.del(key, (err?: Error|null, result?: number) => {
         if (err != null) {
@@ -153,13 +174,21 @@ export class RedisTransferStateRepo implements ITransfersRepo {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
 
       const key: string = this.keyWithPrefix(entityState.id)
-      // const expireStateInSec: number = (entityState != null && entityState?.expireStateInSec > 0) ? entityState.expireStateInSec : -1
+
+      this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::store - storing ${entityState.id} in-memory only!`)
+
+      this._nodeCache.set(key, entityState, this._expirationInSeconds)
+
       let stringValue: string
       try {
         stringValue = JSON.stringify(entityState)
       } catch (err) {
         this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
         return reject(err)
+      }
+
+      if (stringValue === null) {
+        return resolve()
       }
 
       this._redisClient.setex(key, this._expirationInSeconds, stringValue, (err: Error | null, reply: string) => {

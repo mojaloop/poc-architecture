@@ -73,15 +73,15 @@ export class ParticipantCmdHandler implements IRunHandler {
     logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Creating Statecache-repo of type ${appConfig.state_cache.type as string}`)
     switch (appConfig.state_cache.type) {
       case RepoInfraTypes.REDIS: {
-        this._stateCacheRepo = new RedisParticipantStateRepo(appConfig.state_cache.host, logger)
+        this._stateCacheRepo = new RedisParticipantStateRepo(appConfig.state_cache.host, appConfig.state_cache.clustered, logger)
         break
       }
       case RepoInfraTypes.CACHEDREDIS: {
-        this._stateCacheRepo = new CachedRedisParticipantStateRepo(appConfig.state_cache.host, logger)
+        this._stateCacheRepo = new CachedRedisParticipantStateRepo(appConfig.state_cache.host, appConfig.state_cache.clustered, logger)
         break
       }
       case RepoInfraTypes.CACHEDPERSISTEDREDIS: {
-        this._stateCacheRepo = new CachedPersistedRedisParticipantStateRepo(appConfig.state_cache.host, logger)
+        this._stateCacheRepo = new CachedPersistedRedisParticipantStateRepo(appConfig.state_cache.host, appConfig.state_cache.clustered, logger)
         break
       }
       default: { // defaulting to In-Memory
@@ -93,11 +93,11 @@ export class ParticipantCmdHandler implements IRunHandler {
     logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Creating Duplicate-repo of type ${appConfig.duplicate_store.type as string}`)
     switch (appConfig.duplicate_store.type) {
       case RepoInfraTypes.REDIS: {
-        this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, 'participants_duplicate', logger) // TODO move to config
+        this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, appConfig.duplicate_store.clustered, 'participants_duplicate', logger) // TODO move to config
         break
       }
       default: {
-        this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, 'participants_duplicate', logger) // TODO move to config
+        this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, appConfig.duplicate_store.clustered, 'participants_duplicate', logger) // TODO move to config
       }
     }
     logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Created Duplicate-repo of type ${this._duplicateRepo.constructor.name}`)
@@ -105,11 +105,11 @@ export class ParticipantCmdHandler implements IRunHandler {
     logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Creating Eventsourcing-repo of type ${appConfig.state_cache.type as string}`)
     switch (appConfig.state_cache.type) {
       case RepoInfraTypes.REDIS: {
-        this._eventSourcingRepo = new EventSourcingStateRepo(appConfig.state_cache.host, appConfig.kafka.host, 'Participant', ParticipantsTopics.SnapshotEvents, ParticipantsTopics.StateEvents, logger)
+        this._eventSourcingRepo = new EventSourcingStateRepo(appConfig.state_cache.host, appConfig.state_cache.clustered, appConfig.kafka.host, 'Participant', ParticipantsTopics.SnapshotEvents, ParticipantsTopics.StateEvents, logger)
         break
       }
       default: {
-        this._eventSourcingRepo = new EventSourcingStateRepo(appConfig.state_cache.host, appConfig.kafka.host, 'Participant', ParticipantsTopics.SnapshotEvents, ParticipantsTopics.StateEvents, logger)
+        this._eventSourcingRepo = new EventSourcingStateRepo(appConfig.state_cache.host, appConfig.state_cache.clustered, appConfig.kafka.host, 'Participant', ParticipantsTopics.SnapshotEvents, ParticipantsTopics.StateEvents, logger)
       }
     }
     logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Created Eventsourcing-repo of type ${this._eventSourcingRepo.constructor.name}`)

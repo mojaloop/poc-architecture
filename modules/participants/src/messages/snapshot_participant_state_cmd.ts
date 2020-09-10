@@ -22,6 +22,9 @@
  * Gates Foundation
  - Name Surname <name.surname@gatesfoundation.com>
 
+ * Coil
+ - Donovan Changfoot <donovan.changfoot@coil.com>
+
  * Crosslake
  - Pedro Sousa Barreto <pedrob@crosslaketech.com>
 
@@ -34,39 +37,27 @@
 
 'use strict'
 
-export const getEnvIntegerOrDefault = (key: string, defaultValue: any): any => {
-  const envValue = process.env[key]
-  let rv = defaultValue
+import { CommandMsg } from '@mojaloop-poc/lib-domain'
+import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
 
-  if ((envValue != null) && !isNaN(Number.parseInt(envValue))) {
-    rv = Number.parseInt(envValue)
-  }
-
-  return rv
+export type SnapshotParticipantStateCmdPayload = {
+  participantId: string
 }
 
-export const getEnvValueOrDefault = (key: string, defaultValue: any): any => {
-  const envValue = process.env[key]
-  let rv
+export class SnapshotParticipantStateCmd extends CommandMsg {
+  aggregateId: string
+  aggregateName: string = 'Participants'
+  msgKey: string
+  msgTopic: string = ParticipantsTopics.Commands
 
-  if (envValue != null) {
-    rv = envValue
-  } else {
-    rv = defaultValue
+  payload: SnapshotParticipantStateCmdPayload
+
+  constructor (payload: SnapshotParticipantStateCmdPayload) {
+    super()
+    this.aggregateId = this.msgKey = payload.participantId
+
+    this.payload = payload
   }
 
-  return rv
-}
-
-export const getEnvBoolOrDefault = (key: string): any => {
-  const envValue = process.env[key]
-  let rv
-
-  if (envValue != null && envValue.toLowerCase() === 'true') {
-    rv = true
-  } else {
-    rv = false
-  }
-
-  return rv
+  validatePayload (): void{ }
 }

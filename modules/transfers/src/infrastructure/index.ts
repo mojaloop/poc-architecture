@@ -40,6 +40,7 @@
 export enum RepoInfraTypes {
   REDIS = 'redis',
   MEMORY = 'memory',
-  CACHEDREDIS = 'cachedredis'
-  // CACHEDPERSISTEDREDIS = 'cachedpersistedredis',
+  NODECACHE = 'nodecache',
+  CACHEDREDIS = 'cachedredis',
+  CACHEDPERSISTEDREDIS = 'cachedpersistedredis'
 }

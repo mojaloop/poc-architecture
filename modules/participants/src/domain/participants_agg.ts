@@ -38,7 +38,7 @@
 
 'use strict'
 
-import { BaseEventSourcingAggregate, IMessagePublisher, ILogger, TCommandResult, IESourcingStateRepository, IEntityDuplicateRepository } from '@mojaloop-poc/lib-domain'
+import { BaseEventSourcingAggregate, IMessagePublisher, ILogger, TCommandResult, IESourcingStateRepository, IEntityDuplicateRepository, StateSnapshotMsg } from '@mojaloop-poc/lib-domain'
 import { ParticipantEntity, ParticipantState, InvalidAccountError, InvalidLimitError, NetDebitCapLimitExceededError, ParticipantEndpointState, ParticipantAccountState, ParticipantLimitState } from './participant_entity'
 import { ParticipantsFactory } from './participants_factory'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
@@ -48,6 +48,8 @@ import { IParticipantRepo } from './participant_repo'
 import { CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'
 import { ParticipantCreatedStateEvtPayload, ParticipantCreatedStateEvt } from '../messages/participant_created_stateevt'
 import { ParticipantPositionChangedStateEvtPayload, ParticipantPositionChangedStateEvt } from '../messages/participant_position_changed_stateevt'
+import { SnapshotParticipantStateCmd } from '../messages/snapshot_participant_state_cmd'
+import { ParticipantStateSnapshotEvt } from '../messages/participant_state_snapshotevt'
 
 export class ParticpantsAgg extends BaseEventSourcingAggregate<ParticipantEntity, ParticipantState> {
   constructor (entityStateCacheRepo: IParticipantRepo, entityDuplicateRepo: IEntityDuplicateRepository, esStateRepo: IESourcingStateRepository, msgPublisher: IMessagePublisher, logger: ILogger) {
@@ -57,13 +59,13 @@ export class ParticpantsAgg extends BaseEventSourcingAggregate<ParticipantEntity
     this._registerCommandHandler('CreateParticipantCmd', this.processCreateParticipantCommand)
     this._registerCommandHandler('ReservePayerFundsCmd', this.processReserveFundsCommand)
     this._registerCommandHandler('CommitPayeeFundsCmd', this.processCommitFundsCommand)
+    this._registerCommandHandler('SnapshotParticipantStateCmd', this.processParticipantStateSnapshotCommand)
 
     // register event handlers
     this._registerStateEventHandler('ParticipantCreatedStateEvt', this._applyCreatedStateEvent)
     this._registerStateEventHandler('ParticipantPositionChangedStateEvt', this._applyPositionChangedStateEvent)
 
-    // TODO implement snapshot handler
-    // this._setSnapshotHandler(this._applySnapshotHandler)
+    this._setSnapshotHandler(this._applySnapshotHandler)
   }
 
   async loadAllToInMemoryCache (): Promise<void> {
@@ -250,7 +252,8 @@ export class ParticpantsAgg extends BaseEventSourcingAggregate<ParticipantEntity
         participant: {
           id: this._rootEntity.id,
           currency: commandMsg.payload.currency,
-          currentPosition: currentPosition
+          currentPosition: currentPosition,
+          partition: this._rootEntity.partition
         }
       }
       const stateEvt: ParticipantPositionChangedStateEvt = new ParticipantPositionChangedStateEvt(stateEvtPayload)
@@ -349,7 +352,8 @@ export class ParticpantsAgg extends BaseEventSourcingAggregate<ParticipantEntity
         participant: {
           id: this._rootEntity.id,
           currency: commandMsg.payload.currency,
-          currentPosition: currentPosition
+          currentPosition: currentPosition,
+          partition: this._rootEntity.partition
         }
       }
       const stateEvt: ParticipantPositionChangedStateEvt = new ParticipantPositionChangedStateEvt(stateEvtPayload)
@@ -368,6 +372,27 @@ export class ParticpantsAgg extends BaseEventSourcingAggregate<ParticipantEntity
       }
     }
     return { success: false, stateEvent: null }
+  }
+
+  async processParticipantStateSnapshotCommand (commandMsg: SnapshotParticipantStateCmd): Promise<TCommandResult> {
+    await this.load(commandMsg.payload.participantId, false) // we'll throw the next line with a proper error
+
+    if (this._rootEntity == null) {
+      const err = new Error(`Could not load participant with id '${commandMsg.payload.participantId}' to process snapshot command`)
+      throw err
+    }
+
+    const snapshot = new ParticipantStateSnapshotEvt(this._rootEntity.exportState())
+
+    return { success: true, stateEvent: snapshot }
+  }
+
+  private async _applySnapshotHandler (snapshotEvent: StateSnapshotMsg, replayed?: boolean): Promise<void> {
+    const state: ParticipantState = snapshotEvent.payload as ParticipantState
+    if (state === null || state === undefined || state.id === undefined) {
+      throw new Error('Invalid participant state in ParticipantStateSnapshotEvt, cannot be applied')
+    }
+    this._rootEntity = this._entity_factory.createFromState(state)
   }
 
   private recordInvalidParticipantEvt (participantId: string, transferId: string, err?: Error): void {

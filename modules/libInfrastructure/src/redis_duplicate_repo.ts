@@ -36,25 +36,42 @@
  ******/
 'use strict'
 
-import * as redis from 'redis'
+// import * as redis from 'redis'
 import { ILogger, IEntityDuplicateRepository } from '@mojaloop-poc/lib-domain'
+import * as redis from 'redis'
+// @ts-expect-error
+import RedisClustr = require('redis-clustr')
 
 export class RedisDuplicateRepo implements IEntityDuplicateRepository {
   protected _redisClient!: redis.RedisClient
+  protected _redisClustered: boolean
   private readonly _redisConnStr: string
+  private readonly _redisConnClusterHost: string
+  private readonly _redisConnClusterPort: number
   private readonly _logger: ILogger
   private _initialized: boolean = false
   private readonly _setKey: string
 
-  constructor (connStr: string, setKey: string, logger: ILogger) {
+  constructor (connStr: string, clusteredRedis: boolean, setKey: string, logger: ILogger) {
     this._redisConnStr = connStr
     this._logger = logger
     this._setKey = setKey
+    this._redisClustered = clusteredRedis
+
+    const splited = connStr.split('//')[1]
+    this._redisConnClusterHost = splited.split(':')[0]
+    this._redisConnClusterPort = Number.parseInt(splited.split(':')[1])
   }
 
   async init (): Promise<void> {
     return await new Promise((resolve, reject) => {
-      this._redisClient = redis.createClient({ url: this._redisConnStr })
+      if (this._redisClustered) {
+        this._redisClient = new RedisClustr({
+          servers: [{ host: this._redisConnClusterHost, port: this._redisConnClusterPort }]
+        })
+      } else {
+        this._redisClient = redis.createClient({ url: this._redisConnStr })
+      }
 
       this._redisClient.on('ready', () => {
         this._logger.isDebugEnabled() && this._logger.debug('Redis client ready')
@@ -63,7 +80,7 @@ export class RedisDuplicateRepo implements IEntityDuplicateRepository {
         return resolve()
       })
 
-      this._redisClient.on('error', (err) => {
+      this._redisClient.on('error', (err: Error) => {
         this._logger.isErrorEnabled() && this._logger.error(err, 'A redis error has occurred:')
         if (!this._initialized) { return reject(err) }
       })

@@ -37,7 +37,13 @@
 
 'use strict'
 
-import { MojaLogger, Metrics, TMetricOptionsType, getEnvValueOrDefault } from '@mojaloop-poc/lib-utilities'
+import {
+  MojaLogger,
+  Metrics,
+  TMetricOptionsType,
+  getEnvValueOrDefault,
+  getEnvBoolOrDefault
+} from '@mojaloop-poc/lib-utilities'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { TApiServerOptions, ApiServer, IRunHandler, KafkaInfraTypes, RdKafkaCommitMode } from '@mojaloop-poc/lib-infrastructure'
 import { ParticipantCmdHandler } from './participantCmdHandler'
@@ -78,6 +84,9 @@ Program.command('handler')
 
     // # setup application config
     const appConfig = {
+      metrics: {
+        prefix: getEnvValueOrDefault('METRIC_PREFIX', 'poc_') as string
+      },
       api: {
         host: (process.env.PARTICIPANTS_API_HOST != null) ? process.env.PARTICIPANTS_API_HOST : '0.0.0.0',
         port: (process.env.PARTICIPANTS_API_PORT != null && !isNaN(Number(process.env.PARTICIPANTS_API_PORT)) && process.env.PARTICIPANTS_API_PORT?.trim()?.length > 0) ? Number.parseInt(process.env.PARTICIPANTS_API_PORT) : 3003
@@ -96,11 +105,13 @@ Program.command('handler')
       },
       state_cache: {
         type: (process.env.PARTICIPANTS_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.PARTICIPANTS_REPO_TYPE,
-        host: process.env.REDIS_HOST
+        host: process.env.REDIS_HOST,
+        clustered: getEnvBoolOrDefault('PARTICIPANTS_REPO_CLUSTERED')
       },
       duplicate_store: {
         type: (process.env.DUPLICATE_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.DUPLICATE_REPO_TYPE,
-        host: getEnvValueOrDefault('REDIS_DUPL_HOST', 'redis://localhost:6379') as string
+        host: getEnvValueOrDefault('REDIS_DUPL_HOST', 'redis://localhost:6379') as string,
+        clustered: getEnvBoolOrDefault('DUPLICATE_REPO_CLUSTERED')
       },
       readside_store: {
         uri: getEnvValueOrDefault('PARTICIPANTS_READSIDE_MONGO_DB_HOST', 'mongodb://localhost:27017/') as string
@@ -114,7 +125,7 @@ Program.command('handler')
 
     const metricsConfig: TMetricOptionsType = {
       timeout: 5000, // Set the timeout in ms for the underlying prom-client library. Default is '5000'.
-      prefix: 'poc_part_', // Set prefix for all defined metrics names
+      prefix: appConfig.metrics.prefix, // Set prefix for all defined metrics names
       defaultLabels: { // Set default labels that will be applied to all metrics
         serviceName: 'participants'
       }

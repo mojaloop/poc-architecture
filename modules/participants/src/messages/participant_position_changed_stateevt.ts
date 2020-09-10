@@ -45,6 +45,7 @@ export type ParticipantPositionChangedStateEvtPayload = {
     id: string
     currency: CurrencyTypes
     currentPosition: string
+    partition: number | null
   }
 }
 
@@ -62,6 +63,7 @@ export class ParticipantPositionChangedStateEvt extends StateEventMsg {
 
     this.aggregateId = this.msgKey = payload?.participant?.id
     this.payload = payload
+    this.msgPartition = payload.participant.partition
   }
 
   validatePayload (): void{ }

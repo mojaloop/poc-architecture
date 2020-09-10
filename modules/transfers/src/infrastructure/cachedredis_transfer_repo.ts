@@ -41,25 +41,41 @@ import * as redis from 'redis'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { TransferState } from '../domain/transfer_entity'
 import { ITransfersRepo } from '../domain/transfers_repo'
+// @ts-expect-error
+import RedisClustr = require('redis-clustr')
 
 export class CachedRedisTransferStateRepo implements ITransfersRepo {
   protected _redisClient!: redis.RedisClient
+  protected _redisClustered: boolean
   private readonly _redisConnStr: string
+  private readonly _redisConnClusterHost: string
+  private readonly _redisConnClusterPort: number
   private readonly _logger: ILogger
   private _initialized: boolean = false
   private readonly keyPrefix: string = 'transfer_'
   private readonly _expirationInSeconds: number
   private readonly _inMemorylist: Map<string, TransferState> = new Map<string, TransferState>()
 
-  constructor (connStr: string, logger: ILogger, expirationInSeconds: number = -1) {
+  constructor (connStr: string, clusteredRedis: boolean, logger: ILogger, expirationInSeconds: number = -1) {
     this._redisConnStr = connStr
+    this._redisClustered = clusteredRedis
     this._logger = logger
     this._expirationInSeconds = expirationInSeconds
+
+    const splited = connStr.split('//')[1]
+    this._redisConnClusterHost = splited.split(':')[0]
+    this._redisConnClusterPort = Number.parseInt(splited.split(':')[1])
   }
 
   async init (): Promise<void> {
     return await new Promise((resolve, reject) => {
-      this._redisClient = redis.createClient({ url: this._redisConnStr })
+      if (this._redisClustered) {
+        this._redisClient = new RedisClustr({
+          servers: [{ host: this._redisConnClusterHost, port: this._redisConnClusterPort }]
+        })
+      } else {
+        this._redisClient = redis.createClient({ url: this._redisConnStr })
+      }
 
       this._redisClient.on('ready', () => {
         this._logger.isInfoEnabled() && this._logger.info('Redis client ready')
@@ -154,32 +170,7 @@ export class CachedRedisTransferStateRepo implements ITransfersRepo {
 
       this._inMemorylist.set(key, entityState)
 
-      // # This is handled by the "CachedPersistedRedisTransferStateRepo" (which does not exist at the moment) as this is purely an In-Memory processing store with just the initial transfers being loaded from Redis to ensure the intitial consistency on load/startup
-      resolve()
-
-      // let stringValue: string
-      // try {
-      //   stringValue = JSON.stringify(entityState)
-      // } catch (err) {
-      //   this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
-      //   return reject(err)
-      // }
-
-      // if (stringValue === null) {
-      //   return
-      // }
-
-      // this._redisClient.setex(key, this._expirationInSeconds, stringValue, (err: Error | null, reply: string) => {
-      //   if (err != null) {
-      //     this._logger.isErrorEnabled() && this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
-      //     return reject(err)
-      //   }
-      //   if (reply !== 'OK') {
-      //     this._logger.isErrorEnabled() && this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
-      //     return reject(err)
-      //   }
-      //   return resolve()
-      // })
+      return resolve()
     })
   }
 

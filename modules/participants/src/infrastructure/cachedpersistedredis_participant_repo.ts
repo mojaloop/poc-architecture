@@ -42,6 +42,8 @@ import { ILogger } from '@mojaloop-poc/lib-domain'
 import { ParticipantState } from '../domain/participant_entity'
 import { IParticipantRepo } from '../domain/participant_repo'
 import { ParticipantAccountTypes, ParticipantEndpoint } from '@mojaloop-poc/lib-public-messages'
+// @ts-expect-error
+import RedisClustr = require('redis-clustr')
 
 /***
  * TODO:
@@ -53,20 +55,34 @@ import { ParticipantAccountTypes, ParticipantEndpoint } from '@mojaloop-poc/lib-
 
 export class CachedPersistedRedisParticipantStateRepo implements IParticipantRepo {
   protected _redisClient!: redis.RedisClient
-  private readonly _inMemorylist: Map<string, ParticipantState> = new Map<string, ParticipantState>()
+  protected _redisClustered: boolean
   private readonly _redisConnStr: string
+  private readonly _redisConnClusterHost: string
+  private readonly _redisConnClusterPort: number
+  private readonly _inMemorylist: Map<string, ParticipantState> = new Map<string, ParticipantState>()
   private readonly _logger: ILogger
   private _initialized: boolean = false
   private readonly keyPrefix: string = 'participant_'
 
-  constructor (connStr: string, logger: ILogger) {
+  constructor (connStr: string, clusteredRedis: boolean, logger: ILogger) {
     this._redisConnStr = connStr
     this._logger = logger
+    this._redisClustered = clusteredRedis
+
+    const splited = connStr.split('//')[1]
+    this._redisConnClusterHost = splited.split(':')[0]
+    this._redisConnClusterPort = Number.parseInt(splited.split(':')[1])
   }
 
   async init (): Promise<void> {
     return await new Promise((resolve, reject) => {
-      this._redisClient = redis.createClient({ url: this._redisConnStr })
+      if (this._redisClustered) {
+        this._redisClient = new RedisClustr({
+          servers: [{ host: this._redisConnClusterHost, port: this._redisConnClusterPort }]
+        })
+      } else {
+        this._redisClient = redis.createClient({ url: this._redisConnStr })
+      }
 
       this._redisClient.on('ready', () => {
         this._logger.isInfoEnabled() && this._logger.info('Redis client ready')

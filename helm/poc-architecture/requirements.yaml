@@ -37,6 +37,11 @@ dependencies:
   version: 0.1.0
   repository: "file://./poc-modules"
   condition: participants-cmd.enabled
+- name: poc-modules
+  alias: participants-query
+  version: 0.1.0
+  repository: "file://./poc-modules"
+  condition: participants-query.enabled
 # Devtools (simulators, publishers, etc)
 - name: poc-modules
   alias: simulator-dev-tool
@@ -55,6 +60,12 @@ dependencies:
   version: 0.1.0
   repository: "file://./poc-modules"
   condition: devtoolclient.enabled
+# CLI Performance Producer
+- name: poc-modules
+  alias: perftoolclient
+  version: 0.1.0
+  repository: "file://./poc-modules"
+  condition: perftoolclient.enabled
 # We will pull simulator from the official mojaloop helm repo
 - name: simulator
   alias: legacy-simulator
@@ -88,3 +99,18 @@ dependencies:
   repository: https://charts.bitnami.com/bitnami
   alias: redis
   condition: redis.enabled
+- name: redis-cluster
+  version: 3.2.2
+  repository: https://charts.bitnami.com/bitnami
+  alias: redis-cluster-cache
+  condition: redis-cluster-cache.enabled
+- name: redis-cluster
+  version: 3.2.2
+  repository: https://charts.bitnami.com/bitnami
+  alias: redis-cluster-persisted
+  condition: redis-cluster-persisted.enabled
+# - name: mongodb-sharded
+#   version: 2.1.0
+#   repository: https://charts.bitnami.com/bitnami
+#   alias: mongodb-sharded
+#   condition: mongodb-sharded.enabled

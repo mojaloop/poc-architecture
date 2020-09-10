@@ -30,6 +30,7 @@ let metrics: Metrics
 let startTime = 0
 let requestedCounter = 0
 let fulfiledCounter = 0
+let overOneSecCounter = 0
 
 // # setup application config
 const appConfig = {
@@ -189,9 +190,10 @@ function logRPS (): void {
   const elaspsed = now - startTime
   const avgRequested = Math.floor(requestedCounter / (elaspsed / 1000))
   const avgFulfiled = Math.floor(fulfiledCounter / (elaspsed / 1000))
+  const overOneSecPercentage = overOneSecCounter === 0 || fulfiledCounter === 0 ? 0 : Math.floor((overOneSecCounter / fulfiledCounter) * 100)
 
   // eslint-disable-next-line no-console
-  logger.isInfoEnabled() && logger.info(`\n *** ${counter} req/sec *** ${avg} avg ms *** ${evtMap.size} pending *** ${avgRequested}/${avgFulfiled} avg req/ful (all time) ***\n`)
+  logger.isInfoEnabled() && logger.info(`\n *** ${counter} req/sec *** ${avg} avg ms *** ${evtMap.size} pending *** ${avgRequested}/${avgFulfiled} avg req/ful ${requestedCounter}/${fulfiledCounter} total req/ful *** ${overOneSecCounter} reqs over 1 sec (${overOneSecPercentage}%)  \n`)
 
   if (buckets.has(lastSecond - 1)) {
     buckets.delete(lastSecond - 1)
@@ -221,6 +223,7 @@ const handlerForFulfilEvt = async (message: IDomainMessage): Promise<void> => {
       recordCompleted(timeDelta, message.aggregateId)
       evtMap.delete(message.aggregateId)
 
+      if (timeDelta > 1000) overOneSecCounter++
       perfMetricsHisto.observe({}, timeDelta / 1000)
     }
 

@@ -37,7 +37,7 @@
 
 'use strict'
 
-import { getEnvIntegerOrDefault, getEnvValueOrDefault, MojaLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
+import { getEnvIntegerOrDefault, getEnvValueOrDefault, getEnvBoolOrDefault, MojaLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { TApiServerOptions, ApiServer, IRunHandler, KafkaInfraTypes, RdKafkaCommitMode } from '@mojaloop-poc/lib-infrastructure'
 import { TransferCmdHandler } from './transferCmdHandler'
@@ -76,6 +76,9 @@ Program.command('handler')
 
     // # setup application config
     const appConfig = {
+      metrics: {
+        prefix: getEnvValueOrDefault('METRIC_PREFIX', 'poc_') as string
+      },
       api: {
         host: (process.env.TRANSFERS_API_HOST != null) ? process.env.TRANSFERS_API_HOST : '0.0.0.0',
         port: (process.env.TRANSFERS_API_PORT != null && !isNaN(Number(process.env.TRANSFERS_API_PORT)) && process.env.TRANSFERS_API_PORT?.trim()?.length > 0) ? Number.parseInt(process.env.TRANSFERS_API_PORT) : 3002
@@ -92,14 +95,21 @@ Program.command('handler')
         fetchMinBytes: (process.env.KAFKA_FETCH_MIN_BYTES != null && !isNaN(Number(process.env.KAFKA_FETCH_MIN_BYTES)) && process.env.KAFKA_FETCH_MIN_BYTES?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_MIN_BYTES) : 1,
         fetchWaitMaxMs: (process.env.KAFKA_FETCH_WAIT_MAX_MS != null && !isNaN(Number(process.env.KAFKA_FETCH_WAIT_MAX_MS)) && process.env.KAFKA_FETCH_WAIT_MAX_MS?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_WAIT_MAX_MS) : 100
       },
-      state_cache: {
+      // state_cache: {
+      //   type: (process.env.TRANSFERS_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.TRANSFERS_REPO_TYPE,
+      //   host: getEnvValueOrDefault('REDIS_HOST', 'redis://localhost:6379') as string,
+      //   expirationInSeconds: getEnvIntegerOrDefault('REDIS_EXPIRATION_IN_SEC', -1) as number
+      // },
+      entity_state: {
         type: (process.env.TRANSFERS_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.TRANSFERS_REPO_TYPE,
         host: getEnvValueOrDefault('REDIS_HOST', 'redis://localhost:6379') as string,
-        expirationInSeconds: getEnvIntegerOrDefault('REDIS_EXPIRATION_IN_SEC', -1) as number
+        expirationInSeconds: getEnvIntegerOrDefault('REDIS_EXPIRATION_IN_SEC', -1) as number,
+        clustered: getEnvBoolOrDefault('TRANSFERS_REPO_CLUSTERED')
       },
       duplicate_store: {
         type: (process.env.DUPLICATE_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.DUPLICATE_REPO_TYPE,
-        host: getEnvValueOrDefault('REDIS_DUPL_HOST', 'redis://localhost:6379') as string
+        host: getEnvValueOrDefault('REDIS_DUPL_HOST', 'redis://localhost:6379') as string,
+        clustered: getEnvBoolOrDefault('DUPLICATE_REPO_CLUSTERED')
       }
     }
 
@@ -110,7 +120,7 @@ Program.command('handler')
 
     const metricsConfig: TMetricOptionsType = {
       timeout: 5000, // Set the timeout in ms for the underlying prom-client library. Default is '5000'.
-      prefix: 'poc_tran_', // Set prefix for all defined metrics names
+      prefix: appConfig.metrics.prefix, // Set prefix for all defined metrics names
       defaultLabels: { // Set default labels that will be applied to all metrics
         serviceName: 'transfers'
       }

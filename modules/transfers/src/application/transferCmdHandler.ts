@@ -38,7 +38,7 @@
 'use strict'
 // import { v4 as uuidv4 } from 'uuid'
 // import {InMemorytransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
-import { CommandMsg, IDomainMessage, IMessagePublisher, ILogger, IEntityDuplicateRepository, IESourcingStateRepository } from '@mojaloop-poc/lib-domain'
+import { CommandMsg, IDomainMessage, IMessagePublisher, ILogger, IEntityDuplicateRepository } from '@mojaloop-poc/lib-domain'
 import {
   IRunHandler,
   MessageConsumer,
@@ -47,7 +47,7 @@ import {
   RDKafkaMessagePublisher,
   RDKafkaConsumerOptions,
   RDKafkaConsumer,
-  RedisDuplicateRepo, EventSourcingStateRepo
+  RedisDuplicateRepo
 } from '@mojaloop-poc/lib-infrastructure'
 import { TransfersTopics } from '@mojaloop-poc/lib-public-messages'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
@@ -60,14 +60,18 @@ import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
 import { AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
 import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
 import { RepoInfraTypes } from '../infrastructure'
+import { CachedPersistedRedisTransferStateRepo } from '../infrastructure/cachedpersistedredis_transfer_repo'
+import { CachedRedisTransferStateRepo } from '../infrastructure/cachedredis_transfer_repo'
+import { InMemoryNodeCacheTransferStateRepo } from '../infrastructure/inmemory_node_cache_transfer_repo'
+import { InMemoryTransferDuplicateRepo } from '../infrastructure/inmemory_duplicate_repo'
 
 export class TransferCmdHandler implements IRunHandler {
   private _logger: ILogger
   private _consumer: MessageConsumer
   private _publisher: IMessagePublisher
-  private _stateCacheRepo: ITransfersRepo
+  private _entityStateRepo: ITransfersRepo
   private _duplicateRepo: IEntityDuplicateRepository
-  private _eventSourcingRepo: IESourcingStateRepository
+  // private _eventSourcingRepo: IESourcingStateRepository
   private _histoTransfersCmdHandlerMetric: any
   private _transfersAgg: TransfersAgg
 
@@ -75,30 +79,49 @@ export class TransferCmdHandler implements IRunHandler {
     this._logger = logger
     this._logger.isInfoEnabled() && this._logger.info(`TransferCmdHandler::start - appConfig=${JSON.stringify(appConfig)}`)
 
-    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating Statecache-repo of type ${appConfig.state_cache.type as string}`)
-    switch (appConfig.state_cache.type) {
+    // logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating Statecache-repo of type ${appConfig.state_cache.type as string}`)
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating Statecache-repo of type ${appConfig.entity_state.type as string}`)
+    // switch (appConfig.state_cache.type) {
+    switch (appConfig.entity_state.type) {
       case RepoInfraTypes.REDIS: {
-        this._stateCacheRepo = new RedisTransferStateRepo(appConfig.state_cache.host, logger, appConfig.state_cache.expirationInSeconds)
+        this._entityStateRepo = new RedisTransferStateRepo(appConfig.entity_state.host, appConfig.entity_state.clustered, logger, appConfig.entity_state.expirationInSeconds)
+        break
+      }
+      case RepoInfraTypes.CACHEDREDIS: {
+        this._entityStateRepo = new CachedRedisTransferStateRepo(appConfig.entity_state.host, appConfig.entity_state.clustered, logger, appConfig.entity_state.expirationInSeconds)
+        break
+      }
+      case RepoInfraTypes.CACHEDPERSISTEDREDIS: {
+        this._entityStateRepo = new CachedPersistedRedisTransferStateRepo(appConfig.entity_state.host, appConfig.entity_state.clustered, logger, appConfig.entity_state.expirationInSeconds)
+        break
+      }
+      case RepoInfraTypes.NODECACHE: {
+        this._entityStateRepo = new InMemoryNodeCacheTransferStateRepo(logger, appConfig.entity_state.expirationInSeconds)
         break
       }
       default: { // defaulting to In-Memory
-        this._stateCacheRepo = new InMemoryTransferStateRepo()
+        this._entityStateRepo = new InMemoryTransferStateRepo()
       }
     }
-    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created Statecache-repo of type ${this._stateCacheRepo.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created Statecache-repo of type ${this._entityStateRepo.constructor.name}`)
 
     logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating Duplicate-repo of type ${appConfig.duplicate_store.type as string}`)
     switch (appConfig.duplicate_store.type) {
       case RepoInfraTypes.REDIS: {
-        this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, 'transfers_duplicate', logger)
+        this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, appConfig.duplicate_store.clustered, 'transfers_duplicate', logger)
+        break
+      }
+      case RepoInfraTypes.MEMORY: {
+        this._duplicateRepo = new InMemoryTransferDuplicateRepo()
         break
       }
       default: {
-        this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, 'transfers_duplicate', logger)
+        this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, appConfig.duplicate_store.clustered, 'transfers_duplicate', logger)
       }
     }
     logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created Duplicate-repo of type ${this._duplicateRepo.constructor.name}`)
 
+    /*
     logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating Eventsourcing-repo of type ${appConfig.state_cache.type as string}`)
     switch (appConfig.state_cache.type) {
       case RepoInfraTypes.REDIS: {
@@ -110,6 +133,7 @@ export class TransferCmdHandler implements IRunHandler {
       }
     }
     logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created Eventsourcing-repo of type ${this._eventSourcingRepo.constructor.name}`)
+     */
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
     this._logger.isInfoEnabled() && this._logger.info(`TransferCmdHandler - Creating ${appConfig.kafka.producer} transferCmdHandler.kafkaMsgPublisher...`)
@@ -132,12 +156,13 @@ export class TransferCmdHandler implements IRunHandler {
 
     this._logger.isInfoEnabled() && this._logger.info(`TransferCmdHandler - Created kafkaMsgPublisher of type ${this._publisher.constructor.name}`)
 
-    await this._stateCacheRepo.init()
+    await this._entityStateRepo.init()
     await this._duplicateRepo.init()
-    await this._eventSourcingRepo.init()
+    // await this._eventSourcingRepo.init()
     await this._publisher.init()
 
-    this._transfersAgg = new TransfersAgg(this._stateCacheRepo, this._duplicateRepo, this._eventSourcingRepo, this._publisher, this._logger)
+    // this._transfersAgg = new TransfersAgg(this._entityStateRepo, this._duplicateRepo, this._eventSourcingRepo, this._publisher, this._logger)
+    this._transfersAgg = new TransfersAgg(this._entityStateRepo, this._duplicateRepo, this._publisher, this._logger)
 
     this._histoTransfersCmdHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
       'transferCmdHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
@@ -220,8 +245,8 @@ export class TransferCmdHandler implements IRunHandler {
   async destroy (): Promise<void> {
     await this._consumer.destroy(true)
     await this._publisher.destroy()
-    await this._stateCacheRepo.destroy()
+    await this._entityStateRepo.destroy()
     await this._duplicateRepo.destroy()
-    await this._eventSourcingRepo.destroy()
+    // await this._eventSourcingRepo.destroy()
   }
 }

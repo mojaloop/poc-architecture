@@ -1,5 +1,6 @@
 {{- $kafkaHost := ( .Values.config.kafka_host | replace "$release_name" .Release.Name ) -}}
 {{- $redisHost := ( .Values.config.redis_host | replace "$release_name" .Release.Name ) -}}
+{{- $mongoURL := ( .Values.config.participants_query_repo_url | replace "$release_name" .Release.Name ) -}}
 {{- $redisDuplicateHost := ( .Values.config.redis_persisted_host | replace "$release_name" .Release.Name ) -}}
 {{- $simulatorHost := ( .Values.config.simulator_host | replace "$release_name" .Release.Name ) -}}
 apiVersion: {{ template "poc-modules.apiVersion.Deployment" . }}
@@ -112,10 +113,18 @@ spec:
               value: {{ $simulatorHost | quote }}
             - name: PARTICIPANTS_REPO_TYPE
               value: {{ .Values.config.participants_repo_type | quote }}
+            - name: PARTICIPANTS_REPO_CLUSTERED
+              value: {{ .Values.config.participants_repo_clustered | quote }}
+            - name: PARTICIPANTS_READSIDE_MONGO_DB_HOST
+              value: {{ $mongoURL | quote }}
             - name: TRANSFERS_REPO_TYPE
               value: {{ .Values.config.transfers_repo_type | quote }}
+            - name: TRANSFERS_REPO_CLUSTERED
+              value: {{ .Values.config.transfers_repo_clustered | quote }}
             - name: DUPLICATE_REPO_TYPE
               value: {{ .Values.config.duplicate_repo_type | quote }}
+            - name: DUPLICATE_REPO_CLUSTERED
+              value: {{ .Values.config.duplicate_repo_clustered | quote }}
             - name: KAFKA_CONSUMER
               value: {{ .Values.config.kafka_consumer | quote }}
             - name: KAFKA_PRODUCER
@@ -134,6 +143,16 @@ spec:
               value: {{ .Values.config.rdkafka_batch_num_messages | quote }}
             - name: RDKAFKA_QUEUE_BUFFERING_MAX_US
               value: {{ .Values.config.rdkafka_queue_buffering_max_us | quote }}
+            - name: RDKAFKA_STATS_INT_MS
+              value: {{ .Values.config.rdkafka_stats_interval_ms | quote }}
+            {{- if .Values.config.rdkafka_debug_consumer }}
+            - name: RDKAFKA_DEBUG_CONSUMER
+              value: {{ .Values.config.rdkafka_debug_consumer | quote }}
+            {{- end }}
+            {{- if .Values.config.rdkafka_debug_producer }}
+            - name: RDKAFKA_DEBUG_PRODUCER
+              value: {{ .Values.config.rdkafka_debug_producer | quote }}
+            {{- end }}
             - name: KAFKA_FETCH_MIN_BYTES
               value: {{ .Values.config.kafka_fetch_min_bytes | quote }}
             - name: KAFKA_FETCH_WAIT_MAX_MS
@@ -144,6 +163,20 @@ spec:
               value: {{ .Values.config.event_trace_vendor | quote }}
             - name: UV_THREADPOOL_SIZE
               value: {{ .Values.config.uv_threadpool_size | quote }}
+            - name: METRIC_PREFIX
+              value: {{ .Values.config.metric_prefix | quote }}
+            - name: PARTICIPANTS_COLLECTION
+              value: {{ .Values.config.perf_multiple_producer_participant_collection | quote }}
+            - name: SIMULATED_DFSPS_CNT
+              value: {{ .Values.config.perf_multiple_producer_simulated_dfsp_cnt | quote }}
+            - name: INJECTED_PER_SECOND
+              value: {{ .Values.config.perf_multiple_producer_injected_per_second | quote }}
+            - name: PERFTOOLCLIENT_API_DISABLED
+              value: {{ .Values.config.perf_multiple_producer_api_disabled | quote }}
+            - name: PERFTOOLCLIENT_API_HOST
+              value: {{ .Values.config.perf_multiple_producer_api_host | quote }}
+            - name: PERFTOOLCLIENT_API_PORT
+              value: {{ .Values.config.perf_multiple_producer_api_port | quote }}
 
       # volumes:
       #   - name: {{ template "poc-modules.fullname" . }}-config-volume

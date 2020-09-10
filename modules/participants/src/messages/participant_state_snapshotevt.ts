@@ -33,15 +33,35 @@
  - Roman Pietrzak <roman.pietrzak@modusbox.com>
 
  --------------
-******/
+ ******/
 
 'use strict'
 
-export interface IDupTransferRepo {
-  init: () => Promise<void>
-  destroy: () => Promise<void>
-  canCall: () => boolean
-  add: (transferId: string) => Promise<boolean>
-  exists: (transferId: string) => Promise<boolean>
-  remove: (id: string) => Promise<boolean>
+import { StateSnapshotMsg } from '@mojaloop-poc/lib-domain'
+import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
+import { ParticipantState } from '../domain/participant_entity'
+
+/*
+NOTE: to facilitate we can directly use the state of the participant,
+      it is exactly the same and we don't have any secret fields
+*/
+
+export class ParticipantStateSnapshotEvt extends StateSnapshotMsg {
+  msgKey: string // usually the id of the aggregate (used for partitioning)
+  msgTopic: string = ParticipantsTopics.SnapshotEvents
+
+  aggregateId: string
+  aggregateName: string = 'Participants'
+
+  payload: ParticipantState
+
+  constructor (payload: ParticipantState) {
+    super()
+
+    this.aggregateId = this.msgKey = payload.id
+
+    this.payload = payload
+  }
+
+  validatePayload (): void{ }
 }

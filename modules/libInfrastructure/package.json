@@ -53,6 +53,7 @@
     "kafkajs": "^1.12.0",
     "node-rdkafka": "^2.9.1",
     "redis": "^3.0.2",
+    "redis-clustr": "^1.7.0",
     "uuid": "^8.3.0"
   },
   "devDependencies": {
