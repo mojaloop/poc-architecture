@@ -66,7 +66,7 @@ export class ParticipantCreatedStateEvt extends StateEventMsg {
     this.aggregateId = this.msgKey = payload?.participant?.id
 
     this.payload = payload
-    this.msgPartition = payload.participant.partition
+    this.msgPartition = payload?.participant?.partition
   }
 
   validatePayload (): void{ }
