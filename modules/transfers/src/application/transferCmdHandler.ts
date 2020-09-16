@@ -120,7 +120,7 @@ export class TransferCmdHandler implements IRunHandler {
         break
       }
       case RedisDuplicateInfraTypes.REDIS_SHARDED: {
-        this._duplicateRepo = new RedisDuplicateShardedRepo(appConfig.duplicate_store.host, appConfig.duplicate_store.clustered, 'transfers_duplicate', logger)
+        this._duplicateRepo = new RedisDuplicateShardedRepo(appConfig.duplicate_store.host, appConfig.duplicate_store.clustered, 'transfers_duplicate', logger, true)
         break
       }
       case RedisDuplicateInfraTypes.MEMORY: {

@@ -51,14 +51,14 @@ export class RedisDuplicateShardedRepo implements IEntityDuplicateRepository {
   private readonly _logger: ILogger
   private _initialized: boolean = false
   private readonly _setKey: string
-  // we are using GUIDs
-  private readonly _partitionList: string[] | undefined
+  private readonly _partitionEnabled: boolean
 
-  constructor (connStr: string, clusteredRedis: boolean, setKey: string, logger: ILogger) {
+  constructor (connStr: string, clusteredRedis: boolean, setKey: string, logger: ILogger, partitionEnabled: boolean = false) {
     this._redisConnStr = connStr
     this._logger = logger
     this._setKey = setKey
     this._redisClustered = clusteredRedis
+    this._partitionEnabled = partitionEnabled
 
     const splited = connStr.split('//')[1]
     this._redisConnClusterHost = splited.split(':')[0]
@@ -67,21 +67,21 @@ export class RedisDuplicateShardedRepo implements IEntityDuplicateRepository {
 
   private getKey (id: string | undefined = undefined): string {
     let key: string
-    if (this._partitionList != null && this._partitionList?.length > 0 && id != null) {
+    if (this._partitionEnabled && id != null) {
       const char = id.charAt(0)
       key = `${this._setKey}_${char}`
     } else {
       key = this._setKey
     }
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    this._logger.isDebugEnabled() && this._logger.debug(`RedisDuplicateRepo::getKey(id=${id}) - key=${key}`)
+    this._logger.isDebugEnabled() && this._logger.debug(`RedisDuplicateShardedRepo::getKey(id=${id}) - key=${key}`)
     return key
   }
 
   private async getPartitionSets (): Promise<string[]> {
     return await new Promise((resolve, reject) => {
       const keyPattern = `${this._setKey}*`
-      this._logger.isDebugEnabled() && this._logger.debug(`RedisDuplicateRepo::getMembers() - keyPattern=${keyPattern}`)
+      this._logger.isDebugEnabled() && this._logger.debug(`RedisDuplicateShardedRepo::getMembers() - keyPattern=${keyPattern}`)
       if (!this.canCall()) return reject(new Error('Repository not ready'))
       this._redisClient.keys(keyPattern, (err: Error | null, result: string[] | undefined) => {
         if (err != null) {
@@ -120,7 +120,7 @@ export class RedisDuplicateShardedRepo implements IEntityDuplicateRepository {
   async add (id: string): Promise<boolean> {
     return await new Promise((resolve, reject) => {
       const key = this.getKey(id)
-      this._logger.isDebugEnabled() && this._logger.debug(`RedisDuplicateRepo::add(id=${id}) - key=${key}`)
+      this._logger.isDebugEnabled() && this._logger.debug(`RedisDuplicateShardedRepo::add(id=${id}) - key=${key}`)
       if (!this.canCall()) return reject(new Error('Repository not ready'))
       this._redisClient.sadd(key, id, (err: Error | null, result: number) => {
         if (err != null) {
@@ -139,7 +139,7 @@ export class RedisDuplicateShardedRepo implements IEntityDuplicateRepository {
   async exists (id: string): Promise<boolean> {
     return await new Promise((resolve, reject) => {
       const key = this.getKey(id)
-      this._logger.isDebugEnabled() && this._logger.debug(`RedisDuplicateRepo::exists(id=${id}) - key=${key}`)
+      this._logger.isDebugEnabled() && this._logger.debug(`RedisDuplicateShardedRepo::exists(id=${id}) - key=${key}`)
       if (!this.canCall()) return reject(new Error('Repository not ready'))
       this._redisClient.sismember(key, id, (err: Error | null, result: number) => {
         if (err != null) {
@@ -158,7 +158,7 @@ export class RedisDuplicateShardedRepo implements IEntityDuplicateRepository {
   async remove (id: string): Promise<boolean> {
     return await new Promise((resolve, reject) => {
       const key = this.getKey(id)
-      this._logger.isDebugEnabled() && this._logger.debug(`RedisDuplicateRepo::remove(id=${id}) - key=${key}`)
+      this._logger.isDebugEnabled() && this._logger.debug(`RedisDuplicateShardedRepo::remove(id=${id}) - key=${key}`)
       if (!this.canCall()) return reject(new Error('Repository not ready'))
       this._redisClient.srem(key, id, (err: Error | null, result: number) => {
         if (err != null) {
@@ -176,7 +176,7 @@ export class RedisDuplicateShardedRepo implements IEntityDuplicateRepository {
 
   private async getPartitionMembers (partition: string): Promise<string[]> {
     return await new Promise((resolve, reject) => {
-      this._logger.isDebugEnabled() && this._logger.debug(`RedisDuplicateRepo::getPartitionMembers(partition = ${partition}) - start`)
+      this._logger.isDebugEnabled() && this._logger.debug(`RedisDuplicateShardedRepo::getPartitionMembers(partition = ${partition}) - start`)
       this._redisClient.smembers(partition, (err: Error | null, result: string[]) => {
         if (err != null) {
           this._logger.isErrorEnabled() && this._logger.error(err, `Error retrieving all members of redis set: ${partition}`)
@@ -190,20 +190,20 @@ export class RedisDuplicateShardedRepo implements IEntityDuplicateRepository {
   async getAll (): Promise<string[]> {
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     return await new Promise(async (resolve, reject) => {
-      this._logger.isDebugEnabled() && this._logger.debug('RedisDuplicateRepo::getAll() - start')
+      this._logger.isDebugEnabled() && this._logger.debug('RedisDuplicateShardedRepo::getAll() - start')
       if (!this.canCall()) return reject(new Error('Repository not ready'))
       const partitionSets = await this.getPartitionSets()
-      if (partitionSets != null && partitionSets?.length > 0) {
+      if (this._partitionEnabled && partitionSets != null && partitionSets?.length > 0) {
         const resultSet: Set<string> = new Set()
         for (var partition of partitionSets) {
-          this._logger.isDebugEnabled() && this._logger.debug(`RedisDuplicateRepo::getAll() - key=${partition}`)
+          this._logger.isDebugEnabled() && this._logger.debug(`RedisDuplicateShardedRepo::getAll() - key=${partition}`)
 
           const partitionMembers = await this.getPartitionMembers(partition)
           for (var value of partitionMembers) {
             resultSet.add(value)
           }
         }
-        this._logger.isDebugEnabled() && this._logger.debug(`RedisDuplicateRepo::getAll() - result=${JSON.stringify(Array.from(resultSet))}`)
+        this._logger.isDebugEnabled() && this._logger.debug(`RedisDuplicateShardedRepo::getAll() - result=${JSON.stringify(Array.from(resultSet))}`)
         return resolve(Array.from(resultSet))
       } else {
         const key = this.getKey()
