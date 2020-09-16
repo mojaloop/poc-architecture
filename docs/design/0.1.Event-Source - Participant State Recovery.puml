@@ -1,0 +1,108 @@
+/'*****
+ License
+ --------------
+ Copyright © 2017 Bill & Melinda Gates Foundation
+ The Mojaloop files are made available by the Bill & Melinda Gates Foundation under the Apache License, Version 2.0 (the "License") and you may not use these files except in compliance with the License. You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, the Mojaloop files are distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+
+ Contributors
+ --------------
+ This is the official list (alphabetical ordering) of the Mojaloop project contributors for this file.
+ Names of the original copyright holders (individuals or organizations)
+ should be listed with a '*' in the first column. People who have
+ contributed from an organization can be listed under the organization
+ that actually holds the copyright for their contributions (see the
+ Gates Foundation organization for an example). Those individuals should have
+ their names indented and be marked with a '-'. Email address can be added
+ optionally within square brackets <email>.
+
+ * Gates Foundation
+ - Name Surname <name.surname@gatesfoundation.com>
+
+ * Coil
+ - Donovan Changfoot <donovan.changfoot@coil.com>
+
+ * Crosslake
+ - Pedro Sousa Barreto <pedrob@crosslaketech.com>
+
+ * ModusBox
+ - Miguel de Barros <miguel.debarros@modusbox.com>
+ - Roman Pietrzak <roman.pietrzak@modusbox.com>
+
+ --------------
+******'/
+
+@startuml
+' declate title
+title 0.1. Event-Source - Participant State Recovery
+
+autonumber
+' Actor Keys:
+' boundary - APIs/Interfaces, etc
+' collections - Kafka Topics
+' control - Event Handlers
+' entity - Command Handlers
+' database - Persistance Store
+
+' declare actors
+
+entity "ParticipantsCmd" as PARTICIPANTS_CMD
+database "Participant Store" as PARTICIPANTS_STORE
+
+collections "Topic: ParticipantCmd" as TOPIC_PARTICIPANTS_CMD
+collections "Topic: ParticipantSnapshotEvt" as TOPIC_PARTICIPANTS_SNAPSHOT
+collections "Topic: ParticipantStateEvt" as TOPIC_PARTICIPANTS_STATE
+collections "Topic: ParticipantEvt" as TOPIC_PARTICIPANTS_EVT
+
+
+
+box "Command Services" #LightYellow
+  participant TOPIC_PARTICIPANTS_CMD
+  participant PARTICIPANTS_CMD
+  participant PARTICIPANTS_STORE
+  participant TOPIC_PARTICIPANTS_SNAPSHOT
+  participant TOPIC_PARTICIPANTS_STATE
+  participant TOPIC_PARTICIPANTS_EVT
+end box
+
+' start flow
+
+TOPIC_PARTICIPANTS_CMD --> PARTICIPANTS_CMD: Consume ReservePayerFundsCmd
+
+  alt <color:green><b>"Participant state found in-memory"</b></color>
+    
+    PARTICIPANTS_CMD <-> PARTICIPANTS_CMD: Load PayerFSP (<color:red>in-memory</color>) - Error <color:red>"No Participant record found in-memory"</color> Exception
+
+  else <color:green><b>"Participant state found participant-store"</b></color>
+  
+    PARTICIPANTS_CMD <-> PARTICIPANTS_STORE: Load PayerFSP (<color:red>participant-store</color>) - Error <color:red>"No Participant record found participant-store"</color> Exception
+
+  else <color:green><b>"Participant state found snapshotEvt-topic"</b></color>
+
+    PARTICIPANTS_CMD <-> TOPIC_PARTICIPANTS_SNAPSHOT: Apply PayerFSP (<color:red>stateEvt-topic</color>) from last Snapshot - Error <color:red>"No Participant record found stateEvt-topic"</color> Exception
+
+  else <color:green><b>"Participant state found stateEvt-topic"</b></color>
+
+    PARTICIPANTS_CMD <-> TOPIC_PARTICIPANTS_STATE: Apply PayerFSP (<color:red>stateEvt-topic</color>) stateEvt deltas from Snapshot offset if available or from beginning - Error <color:red>"No Participant record found stateEvt-topic"</color> Exception
+
+  else <color:red>Error <b>"No Participant state found"</b> Exception </color>
+
+    PARTICIPANTS_CMD --> PARTICIPANTS_CMD: Throw Error <color:red>"No Participant record found"</color> Exception
+
+  end
+  
+  group PayerFSP Participant Found
+    PARTICIPANTS_CMD -> PARTICIPANTS_CMD: Calculate Position Change for PayerFSP
+    PARTICIPANTS_CMD -> PARTICIPANTS_CMD: Validated Position Change for PayerFSP against <b>NET_DEBIT_CAP_LIMIT</b> - Ref <color:red>"Exceeded Net-Debit Cap for Payer FSP"</color> Exception Scenario
+
+    PARTICIPANTS_CMD <-> PARTICIPANTS_STORE: Update PayerFSP state with Position Change (<color:red>in-memory</color> & <color:red>persisted</color>) - Ref <color:red>"Unable to Persist State for Participants"</color> Exception Scenario
+
+    PARTICIPANTS_CMD --> TOPIC_PARTICIPANTS_EVT: Publish PayerFundsReservedEvt
+  else Handle - Error <color:red>"No Participant record found"</color> Exception
+    PARTICIPANTS_CMD --> TOPIC_PARTICIPANTS_EVT: Publish InvalidPayerParticipantEvt - Error <color:red>"No Participant record found"</color>
+  end
+
+@enduml
