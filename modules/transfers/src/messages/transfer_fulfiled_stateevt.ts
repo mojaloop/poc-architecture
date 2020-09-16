@@ -29,7 +29,7 @@ export class TransferFulfiledStateEvt extends StateEventMsg {
   constructor (payload: TransferFulfiledStateEvtPayload) {
     super()
 
-    this.aggregateId = this.msgKey = payload.transfer.id
+    this.aggregateId = this.msgKey = payload?.transfer?.id
 
     this.payload = payload
   }
