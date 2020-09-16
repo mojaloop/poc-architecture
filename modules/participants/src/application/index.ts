@@ -52,7 +52,7 @@ import * as dotenv from 'dotenv'
 import { Command } from 'commander'
 import { resolve as Resolve } from 'path'
 import { RepoInfraTypes } from '../infrastructure'
-import { ParticipantStateEvtHandler } from './participantReadsideStateEvtHandler'
+import { ParticipantStateEvtHandler } from './participantStateEvtHandler'
 
 /* eslint-disable-next-line @typescript-eslint/no-var-requires */
 const pckg = require('../../package.json')
@@ -154,11 +154,11 @@ Program.command('handler')
       runHandlerList.push(participantCmdHandler)
     }
 
-    // start participantReadsideStateEvtHandler
+    // start participantStateEvtHandler
     if (runAllHAndlers || args.participantsStateEvt != null) {
-      const participantReadsideStateEvtHandler = new ParticipantStateEvtHandler()
-      await participantReadsideStateEvtHandler.start(appConfig, logger, metrics)
-      runHandlerList.push(participantReadsideStateEvtHandler)
+      const participantStateEvtHandler = new ParticipantStateEvtHandler()
+      await participantStateEvtHandler.start(appConfig, logger, metrics)
+      runHandlerList.push(participantStateEvtHandler)
     }
 
     // start only API

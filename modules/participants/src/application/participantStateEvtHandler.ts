@@ -44,8 +44,8 @@ import { IRunHandler, MessageConsumer, RDKafkaConsumerOptions, RDKafkaConsumer }
 import { InvalidParticipantEvtError } from './errors'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 import { MongoDbReadsideParticipantRepo } from '../infrastructure/mongodb_readside_participant_repo'
-import { ParticipantCreatedStateEvt, ParticipantCreatedStateEvtPayload } from './../messages/participant_created_stateevt'
-import { ParticipantPositionChangedStateEvt, ParticipantPositionChangedStateEvtPayload } from './../messages/participant_position_changed_stateevt'
+import { ParticipantCreatedStateEvt, ParticipantCreatedStateEvtPayload } from '../messages/participant_created_stateevt'
+import { ParticipantPositionChangedStateEvt, ParticipantPositionChangedStateEvtPayload } from '../messages/participant_position_changed_stateevt'
 
 export class ParticipantStateEvtHandler implements IRunHandler {
   private _logger: ILogger
@@ -57,7 +57,7 @@ export class ParticipantStateEvtHandler implements IRunHandler {
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     this._logger = logger
     this._logger.isInfoEnabled() && this._logger.info(`ParticipantStateEvtHandler::start - appConfig=${JSON.stringify(appConfig)}`)
-    this._clientId = `participantReadsideStateEvtHandler-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
+    this._clientId = `participantStateEvtHandler-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
 
     this._logger.isInfoEnabled() && this._logger.info(`ParticipantStateEvtHandler - Creating repo of type ${MongoDbReadsideParticipantRepo.constructor.name}`)
     this._readSideRepo = new MongoDbReadsideParticipantRepo(appConfig.readside_store.uri, logger)
@@ -66,8 +66,8 @@ export class ParticipantStateEvtHandler implements IRunHandler {
     this._logger.isInfoEnabled() && this._logger.info(`ParticipantStateEvtHandler - Created repo of type ${this._readSideRepo.constructor.name}`)
 
     this._histoParticipantReadsideStateEvtHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
-      'participantReadsideStateEvtHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
-      'Instrumentation for participantReadsideStateEvtHandler', // Description of metric
+      'participantStateEvtHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+      'Instrumentation for participantStateEvtHandler', // Description of metric
       ['success', 'error', 'evtname'] // Define a custom label 'success'
     )
 
