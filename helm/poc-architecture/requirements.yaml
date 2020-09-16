@@ -21,6 +21,11 @@ dependencies:
   version: 0.1.0
   repository: "file://./poc-modules"
   condition: transfers-cmd.enabled
+- name: poc-modules
+  alias: transfers-state
+  version: 0.1.0
+  repository: "file://./poc-modules"
+  condition: transfers-state.enabled
 # Participant Handlers
 # - name: poc-modules
 #   alias: participants
@@ -38,10 +43,10 @@ dependencies:
   repository: "file://./poc-modules"
   condition: participants-cmd.enabled
 - name: poc-modules
-  alias: participants-query
+  alias: participants-state
   version: 0.1.0
   repository: "file://./poc-modules"
-  condition: participants-query.enabled
+  condition: participants-state.enabled
 # Devtools (simulators, publishers, etc)
 - name: poc-modules
   alias: simulator-dev-tool
