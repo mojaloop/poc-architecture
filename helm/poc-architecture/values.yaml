@@ -2220,7 +2220,7 @@ redis-cluster-persisted:
       #
       # maxmemory <bytes>
       maxmemory 25gb
-  
+
       # MAXMEMORY POLICY: how Redis will select what to remove when maxmemory
       # is reached. You can select among five behaviors:
       #
@@ -2314,7 +2314,7 @@ redis-cluster-persisted:
     ## Redis pod/node affinity/anti-affinity
     ##
     affinity: {}
-    
+
     ## Pod topology spread constraints
     ## https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
     ## The value is evaluated as a template
@@ -2388,7 +2388,7 @@ redis-cluster-persisted:
     # ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
     # ##
     affinity: {}
-    
+
     ##
     ## Container resource requests and limits
     ## ref: http://kubernetes.io/docs/user-guide/compute-resources/
@@ -3060,7 +3060,7 @@ redis-cluster-cache:
       #
       # maxmemory <bytes>
       maxmemory 25gb
-  
+
       # MAXMEMORY POLICY: how Redis will select what to remove when maxmemory
       # is reached. You can select among five behaviors:
       #
@@ -4764,7 +4764,7 @@ participants-query:
   image:
     repository: *poc_architecture_image
     tag: *poc_architecture_tag
-    command: "cd modules/participants && node dist/application/index.js handler --participantsReadSideStateEvt --config ../../.env"
+    command: "cd modules/participants && node dist/application/index.js handler --participantsStateEvt --config ../../.env"
     # command: "sleep 300"
     # repository: solsson/kafka
     # tag: latest
