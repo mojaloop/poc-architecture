@@ -64,10 +64,10 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
   protected _entity_factory: IEntityFactory<E, S>
   protected _msgPublisher: IMessagePublisher
   protected _entity_cache_repo: IEntityStateRepository<S>
-  protected _entityDuplicateRepo: IEntityDuplicateRepository
+  protected _entityDuplicateRepo: IEntityDuplicateRepository | null
   protected _esRepo: IESourcingStateRepository
 
-  constructor (entityFactory: IEntityFactory<E, S>, entityStateCacheRepo: IEntityStateRepository<S>, entityDuplicateRepo: IEntityDuplicateRepository, esStateRepo: IESourcingStateRepository, msgPublisher: IMessagePublisher, logger: ILogger) {
+  constructor (entityFactory: IEntityFactory<E, S>, entityStateCacheRepo: IEntityStateRepository<S>, entityDuplicateRepo: IEntityDuplicateRepository | null, esStateRepo: IESourcingStateRepository, msgPublisher: IMessagePublisher, logger: ILogger) {
     this._logger = logger
 
     this._stateEventHandlers = new Map<string, (stateEvent: StateEventMsg, replayed?: boolean) => Promise<void>>()

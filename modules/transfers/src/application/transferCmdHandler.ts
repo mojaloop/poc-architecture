@@ -38,7 +38,13 @@
 'use strict'
 // import { v4 as uuidv4 } from 'uuid'
 // import {InMemorytransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
-import { CommandMsg, IDomainMessage, IMessagePublisher, ILogger, IEntityDuplicateRepository } from '@mojaloop-poc/lib-domain'
+import {
+  CommandMsg,
+  IDomainMessage,
+  IMessagePublisher,
+  ILogger,
+  IEntityDuplicateRepository
+} from '@mojaloop-poc/lib-domain'
 import {
   IRunHandler,
   MessageConsumer,
@@ -47,7 +53,10 @@ import {
   RDKafkaMessagePublisher,
   RDKafkaConsumerOptions,
   RDKafkaConsumer,
-  RedisDuplicateRepo
+  InMemoryTransferDuplicateRepo,
+  RedisDuplicateRepo,
+  RedisDuplicateShardedRepo,
+  RedisDuplicateInfraTypes
 } from '@mojaloop-poc/lib-infrastructure'
 import { TransfersTopics } from '@mojaloop-poc/lib-public-messages'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
@@ -63,7 +72,6 @@ import { RepoInfraTypes } from '../infrastructure'
 import { CachedPersistedRedisTransferStateRepo } from '../infrastructure/cachedpersistedredis_transfer_repo'
 import { CachedRedisTransferStateRepo } from '../infrastructure/cachedredis_transfer_repo'
 import { InMemoryNodeCacheTransferStateRepo } from '../infrastructure/inmemory_node_cache_transfer_repo'
-import { InMemoryTransferDuplicateRepo } from '../infrastructure/inmemory_duplicate_repo'
 
 export class TransferCmdHandler implements IRunHandler {
   private _logger: ILogger
@@ -107,11 +115,15 @@ export class TransferCmdHandler implements IRunHandler {
 
     logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating Duplicate-repo of type ${appConfig.duplicate_store.type as string}`)
     switch (appConfig.duplicate_store.type) {
-      case RepoInfraTypes.REDIS: {
+      case RedisDuplicateInfraTypes.REDIS: {
         this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, appConfig.duplicate_store.clustered, 'transfers_duplicate', logger)
         break
       }
-      case RepoInfraTypes.MEMORY: {
+      case RedisDuplicateInfraTypes.REDIS_SHARDED: {
+        this._duplicateRepo = new RedisDuplicateShardedRepo(appConfig.duplicate_store.host, appConfig.duplicate_store.clustered, 'transfers_duplicate', logger)
+        break
+      }
+      case RedisDuplicateInfraTypes.MEMORY: {
         this._duplicateRepo = new InMemoryTransferDuplicateRepo()
         break
       }

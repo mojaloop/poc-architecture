@@ -110,7 +110,7 @@ export class MongoDbReadsideTransferRepo {
   async updateState (transferStateChangedStatrPayload: TransferStateChangedStateEvtPayload): Promise<boolean> {
     const result = await this._mongoCollection.updateOne(
       { id: transferStateChangedStatrPayload.transfer.id },
-      { $set: {transferInternalState: transferStateChangedStatrPayload.transfer.transferInternalState} }
+      { $set: { transferInternalState: transferStateChangedStatrPayload.transfer.transferInternalState } }
     )
     return result.result.nModified === 1 && result.result.ok === 1
   }

@@ -44,6 +44,12 @@ export enum KafkaInfraTypes {
   NODE_RDKAFKA = 'node-rdkafka'
 }
 
+export enum RedisDuplicateInfraTypes {
+  REDIS = 'redis',
+  REDIS_SHARDED = 'redis-sharded',
+  MEMORY = 'memory'
+}
+
 // Exports for Infrastructure
 export * from './kafka_generic_consumer'
 export * from './kafka_stream_consumer'
@@ -59,7 +65,9 @@ export * from './rdkafka_message_publisher'
 export * from './imessage_consumer'
 export * from './irun_handler'
 export * from './api_server'
+export * from './inmemory_duplicate_repo'
 export * from './redis_duplicate_repo'
+export * from './redis_duplicate_sharded_repo'
 export * from './rdkafka_fetcher'
 export * from './redis_messageoffset_repo'
 export * from './eventsourcing_repo'

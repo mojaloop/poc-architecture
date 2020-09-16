@@ -52,7 +52,8 @@ import { SnapshotParticipantStateCmd } from '../messages/snapshot_participant_st
 import { ParticipantStateSnapshotEvt } from '../messages/participant_state_snapshotevt'
 
 export class ParticpantsAgg extends BaseEventSourcingAggregate<ParticipantEntity, ParticipantState> {
-  constructor (entityStateCacheRepo: IParticipantRepo, entityDuplicateRepo: IEntityDuplicateRepository, esStateRepo: IESourcingStateRepository, msgPublisher: IMessagePublisher, logger: ILogger) {
+  /* eslint-disable-next-line @typescript-eslint/default-param-last */
+  constructor (entityStateCacheRepo: IParticipantRepo, entityDuplicateRepo: IEntityDuplicateRepository | null = null, esStateRepo: IESourcingStateRepository, msgPublisher: IMessagePublisher, logger: ILogger) {
     super(ParticipantsFactory.GetInstance(), entityStateCacheRepo, entityDuplicateRepo, esStateRepo, msgPublisher, logger)
 
     // register command handlers
@@ -68,26 +69,26 @@ export class ParticpantsAgg extends BaseEventSourcingAggregate<ParticipantEntity
     this._setSnapshotHandler(this._applySnapshotHandler)
   }
 
-  async loadAllToInMemoryCache (): Promise<void> {
-    return await new Promise(async (resolve, reject) => {
-      const allIds: string[] = await this._entityDuplicateRepo.getAll()
-
-      await Promise.all(allIds.map(async (id: string) => {
-        await this.load(id)
-      })).then(async () => {
-        return resolve()
-      })
-    })
-  }
+  // async loadAllToInMemoryCache (): Promise<void> {
+  //   return await new Promise(async (resolve, reject) => {
+  //     const allIds: string[] = await this._entityDuplicateRepo.getAll()
+  //     // const allIds: string[] = await this.getAll()
+  //     await Promise.all(allIds.map(async (id: string) => {
+  //       await this.load(id)
+  //     })).then(async () => {
+  //       return resolve()
+  //     })
+  //   })
+  // }
 
   async processCreateParticipantCommand (commandMsg: CreateParticipantCmd): Promise<TCommandResult> {
     // try loading first to detect duplicates
     // check for duplicates
-    const duplicate: boolean = await this._entityDuplicateRepo.exists(commandMsg.payload?.participant?.id)
-    // await this.load(commandMsg.payload?.participant?.id, false)
+    // const duplicate: boolean = await this._entityDuplicateRepo.exists(commandMsg.payload?.participant?.id)
+    await this.load(commandMsg.payload?.participant?.id, false)
 
-    // if (this._rootEntity != null) {
-    if (duplicate) {
+    if (this._rootEntity != null) {
+    // if (duplicate) {
       const duplicateParticipantDetectedEvtPayload = {
         participantId: commandMsg.payload?.participant?.id
       }
@@ -150,10 +151,10 @@ export class ParticpantsAgg extends BaseEventSourcingAggregate<ParticipantEntity
     const stateEvt: ParticipantCreatedStateEvt = new ParticipantCreatedStateEvt(stateEvtPayload)
 
     // update duplicate
-    const success: boolean = await this._entityDuplicateRepo.add(commandMsg.payload?.participant?.id)
-    if (!success) {
-      throw new Error('ParticpantsAgg.processCreateParticipantCommand unable to update duplicate repository')
-    }
+    // const success: boolean = await this._entityDuplicateRepo.add(commandMsg.payload?.participant?.id)
+    // if (!success) {
+    //   throw new Error('ParticpantsAgg.processCreateParticipantCommand unable to update duplicate repository')
+    // }
     return { success: true, stateEvent: stateEvt }
   }
 
