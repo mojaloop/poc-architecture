@@ -55,6 +55,7 @@ export class TransferStateEvtHandler implements IRunHandler {
   private _clientId: string
   private _readSideRepo: MongoDbReadsideTransferRepo
   private _histoTransferStateEvtHandlerMetric: any
+  private _histoTransferStateStoreTimeMetric: any
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     this._logger = logger
@@ -71,6 +72,12 @@ export class TransferStateEvtHandler implements IRunHandler {
       'transferStateEvtHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
       'Instrumentation for transferStateEvtHandler', // Description of metric
       ['success', 'error', 'evtname'] // Define a custom label 'success'
+    )
+
+    this._histoTransferStateStoreTimeMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+      'transferStateStoreLatency', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+      'Time delta between state msg generated vs stored', // Description of metric
+      ['success', 'evtname'] // Define a custom label 'success'
     )
 
     this._logger.isInfoEnabled() && this._logger.info(`TransferStateEvtHandler - Creating ${appConfig.kafka.consumer as string}...`)
@@ -139,6 +146,8 @@ export class TransferStateEvtHandler implements IRunHandler {
 
       this._logger.isInfoEnabled() && this._logger.info(`TransferStateEvtHandler - persisted state event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: true`)
       histTimer({ success: 'true', evtname })
+      const msgSentVsDataStoredTimeDelta = (Date.now()) - message.msgTimestamp
+      this._histoTransferStateStoreTimeMetric.observe({}, msgSentVsDataStoredTimeDelta / 1000)
     } catch (err) {
       this._logger.isErrorEnabled() && this._logger.error(JSON.stringify(err, Object.getOwnPropertyNames(err), 2))
       const errMsg: string = err?.message?.toString()

@@ -52,7 +52,8 @@ export class ParticipantStateEvtHandler implements IRunHandler {
   private _consumer: MessageConsumer
   private _clientId: string
   private _readSideRepo: MongoDbReadsideParticipantRepo
-  private _histoParticipantReadsideStateEvtHandlerMetric: any
+  private _histoParticipantStateEvtHandlerMetric: any
+  private _histoParticipantStateStoreTimeMetric: any
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     this._logger = logger
@@ -65,10 +66,16 @@ export class ParticipantStateEvtHandler implements IRunHandler {
 
     this._logger.isInfoEnabled() && this._logger.info(`ParticipantStateEvtHandler - Created repo of type ${this._readSideRepo.constructor.name}`)
 
-    this._histoParticipantReadsideStateEvtHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+    this._histoParticipantStateEvtHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
       'participantStateEvtHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
       'Instrumentation for participantStateEvtHandler', // Description of metric
       ['success', 'error', 'evtname'] // Define a custom label 'success'
+    )
+
+    this._histoParticipantStateStoreTimeMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+      'participantStateStoreLatency', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+      'Time delta between state msg generated vs stored', // Description of metric
+      ['success', 'evtname'] // Define a custom label 'success'
     )
 
     this._logger.isInfoEnabled() && this._logger.info(`ParticipantStateEvtHandler - Creating ${appConfig.kafka.consumer as string}...`)
@@ -104,7 +111,7 @@ export class ParticipantStateEvtHandler implements IRunHandler {
   }
 
   async _messageHandler (message: IDomainMessage): Promise<void> {
-    const histTimer = this._histoParticipantReadsideStateEvtHandlerMetric.startTimer()
+    const histTimer = this._histoParticipantStateEvtHandlerMetric.startTimer()
     const evtname = message.msgName ?? 'unknown'
     try {
       this._logger.isInfoEnabled() && this._logger.info(`ParticipantStateEvtHandler - persisting state event event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
@@ -131,6 +138,8 @@ export class ParticipantStateEvtHandler implements IRunHandler {
 
       this._logger.isInfoEnabled() && this._logger.info(`ParticipantStateEvtHandler - persisted state event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: true`)
       histTimer({ success: 'true', evtname })
+      const msgSentVsDataStoredTimeDelta = (Date.now()) - message.msgTimestamp
+      this._histoParticipantStateStoreTimeMetric.observe({}, msgSentVsDataStoredTimeDelta / 1000)
     } catch (err) {
       const errMsg: string = err?.message?.toString()
       this._logger.isWarnEnabled() && this._logger.warn(`ParticipantStateEvtHandler - persisting state event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
