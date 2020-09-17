@@ -141,7 +141,7 @@ Program.command('handler')
     const runAllHAndlers = args.transferEvt === undefined && args.transferCmd === undefined && args.transferStateEvt === undefined
 
     // start TransferEvtHandler
-    if (runAllHAndlers || args.participantsEvt != null) {
+    if (runAllHAndlers || args.transferEvt != null) {
       const transferEvtHandler = new TransferEvtHandler()
       await transferEvtHandler.start(appConfig, logger, metrics)
       runHandlerList.push(transferEvtHandler)
