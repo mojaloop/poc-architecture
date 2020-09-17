@@ -1,6 +1,7 @@
 {{- $kafkaHost := ( .Values.config.kafka_host | replace "$release_name" .Release.Name ) -}}
 {{- $redisHost := ( .Values.config.redis_host | replace "$release_name" .Release.Name ) -}}
-{{- $mongoURL := ( .Values.config.participants_query_repo_url | replace "$release_name" .Release.Name ) -}}
+{{- $participants_mongoURL := ( .Values.config.participants_query_repo_url | replace "$release_name" .Release.Name ) -}}
+{{- $transfers_mongoURL := ( .Values.config.transfers_query_repo_url | replace "$release_name" .Release.Name ) -}}
 {{- $redisDuplicateHost := ( .Values.config.redis_persisted_host | replace "$release_name" .Release.Name ) -}}
 {{- $simulatorHost := ( .Values.config.simulator_host | replace "$release_name" .Release.Name ) -}}
 apiVersion: {{ template "poc-modules.apiVersion.Deployment" . }}
@@ -116,9 +117,11 @@ spec:
             - name: PARTICIPANTS_REPO_CLUSTERED
               value: {{ .Values.config.participants_repo_clustered | quote }}
             - name: PARTICIPANTS_READSIDE_MONGO_DB_HOST
-              value: {{ $mongoURL | quote }}
+              value: {{ $participants_mongoURL | quote }}
             - name: TRANSFERS_REPO_TYPE
               value: {{ .Values.config.transfers_repo_type | quote }}
+            - name: TRANSFERS_READSIDE_MONGO_DB_HOST
+              value: {{ $transfers_mongoURL | quote }}
             - name: TRANSFERS_REPO_CLUSTERED
               value: {{ .Values.config.transfers_repo_clustered | quote }}
             - name: DUPLICATE_REPO_TYPE
