@@ -77,7 +77,7 @@ export class ParticipantStateEvtHandler implements IRunHandler {
       client: {
         consumerConfig: {
           'metadata.broker.list': appConfig.kafka.host,
-          'group.id': 'participantReadsideStateEvtHandlerGroup',
+          'group.id': 'participantStateEvtHandlerGroup',
           'enable.auto.commit': appConfig.kafka.autocommit,
           'auto.commit.interval.ms': appConfig.kafka.autoCommitInterval,
           'client.id': this._clientId,
