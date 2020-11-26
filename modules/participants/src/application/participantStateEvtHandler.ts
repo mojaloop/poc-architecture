@@ -44,40 +44,47 @@ import { IRunHandler, MessageConsumer, RDKafkaConsumerOptions, RDKafkaConsumer }
 import { InvalidParticipantEvtError } from './errors'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 import { MongoDbReadsideParticipantRepo } from '../infrastructure/mongodb_readside_participant_repo'
-import { ParticipantCreatedStateEvt, ParticipantCreatedStateEvtPayload } from './../messages/participant_created_stateevt'
-import { ParticipantPositionChangedStateEvt, ParticipantPositionChangedStateEvtPayload } from './../messages/participant_position_changed_stateevt'
+import { ParticipantCreatedStateEvt, ParticipantCreatedStateEvtPayload } from '../messages/participant_created_stateevt'
+import { ParticipantPositionChangedStateEvt, ParticipantPositionChangedStateEvtPayload } from '../messages/participant_position_changed_stateevt'
 
-export class ParticipantReadsideStateEvtHandler implements IRunHandler {
+export class ParticipantStateEvtHandler implements IRunHandler {
   private _logger: ILogger
   private _consumer: MessageConsumer
   private _clientId: string
   private _readSideRepo: MongoDbReadsideParticipantRepo
-  private _histoParticipantReadsideStateEvtHandlerMetric: any
+  private _histoParticipantStateEvtHandlerMetric: any
+  private _histoParticipantStateStoreTimeMetric: any
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     this._logger = logger
-    this._logger.isInfoEnabled() && this._logger.info(`ParticipantReadsideStateEvtHandler::start - appConfig=${JSON.stringify(appConfig)}`)
-    this._clientId = `participantReadsideStateEvtHandler-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
+    this._logger.isInfoEnabled() && this._logger.info(`ParticipantStateEvtHandler::start - appConfig=${JSON.stringify(appConfig)}`)
+    this._clientId = `participantStateEvtHandler-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
 
-    this._logger.isInfoEnabled() && this._logger.info(`ParticipantReadsideStateEvtHandler - Creating repo of type ${MongoDbReadsideParticipantRepo.constructor.name}`)
+    this._logger.isInfoEnabled() && this._logger.info(`ParticipantStateEvtHandler - Creating repo of type ${MongoDbReadsideParticipantRepo.constructor.name}`)
     this._readSideRepo = new MongoDbReadsideParticipantRepo(appConfig.readside_store.uri, logger)
     await this._readSideRepo.init()
 
-    this._logger.isInfoEnabled() && this._logger.info(`ParticipantReadsideStateEvtHandler - Created repo of type ${this._readSideRepo.constructor.name}`)
+    this._logger.isInfoEnabled() && this._logger.info(`ParticipantStateEvtHandler - Created repo of type ${this._readSideRepo.constructor.name}`)
 
-    this._histoParticipantReadsideStateEvtHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
-      'participantReadsideStateEvtHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
-      'Instrumentation for participantReadsideStateEvtHandler', // Description of metric
+    this._histoParticipantStateEvtHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+      'participantStateEvtHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+      'Instrumentation for participantStateEvtHandler', // Description of metric
       ['success', 'error', 'evtname'] // Define a custom label 'success'
     )
 
-    this._logger.isInfoEnabled() && this._logger.info(`ParticipantReadsideStateEvtHandler - Creating ${appConfig.kafka.consumer as string}...`)
+    this._histoParticipantStateStoreTimeMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+      'participantStateStoreLatency', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+      'Time delta between state msg generated vs stored', // Description of metric
+      ['success', 'evtname'] // Define a custom label 'success'
+    )
+
+    this._logger.isInfoEnabled() && this._logger.info(`ParticipantStateEvtHandler - Creating ${appConfig.kafka.consumer as string}...`)
 
     const rdKafkaConsumerOptions: RDKafkaConsumerOptions = {
       client: {
         consumerConfig: {
           'metadata.broker.list': appConfig.kafka.host,
-          'group.id': 'participantReadsideStateEvtHandlerGroup',
+          'group.id': 'participantStateEvtHandlerGroup',
           'enable.auto.commit': appConfig.kafka.autocommit,
           'auto.commit.interval.ms': appConfig.kafka.autoCommitInterval,
           'client.id': this._clientId,
@@ -92,7 +99,7 @@ export class ParticipantReadsideStateEvtHandler implements IRunHandler {
     }
     this._consumer = new RDKafkaConsumer(rdKafkaConsumerOptions, logger)
 
-    logger.isInfoEnabled() && logger.info(`ParticipantReadsideStateEvtHandler - Created kafkaConsumer of type ${this._consumer.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`ParticipantStateEvtHandler - Created kafkaConsumer of type ${this._consumer.constructor.name}`)
 
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     await this._consumer.init(this._messageHandler.bind(this), null) // we're interested in all stateEvents
@@ -104,36 +111,38 @@ export class ParticipantReadsideStateEvtHandler implements IRunHandler {
   }
 
   async _messageHandler (message: IDomainMessage): Promise<void> {
-    const histTimer = this._histoParticipantReadsideStateEvtHandlerMetric.startTimer()
+    const histTimer = this._histoParticipantStateEvtHandlerMetric.startTimer()
     const evtname = message.msgName ?? 'unknown'
     try {
-      this._logger.isInfoEnabled() && this._logger.info(`ParticipantReadsideStateEvtHandler - persisting state event event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+      this._logger.isInfoEnabled() && this._logger.info(`ParticipantStateEvtHandler - persisting state event event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
 
       switch (message.msgName) {
         case ParticipantCreatedStateEvt.name: {
           const evt = ParticipantCreatedStateEvt.fromIDomainMessage(message)
-          if (evt == null) throw new InvalidParticipantEvtError(`ParticipantReadsideStateEvtHandler is unable to persist state event - ${message.msgName} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+          if (evt == null) throw new InvalidParticipantEvtError(`ParticipantStateEvtHandler is unable to persist state event - ${message.msgName} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
           await this._handleParticipantCreatedStateEvt(evt)
           break
         }
         case ParticipantPositionChangedStateEvt.name: {
           const evt = ParticipantPositionChangedStateEvt.fromIDomainMessage(message)
-          if (evt == null) throw new InvalidParticipantEvtError(`ParticipantReadsideStateEvtHandler is unable to persist state event - ${message.msgName} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+          if (evt == null) throw new InvalidParticipantEvtError(`ParticipantStateEvtHandler is unable to persist state event - ${message.msgName} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
           await this._handleParticipantPositionChangedStateEvt(evt)
           break
         }
         default: {
-          this._logger.isDebugEnabled() && this._logger.debug(`ParticipantReadsideStateEvtHandler - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+          this._logger.isDebugEnabled() && this._logger.debug(`ParticipantStateEvtHandler - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
           histTimer({ success: 'true', evtname })
           return
         }
       }
 
-      this._logger.isInfoEnabled() && this._logger.info(`ParticipantReadsideStateEvtHandler - persisted state event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: true`)
+      this._logger.isInfoEnabled() && this._logger.info(`ParticipantStateEvtHandler - persisted state event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: true`)
       histTimer({ success: 'true', evtname })
+      const msgSentVsDataStoredTimeDelta = (Date.now()) - message.msgTimestamp
+      this._histoParticipantStateStoreTimeMetric.observe({}, msgSentVsDataStoredTimeDelta / 1000)
     } catch (err) {
       const errMsg: string = err?.message?.toString()
-      this._logger.isWarnEnabled() && this._logger.warn(`ParticipantReadsideStateEvtHandler - persisting state event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+      this._logger.isWarnEnabled() && this._logger.warn(`ParticipantStateEvtHandler - persisting state event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
       this._logger.isErrorEnabled() && this._logger.error(err)
       histTimer({ success: 'false', /* error: err.message, */ evtname })
     }
@@ -156,7 +165,7 @@ export class ParticipantReadsideStateEvtHandler implements IRunHandler {
     })
 
     if (!success) {
-      throw new InvalidParticipantEvtError(`ParticipantReadsideStateEvtHandler is unable to persist state event - Participant '${evt.msgKey}' is Invalid - ${evt.msgName}:${evt.msgKey}:${evt.msgId}`)
+      throw new InvalidParticipantEvtError(`ParticipantStateEvtHandler is unable to persist state event - Participant '${evt.msgKey}' is Invalid - ${evt.msgName}:${evt.msgKey}:${evt.msgId}`)
     }
   }
 
@@ -170,7 +179,7 @@ export class ParticipantReadsideStateEvtHandler implements IRunHandler {
     ) // we don.'t change versions (not implemented yet)
 
     if (!success) {
-      throw new InvalidParticipantEvtError(`ParticipantReadsideStateEvtHandler is unable to persist state event - Participant '${evt.msgKey}' is Invalid - ${evt?.msgName}:${evt?.msgKey}:${evt?.msgId}`)
+      throw new InvalidParticipantEvtError(`ParticipantStateEvtHandler is unable to persist state event - Participant '${evt.msgKey}' is Invalid - ${evt?.msgName}:${evt?.msgKey}:${evt?.msgId}`)
     }
   }
 }

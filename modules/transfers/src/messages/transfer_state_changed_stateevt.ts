@@ -26,7 +26,7 @@ export class TransferStateChangedStateEvt extends StateEventMsg {
   constructor (payload: TransferStateChangedStateEvtPayload) {
     super()
 
-    this.aggregateId = this.msgKey = payload.transfer.id
+    this.aggregateId = this.msgKey = payload?.transfer?.id
 
     this.payload = payload
   }

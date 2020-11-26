@@ -41,6 +41,7 @@ config:
   participants_query_repo_url: 'mongodb://root:example@$release_name-mongodb:27017/'
   transfers_repo_type: redis
   transfers_repo_clustered: false
+  transfers_query_repo_url: 'mongodb://root:example@$release_name-mongodb:27017/'
   duplicate_repo_type: redis
   duplicate_repo_clustered: false
   event_trace_vendor: mojaloop

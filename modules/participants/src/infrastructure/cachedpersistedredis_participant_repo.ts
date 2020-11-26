@@ -177,26 +177,30 @@ export class CachedPersistedRedisParticipantStateRepo implements IParticipantRep
 
       this._inMemorylist.set(key, entityState)
 
-      resolve()
+      // resolve()
 
-      let stringValue: string | null = null
+      let stringValue: string | undefined
       try {
         stringValue = JSON.stringify(entityState)
       } catch (err) {
         this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
+        return reject(err)
       }
 
-      if (stringValue === null) {
-        return
+      if (stringValue == null) {
+        return reject(new Error('Error parsing entity state JSON - for key: ' + key))
       }
 
       this._redisClient.set(key, stringValue, (err: Error | null, reply: string) => {
         if (err != null) {
           this._logger.isErrorEnabled() && this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
+          return reject(err)
         }
         if (reply !== 'OK') {
           this._logger.isErrorEnabled() && this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
+          return reject(new Error('Unsuccessful attempt to store the entity state in redis - for key: ' + key))
         }
+        return resolve()
       })
     })
   }

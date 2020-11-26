@@ -37,12 +37,28 @@
 
 'use strict'
 // import { v4 as uuidv4 } from 'uuid'
-import { CommandMsg, IDomainMessage, ILogger, IMessagePublisher, IEntityDuplicateRepository, IESourcingStateRepository } from '@mojaloop-poc/lib-domain'
+import {
+  CommandMsg,
+  IDomainMessage,
+  ILogger,
+  IMessagePublisher,
+  IEntityDuplicateRepository,
+  IESourcingStateRepository
+} from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
 import {
   IRunHandler,
   MessageConsumer,
-  RDKafkaCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher, RDKafkaConsumerOptions, RDKafkaConsumer, RedisDuplicateRepo, EventSourcingStateRepo
+  RDKafkaCompressionTypes,
+  RDKafkaProducerOptions,
+  RDKafkaMessagePublisher,
+  RDKafkaConsumerOptions,
+  RDKafkaConsumer,
+  // InMemoryTransferDuplicateRepo,
+  // RedisDuplicateRepo,
+  // RedisDuplicateShardedRepo,
+  // RedisDuplicateInfraTypes,
+  EventSourcingStateRepo
 } from '@mojaloop-poc/lib-infrastructure'
 import { ParticpantsAgg } from '../domain/participants_agg'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
@@ -61,7 +77,7 @@ export class ParticipantCmdHandler implements IRunHandler {
   private _consumer: MessageConsumer
   private _publisher: IMessagePublisher
   private _stateCacheRepo: IParticipantRepo
-  private _duplicateRepo: IEntityDuplicateRepository
+  private _duplicateRepo: IEntityDuplicateRepository | null
   private _eventSourcingRepo: IESourcingStateRepository
   private _histoParticipantCmdHandlerMetric: any
   private _participantAgg: ParticpantsAgg
@@ -90,17 +106,25 @@ export class ParticipantCmdHandler implements IRunHandler {
     }
     logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Created Statecache-repo of type ${this._stateCacheRepo.constructor.name}`)
 
-    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Creating Duplicate-repo of type ${appConfig.duplicate_store.type as string}`)
-    switch (appConfig.duplicate_store.type) {
-      case RepoInfraTypes.REDIS: {
-        this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, appConfig.duplicate_store.clustered, 'participants_duplicate', logger) // TODO move to config
-        break
-      }
-      default: {
-        this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, appConfig.duplicate_store.clustered, 'participants_duplicate', logger) // TODO move to config
-      }
-    }
-    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Created Duplicate-repo of type ${this._duplicateRepo.constructor.name}`)
+    // logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Creating Duplicate-repo of type ${appConfig.duplicate_store.type as string}`)
+    // switch (appConfig.duplicate_store.type) {
+    //   case RedisDuplicateInfraTypes.REDIS: {
+    //     this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, appConfig.duplicate_store.clustered, 'participants_duplicate', logger) // TODO move to config
+    //     break
+    //   }
+    //   case RedisDuplicateInfraTypes.REDIS_SHARDED: {
+    //     this._duplicateRepo = new RedisDuplicateShardedRepo(appConfig.duplicate_store.host, appConfig.duplicate_store.clustered, 'participants_duplicate', logger)
+    //     break
+    //   }
+    //   case RedisDuplicateInfraTypes.MEMORY: {
+    //     this._duplicateRepo = new InMemoryTransferDuplicateRepo()
+    //     break
+    //   }
+    //   default: {
+    //     this._duplicateRepo = new RedisDuplicateRepo(appConfig.duplicate_store.host, appConfig.duplicate_store.clustered, 'participants_duplicate', logger) // TODO move to config
+    //   }
+    // }
+    // logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Created Duplicate-repo of type ${this._duplicateRepo.constructor.name}`)
 
     logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Creating Eventsourcing-repo of type ${appConfig.state_cache.type as string}`)
     switch (appConfig.state_cache.type) {
@@ -135,7 +159,8 @@ export class ParticipantCmdHandler implements IRunHandler {
     this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdHandler - Created kafkaMsgPublisher of type ${this._publisher.constructor.name}`)
 
     await this._stateCacheRepo.init()
-    await this._duplicateRepo.init()
+    // await this._duplicateRepo.init()
+    this._duplicateRepo = null
     await this._eventSourcingRepo.init()
     await this._publisher.init()
 
@@ -174,7 +199,7 @@ export class ParticipantCmdHandler implements IRunHandler {
     this._logger.isInfoEnabled() && this._logger.info('ParticipantCmdConsumer - Initializing participantCmdConsumer...')
 
     // load all participants to mem
-    await this._participantAgg.loadAllToInMemoryCache()
+    // await this._participantAgg.loadAllToInMemoryCache()
 
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     await this._consumer.init(this._cmdHandler.bind(this), null) // by design we're interested in all commands
@@ -225,7 +250,7 @@ export class ParticipantCmdHandler implements IRunHandler {
     await this._consumer.destroy(true)
     await this._publisher.destroy()
     await this._stateCacheRepo.destroy()
-    await this._duplicateRepo.destroy()
+    // await this._duplicateRepo.destroy()
     await this._eventSourcingRepo.destroy()
   }
 }

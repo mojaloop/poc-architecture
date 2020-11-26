@@ -37,7 +37,7 @@ export class TransferPreparedStateEvt extends StateEventMsg {
   constructor (payload: TransferPreparedStateEvtPayload) {
     super()
 
-    this.aggregateId = this.msgKey = payload.transfer.id
+    this.aggregateId = this.msgKey = payload?.transfer?.id
 
     this.payload = payload
   }

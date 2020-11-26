@@ -42,6 +42,7 @@ import { ILogger } from '@mojaloop-poc/lib-domain'
 import { TApiServerOptions, ApiServer, IRunHandler, KafkaInfraTypes, RdKafkaCommitMode } from '@mojaloop-poc/lib-infrastructure'
 import { TransferCmdHandler } from './transferCmdHandler'
 import { TransferEvtHandler } from './transferEvtHandler'
+import { TransferStateEvtHandler } from './transferStateEvtHandler'
 import * as dotenv from 'dotenv'
 import { Command } from 'commander'
 import { resolve as Resolve } from 'path'
@@ -61,6 +62,7 @@ Program.command('handler')
   .option('--disableApi', 'Disable API server for health & metrics')
   .option('--transferEvt', 'Start the Transfers Evt Handler')
   .option('--transferCmd', 'Start the Transfers Cmd Handler')
+  .option('--transferStateEvt', 'Start the Transfers Read Side State Handler')
 
   // function to execute when command is uses
   .action(async (args: any): Promise<void> => {
@@ -110,6 +112,9 @@ Program.command('handler')
         type: (process.env.DUPLICATE_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.DUPLICATE_REPO_TYPE,
         host: getEnvValueOrDefault('REDIS_DUPL_HOST', 'redis://localhost:6379') as string,
         clustered: getEnvBoolOrDefault('DUPLICATE_REPO_CLUSTERED')
+      },
+      readside_store: {
+        uri: getEnvValueOrDefault('TRANSFERS_READSIDE_MONGO_DB_HOST', 'mongodb://localhost:27017/') as string
       }
     }
 
@@ -133,26 +138,27 @@ Program.command('handler')
 
     // list of all handlers
     const runHandlerList: IRunHandler[] = []
+    const runAllHAndlers = args.transferEvt === undefined && args.transferCmd === undefined && args.transferStateEvt === undefined
 
-    // start all handlers here
-    if (args.transferEvt == null && args.transferCmd == null) {
-      const transferEvtHandler = new TransferEvtHandler()
-      await transferEvtHandler.start(appConfig, logger, metrics)
-      runHandlerList.push(transferEvtHandler)
-
-      const transferCmdHandler = new TransferCmdHandler()
-      await transferCmdHandler.start(appConfig, logger, metrics)
-      runHandlerList.push(transferCmdHandler)
-    }
-    if (args.transferEvt != null) {
+    // start TransferEvtHandler
+    if (runAllHAndlers || args.transferEvt != null) {
       const transferEvtHandler = new TransferEvtHandler()
       await transferEvtHandler.start(appConfig, logger, metrics)
       runHandlerList.push(transferEvtHandler)
     }
-    if (args.transferCmd != null) {
-      const transferCmdHandler = new TransferCmdHandler()
-      await transferCmdHandler.start(appConfig, logger, metrics)
-      runHandlerList.push(transferCmdHandler)
+
+    // start TransferEvtHandler
+    if (runAllHAndlers || args.transferCmd != null) {
+      const transferEvtHandler = new TransferCmdHandler()
+      await transferEvtHandler.start(appConfig, logger, metrics)
+      runHandlerList.push(transferEvtHandler)
+    }
+
+    // start TransferEvtHandler
+    if (runAllHAndlers || args.transferStateEvt != null) {
+      const transferStateEvtHandler = new TransferStateEvtHandler()
+      await transferStateEvtHandler.start(appConfig, logger, metrics)
+      runHandlerList.push(transferStateEvtHandler)
     }
 
     // start only API
