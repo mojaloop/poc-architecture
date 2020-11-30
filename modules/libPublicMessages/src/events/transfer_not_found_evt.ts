@@ -26,5 +26,5 @@ export class TransferNotFoundEvt extends DomainEventMsg {
     }
   }
 
-  validatePayload (): void{ }
+  validatePayload (): void { }
 }

@@ -39,7 +39,7 @@
 
 import { IDomainMessage, ILogger, IMessageFetcher } from '@mojaloop-poc/lib-domain'
 import * as RDKafka from 'node-rdkafka'
-import { Assignment, LibrdKafkaError, Message } from 'node-rdkafka'
+import { Assignment } from 'node-rdkafka'
 
 export class RDKafkaFetcher implements IMessageFetcher {
   protected _logger: ILogger

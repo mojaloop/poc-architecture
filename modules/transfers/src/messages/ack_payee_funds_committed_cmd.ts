@@ -30,5 +30,5 @@ export class AckPayeeFundsCommittedCmd extends CommandMsg {
     this.payload = payload
   }
 
-  validatePayload (): void{ }
+  validatePayload (): void { }
 }

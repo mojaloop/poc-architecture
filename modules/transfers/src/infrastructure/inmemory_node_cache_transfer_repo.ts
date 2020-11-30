@@ -71,13 +71,14 @@ export class InMemoryNodeCacheTransferStateRepo implements IEntityStateRepositor
     return true
   }
 
-  async load (id: string): Promise<TransferState|null> {
+  async load (id: string): Promise<TransferState | null> {
     return await new Promise((resolve, reject) => {
       if (this._nodeCache.has(id)) {
-        return resolve(this._nodeCache.get(id))
+        const result: TransferState | null | undefined = this._nodeCache.get(id)
+        return resolve(result!)
+      } else {
+        return resolve(null)
       }
-
-      return resolve(null)
     })
   }
 

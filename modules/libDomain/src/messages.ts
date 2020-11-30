@@ -166,7 +166,7 @@ export abstract class DomainMsg implements IDomainMessage {
     return obj
   }
 
-  addTraceInfo (traceInfo: TTraceInfo): void{
+  addTraceInfo (traceInfo: TTraceInfo): void {
     this.traceInfo = traceInfo
   }
 

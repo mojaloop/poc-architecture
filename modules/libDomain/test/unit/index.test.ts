@@ -97,6 +97,8 @@ describe('libDomain entities', () => {
       aggregateName:"aggregate_name",
       aggregateId: "aggregateId",
       msgName:"msg_name",
+      msgPartition: null,
+      msgOffset: null,
       msgId:"msgId",
       msgKey:"msgKey",
       msgTimestamp: 123,

@@ -68,5 +68,5 @@ export class CreateParticipantCmd extends CommandMsg {
     this.payload = payload
   }
 
-  validatePayload (): void{ }
+  validatePayload (): void { }
 }

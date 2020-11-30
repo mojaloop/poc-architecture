@@ -21,11 +21,13 @@ export class InMemoryTransferStateRepo implements IEntityStateRepository<Transfe
     return true
   }
 
-  async load (id: string): Promise<TransferState|null> {
+  async load (id: string): Promise<TransferState | null> {
     return await new Promise((resolve, reject) => {
-      if (!this._list.has(id)) { resolve(null) }
-
-      resolve(this._list.get(id))
+      if (this._list.has(id)) {
+        return resolve(this._list.get(id)!)
+      } else {
+        return resolve(null)
+      }
     })
   }
 

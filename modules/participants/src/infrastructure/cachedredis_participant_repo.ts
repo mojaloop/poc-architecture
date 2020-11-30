@@ -116,7 +116,7 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
       const key: string = this.keyWithPrefix(id)
 
       if (this._inMemorylist.has(key)) {
-        return resolve(this._inMemorylist.get(key))
+        return resolve(this._inMemorylist.get(key)!)
       }
 
       this._redisClient.get(key, (err: Error | null, result: string | null) => {

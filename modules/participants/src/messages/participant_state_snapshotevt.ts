@@ -63,5 +63,5 @@ export class ParticipantStateSnapshotEvt extends StateSnapshotMsg {
     this.payload = payload
   }
 
-  validatePayload (): void{ }
+  validatePayload (): void { }
 }

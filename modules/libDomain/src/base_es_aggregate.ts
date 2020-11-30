@@ -108,7 +108,7 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
     return await Promise.all(stateEvents.map(async (evt: StateEventMsg) => await this.applyStateEvent(evt, replayed))).then()
   }
 
-  protected _setSnapshotHandler (handler: (snapshotEvent: StateSnapshotMsg, replayed?: boolean) => Promise<void>): void{
+  protected _setSnapshotHandler (handler: (snapshotEvent: StateSnapshotMsg, replayed?: boolean) => Promise<void>): void {
     this._snapshotEventHandler = handler
   }
 
@@ -120,7 +120,7 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
     this._commandHandlers.set(cmdName, handler)
   }
 
-  protected create (id?: string): void{
+  protected create (id?: string): void {
     this._resetState()
     this._rootEntity = (id != null) ? this._entity_factory.createWithId(id) : this._entity_factory.create()
   }
@@ -180,7 +180,7 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
     }
   }
 
-  protected recordDomainEvent (domainEvent: DomainEventMsg): void{
+  protected recordDomainEvent (domainEvent: DomainEventMsg): void {
     this._uncommittedDomainEvents.push(domainEvent)
   }
 
@@ -211,7 +211,7 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
     this._uncommittedDomainEvents = []
   }
 
-  protected propagateTraceInfo (sourceMsg: IDomainMessage): void{
+  protected propagateTraceInfo (sourceMsg: IDomainMessage): void {
     if (sourceMsg.traceInfo == null) return
 
     this._uncommittedDomainEvents.forEach(msg => msg.passTraceInfo(sourceMsg))

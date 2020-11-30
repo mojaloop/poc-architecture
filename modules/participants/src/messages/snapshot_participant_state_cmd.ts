@@ -59,5 +59,5 @@ export class SnapshotParticipantStateCmd extends CommandMsg {
     this.payload = payload
   }
 
-  validatePayload (): void{ }
+  validatePayload (): void { }
 }
