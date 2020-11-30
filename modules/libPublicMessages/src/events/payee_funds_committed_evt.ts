@@ -67,5 +67,5 @@ export class PayeeFundsCommittedEvt extends DomainEventMsg {
     this.payload = payload
   }
 
-  validatePayload (): void{ }
+  validatePayload (): void { }
 }

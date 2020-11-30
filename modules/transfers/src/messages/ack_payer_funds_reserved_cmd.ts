@@ -29,5 +29,5 @@ export class AckPayerFundsReservedCmd extends CommandMsg {
     this.payload = payload
   }
 
-  validatePayload (): void{ }
+  validatePayload (): void { }
 }

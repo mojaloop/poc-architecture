@@ -66,5 +66,5 @@ export class ParticipantPositionChangedStateEvt extends StateEventMsg {
     this.msgPartition = payload?.participant?.partition
   }
 
-  validatePayload (): void{ }
+  validatePayload (): void { }
 }

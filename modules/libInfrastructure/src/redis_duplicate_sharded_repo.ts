@@ -78,7 +78,7 @@ export class RedisDuplicateShardedRepo implements IEntityDuplicateRepository {
     return key
   }
 
-  private async getPartitionSets (): Promise<string[]> {
+  private async getPartitionSets (): Promise<string[] | null | undefined> {
     return await new Promise((resolve, reject) => {
       const keyPattern = `${this._setKey}*`
       this._logger.isDebugEnabled() && this._logger.debug(`RedisDuplicateShardedRepo::getMembers() - keyPattern=${keyPattern}`)

@@ -27,5 +27,5 @@ export class DuplicateTransferDetectedEvt extends DomainEventMsg {
     }
   }
 
-  validatePayload (): void{ }
+  validatePayload (): void { }
 }

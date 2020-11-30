@@ -30,5 +30,5 @@ export class TransferFulfilAcceptedEvt extends DomainEventMsg {
     this.payload = payload
   }
 
-  validatePayload (): void{ }
+  validatePayload (): void { }
 }

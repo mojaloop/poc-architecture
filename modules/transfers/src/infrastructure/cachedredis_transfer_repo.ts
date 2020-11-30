@@ -102,14 +102,14 @@ export class CachedRedisTransferStateRepo implements ITransfersRepo {
     return this._initialized // for now, no circuit breaker exists
   }
 
-  async load (id: string): Promise<TransferState|null> {
+  async load (id: string): Promise<TransferState | null> {
     return await new Promise((resolve, reject) => {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
 
       const key: string = this.keyWithPrefix(id)
 
       if (this._inMemorylist.has(key)) {
-        return resolve(this._inMemorylist.get(key))
+        return resolve(this._inMemorylist.get(key)!)
       }
 
       this._redisClient.get(key, (err: Error | null, result: string | null) => {

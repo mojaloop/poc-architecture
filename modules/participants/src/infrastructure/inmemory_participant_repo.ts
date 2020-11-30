@@ -60,8 +60,7 @@ export class InMemoryParticipantStateRepo implements IParticipantRepo {
   async load (id: string): Promise<ParticipantState|null> {
     return await new Promise((resolve, reject) => {
       if (!this._list.has(id)) { resolve(null) }
-
-      resolve(this._list.get(id))
+      resolve(this._list.get(id)!)
     })
   }
 

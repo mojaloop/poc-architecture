@@ -137,7 +137,8 @@ export class KafkaJsConsumer extends MessageConsumer {
       partitionsConsumedConcurrently: this._defaultedKafkajsConfig.consumerRunConfig?.partitionsConsumedConcurrently,
       eachMessage: async ({ topic, partition, message }) => {
         try {
-          const domainMessage = JSON.parse(message.value.toString()) as IDomainMessage
+          // Should we add any pre-validation here?
+          const domainMessage = JSON.parse(message.value!.toString()) as IDomainMessage
           if (domainMessage.msgPartition == null) {
             domainMessage.msgPartition = partition
           }

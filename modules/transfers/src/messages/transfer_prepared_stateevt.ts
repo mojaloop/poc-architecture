@@ -42,5 +42,5 @@ export class TransferPreparedStateEvt extends StateEventMsg {
     this.payload = payload
   }
 
-  validatePayload (): void{ }
+  validatePayload (): void { }
 }

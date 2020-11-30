@@ -107,7 +107,7 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
     this._commandHandlers.set(cmdName, handler)
   }
 
-  protected create (id?: string): void{
+  protected create (id?: string): void {
     this._resetState()
     this._rootEntity = (id != null) ? this._entity_factory.createWithId(id) : this._entity_factory.create()
   }
@@ -134,11 +134,11 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
     // the reset_state() above already sets the root_entity to null
   }
 
-  protected recordDomainEvent (domainEvent: DomainEventMsg): void{
+  protected recordDomainEvent (domainEvent: DomainEventMsg): void {
     this._uncommittedEvents.push(domainEvent)
   }
 
-  protected recordStateEvent (stateEvent: StateEventMsg): void{
+  protected recordStateEvent (stateEvent: StateEventMsg): void {
     this._uncommittedEvents.push(stateEvent)
   }
 
@@ -161,7 +161,7 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
     this._uncommittedEvents = []
   }
 
-  protected propagateTraceInfo (sourceMsg: IDomainMessage): void{
+  protected propagateTraceInfo (sourceMsg: IDomainMessage): void {
     if (sourceMsg.traceInfo == null) return
 
     this._uncommittedEvents.forEach(msg => msg.passTraceInfo(sourceMsg))

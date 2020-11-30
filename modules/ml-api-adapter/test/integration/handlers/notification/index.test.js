@@ -92,7 +92,7 @@ Test('Notification Handler', notificationHandlerTest => {
       let response = await getNotifications(messageProtocol.to, operation, transferId)
       let currentAttempts = 0
       while (!response && currentAttempts < (timeoutAttempts * callbackWaitSeconds)) {
-        sleep(callbackWaitSeconds)
+        await sleep(callbackWaitSeconds)
         response = await getNotifications(messageProtocol.to, operation, transferId)
         currentAttempts++
       }
@@ -149,7 +149,7 @@ Test('Notification Handler', notificationHandlerTest => {
       let response = await getNotifications(messageProtocol.to, operation, transferId)
       let currentAttempts = 0
       while (!response && currentAttempts < (timeoutAttempts * callbackWaitSeconds)) {
-        sleep(callbackWaitSeconds)
+        await sleep(callbackWaitSeconds)
         response = await getNotifications(messageProtocol.to, operation, transferId)
         currentAttempts++
       }
@@ -208,7 +208,7 @@ Test('Notification Handler', notificationHandlerTest => {
       let responseTo = await getNotifications(messageProtocol.to, operation, transferId)
       let currentAttempts = 0
       while (!(responseTo && responseFrom) && currentAttempts < (timeoutAttempts * callbackWaitSeconds)) {
-        sleep(callbackWaitSeconds)
+        await sleep(callbackWaitSeconds)
         responseFrom = await getNotifications(messageProtocol.from, operation, transferId)
         responseTo = await getNotifications(messageProtocol.to, operation, transferId)
         currentAttempts++
@@ -267,7 +267,7 @@ Test('Notification Handler', notificationHandlerTest => {
       let response = await getNotifications(messageProtocol.to, operation, transferId)
       let currentAttempts = 0
       while (!response && currentAttempts < (timeoutAttempts * callbackWaitSeconds)) {
-        sleep(callbackWaitSeconds)
+        await sleep(callbackWaitSeconds)
         response = await getNotifications(messageProtocol.to, operation, transferId)
         currentAttempts++
       }
@@ -326,7 +326,7 @@ Test('Notification Handler', notificationHandlerTest => {
       let responseTo = await getNotifications(messageProtocol.to, operation, transferId)
       let currentAttempts = 0
       while (!(responseTo && responseFrom) && currentAttempts < (timeoutAttempts * callbackWaitSeconds)) {
-        sleep(callbackWaitSeconds)
+        await sleep(callbackWaitSeconds)
         responseFrom = await getNotifications(messageProtocol.from, operation, transferId)
         responseTo = await getNotifications(messageProtocol.to, operation, transferId)
         currentAttempts++
@@ -387,7 +387,7 @@ Test('Notification Handler', notificationHandlerTest => {
       let responseTo = await getNotifications(messageProtocol.to, operation, transferId)
       let currentAttempts = 0
       while (!(responseTo && responseFrom) && currentAttempts < (timeoutAttempts * callbackWaitSeconds)) {
-        sleep(callbackWaitSeconds)
+        await sleep(callbackWaitSeconds)
         responseFrom = await getNotifications(messageProtocol.from, operation, transferId)
         responseTo = await getNotifications(messageProtocol.to, operation, transferId)
         currentAttempts++
@@ -447,7 +447,7 @@ Test('Notification Handler', notificationHandlerTest => {
       let response = await getNotifications(messageProtocol.to, operation, transferId)
       let currentAttempts = 0
       while (!response && currentAttempts < (timeoutAttempts * callbackWaitSeconds)) {
-        sleep(callbackWaitSeconds)
+        await sleep(callbackWaitSeconds)
         response = await getNotifications(messageProtocol.to, operation, transferId)
         currentAttempts++
       }
@@ -506,7 +506,7 @@ Test('Notification Handler', notificationHandlerTest => {
       let response = await getNotifications(messageProtocol.to, operation, transferId)
       let currentAttempts = 0
       while (!response && currentAttempts < (timeoutAttempts * callbackWaitSeconds)) {
-        sleep(callbackWaitSeconds)
+        await sleep(callbackWaitSeconds)
         response = await getNotifications(messageProtocol.to, operation, transferId)
         currentAttempts++
       }
@@ -524,11 +524,13 @@ Test('Notification Handler', notificationHandlerTest => {
   notificationHandlerTest.end()
 })
 
-function sleep (seconds) {
-  const waitUntil = new Date().getTime() + seconds * 1000
-  while (new Date().getTime() < waitUntil) {
+// function sleep (seconds) {
+//   const waitUntil = new Date().getTime() + seconds * 1000
+//   while (new Date().getTime() < waitUntil) {}
+// }
 
-  }
+function sleep (seconds) {
+  return new Promise(resolve => setTimeout(resolve, seconds * 1000))
 }
 
 const getNotifications = async (fsp, operation, id) => {

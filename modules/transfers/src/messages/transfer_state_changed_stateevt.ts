@@ -31,5 +31,5 @@ export class TransferStateChangedStateEvt extends StateEventMsg {
     this.payload = payload
   }
 
-  validatePayload (): void{ }
+  validatePayload (): void { }
 }

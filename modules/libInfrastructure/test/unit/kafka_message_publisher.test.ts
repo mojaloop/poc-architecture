@@ -19,6 +19,9 @@ describe('Kafka Message Publisher', () => {
 
   test('sends a single message', async () => {    
     const message: IMessage = {
+      msgName: 'msgName',
+      msgPartition: null,
+      msgOffset: null,
       msgId: '123',
       msgKey: '321',
       msgTimestamp: 0,
@@ -39,6 +42,9 @@ describe('Kafka Message Publisher', () => {
   test('sends an array of messages', async () => {
     const messages: IMessage[] = [
       {
+        msgName: 'msgName',
+        msgPartition: null,
+        msgOffset: null,
         msgId: '123',
         msgKey: '321',
         msgTimestamp: 0,
@@ -50,6 +56,9 @@ describe('Kafka Message Publisher', () => {
         passTraceInfo: (message) => {}
       },
       {
+        msgName: 'msgName',
+        msgPartition: null,
+        msgOffset: null,
         msgId: '124',
         msgKey: '322',
         msgTimestamp: 1,
