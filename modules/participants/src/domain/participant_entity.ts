@@ -63,12 +63,19 @@ export class ParticipantEndpointState extends BaseEntityState {
   value: string
 }
 
+// Define Types for entity class
+export type ParticipantIdType= string
+export type ParticipantNameType= string | undefined
+export type ParticipantAccountStateListType = ParticipantAccountState[] | undefined
+export type ParticipantEndpointStateListType = ParticipantEndpointState[] | undefined
+export type PartitionType = number | null
+
 export class ParticipantState extends BaseEntityState {
-  id: string
-  name: string
-  accounts: ParticipantAccountState[]
-  endpoints: ParticipantEndpointState[]
-  partition: number | null
+  id: ParticipantIdType
+  name: ParticipantNameType
+  accounts: ParticipantAccountStateListType
+  endpoints: ParticipantEndpointStateListType
+  partition: PartitionType
 }
 
 export class ParticipantEntity extends BaseEntity<ParticipantState> {
@@ -76,19 +83,19 @@ export class ParticipantEntity extends BaseEntity<ParticipantState> {
     return this._state.id
   }
 
-  get name (): string {
+  get name (): ParticipantNameType {
     return this._state.name
   }
 
-  get accounts (): ParticipantAccountState[] {
+  get accounts (): ParticipantAccountStateListType {
     return this._state.accounts
   }
 
-  get endpoints (): ParticipantEndpointState[] {
+  get endpoints (): ParticipantEndpointStateListType {
     return this._state.endpoints
   }
 
-  get partition (): number | null {
+  get partition (): PartitionType {
     return this._state.partition
   }
 

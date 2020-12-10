@@ -71,6 +71,7 @@ import { CachedPersistedRedisParticipantStateRepo } from '../infrastructure/cach
 import { RepoInfraTypes } from '../infrastructure'
 import { RedisParticipantStateRepo } from '../infrastructure/redis_participant_repo'
 import { InMemoryParticipantStateRepo } from '../infrastructure/inmemory_participant_repo'
+import { CachedPersistedRedisHashSetParticipantStateRepo } from '../infrastructure/cachedpersistedredishashset_participant_repo'
 
 export class ParticipantCmdHandler implements IRunHandler {
   private _logger: ILogger
@@ -86,7 +87,7 @@ export class ParticipantCmdHandler implements IRunHandler {
     this._logger = logger
     this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdHandler::start - appConfig=${JSON.stringify(appConfig)}`)
 
-    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Creating Statecache-repo of type ${appConfig.state_cache.type as string}`)
+    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Creating State-repo of type ${appConfig.state_cache.type as string}`)
     switch (appConfig.state_cache.type) {
       case RepoInfraTypes.REDIS: {
         this._stateCacheRepo = new RedisParticipantStateRepo(appConfig.state_cache.host, appConfig.state_cache.clustered, logger)
@@ -100,11 +101,15 @@ export class ParticipantCmdHandler implements IRunHandler {
         this._stateCacheRepo = new CachedPersistedRedisParticipantStateRepo(appConfig.state_cache.host, appConfig.state_cache.clustered, logger)
         break
       }
+      case RepoInfraTypes.CACHEDPERSISTEDREDISHSET: {
+        this._stateCacheRepo = new CachedPersistedRedisHashSetParticipantStateRepo(appConfig.state_cache.host, appConfig.state_cache.clustered, logger)
+        break
+      }
       default: { // defaulting to In-Memory
         this._stateCacheRepo = new InMemoryParticipantStateRepo()
       }
     }
-    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Created Statecache-repo of type ${this._stateCacheRepo.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Created State-repo of type ${this._stateCacheRepo.constructor.name}`)
 
     // logger.isInfoEnabled() && logger.info(`ParticipantCmdHandler - Creating Duplicate-repo of type ${appConfig.duplicate_store.type as string}`)
     // switch (appConfig.duplicate_store.type) {

@@ -61,6 +61,11 @@ import { InvalidParticipantEvtError } from './errors'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 import { IParticipantRepo } from '../domain/participant_repo'
 import { CachedRedisParticipantStateRepo } from '../infrastructure/cachedredis_participant_repo'
+import { RepoInfraTypes } from '../infrastructure'
+import { RedisParticipantStateRepo } from '../infrastructure/redis_participant_repo'
+import { CachedPersistedRedisParticipantStateRepo } from '../infrastructure/cachedpersistedredis_participant_repo'
+import { CachedPersistedRedisHashSetParticipantStateRepo } from '../infrastructure/cachedpersistedredishashset_participant_repo'
+import { InMemoryParticipantStateRepo } from '../infrastructure/inmemory_participant_repo'
 
 export class ParticipantEvtHandler implements IRunHandler {
   private _consumer: MessageConsumer
@@ -71,14 +76,33 @@ export class ParticipantEvtHandler implements IRunHandler {
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
     logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler::start - appConfig=${JSON.stringify(appConfig)}`)
 
-    logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Creating Statecache of type ${CachedRedisParticipantStateRepo.name}`)
+    logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Creating State-repo of type ${appConfig.state_cache.type as string}`)
 
-    const repo: IParticipantRepo = new CachedRedisParticipantStateRepo(appConfig.state_cache.host, appConfig.state_cache.clustered, logger)
+    switch (appConfig.state_cache.type) {
+      case RepoInfraTypes.REDIS: {
+        this._repo = new RedisParticipantStateRepo(appConfig.state_cache.host, appConfig.state_cache.clustered, logger)
+        break
+      }
+      case RepoInfraTypes.CACHEDREDIS: {
+        this._repo = new CachedRedisParticipantStateRepo(appConfig.state_cache.host, appConfig.state_cache.clustered, logger)
+        break
+      }
+      case RepoInfraTypes.CACHEDPERSISTEDREDIS: {
+        this._repo = new CachedPersistedRedisParticipantStateRepo(appConfig.state_cache.host, appConfig.state_cache.clustered, logger)
+        break
+      }
+      case RepoInfraTypes.CACHEDPERSISTEDREDISHSET: {
+        this._repo = new CachedPersistedRedisHashSetParticipantStateRepo(appConfig.state_cache.host, appConfig.state_cache.clustered, logger)
+        break
+      }
+      default: { // defaulting to In-Memory
+        this._repo = new InMemoryParticipantStateRepo()
+      }
+    }
 
-    this._repo = repo
-    await repo.init()
+    await this._repo.init()
 
-    logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Created Statecache of type ${repo.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Created State-repo of type ${this._repo.constructor.name}`)
 
     let kafkaMsgPublisher: IMessagePublisher | undefined
 

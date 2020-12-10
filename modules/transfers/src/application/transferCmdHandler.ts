@@ -87,8 +87,8 @@ export class TransferCmdHandler implements IRunHandler {
     this._logger = logger
     this._logger.isInfoEnabled() && this._logger.info(`TransferCmdHandler::start - appConfig=${JSON.stringify(appConfig)}`)
 
-    // logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating Statecache-repo of type ${appConfig.state_cache.type as string}`)
-    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating Statecache-repo of type ${appConfig.entity_state.type as string}`)
+    // logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating State-repo of type ${appConfig.state_cache.type as string}`)
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating State-repo of type ${appConfig.entity_state.type as string}`)
     // switch (appConfig.state_cache.type) {
     switch (appConfig.entity_state.type) {
       case RepoInfraTypes.REDIS: {
@@ -111,7 +111,7 @@ export class TransferCmdHandler implements IRunHandler {
         this._entityStateRepo = new InMemoryTransferStateRepo()
       }
     }
-    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created Statecache-repo of type ${this._entityStateRepo.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created State-repo of type ${this._entityStateRepo.constructor.name}`)
 
     logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating Duplicate-repo of type ${appConfig.duplicate_store.type as string}`)
     switch (appConfig.duplicate_store.type) {

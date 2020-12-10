@@ -176,7 +176,7 @@ export class ParticpantsAgg extends BaseEventSourcingAggregate<ParticipantEntity
 
     let positionChangedOk: boolean = false
     const state: ParticipantState = this._rootEntity.exportState()
-    state.accounts.forEach((account: ParticipantAccountState) => {
+    state.accounts!.forEach((account: ParticipantAccountState) => {
       if (account.type === ParticipantAccountTypes.POSITION && account.currency === stateEvent.payload.participant.currency) {
         account.position = stateEvent.payload.participant.currentPosition
         positionChangedOk = true
@@ -224,14 +224,14 @@ export class ParticpantsAgg extends BaseEventSourcingAggregate<ParticipantEntity
       this._rootEntity.reserveFunds(commandMsg.payload.currency, commandMsg.payload.amount)
       const currentPosition = this._rootEntity.getCurrentPosition(commandMsg.payload.currency)
 
-      const payerEndPoints: ParticipantEndpoint[] = this._rootEntity?.endpoints?.map(endPoint => {
+      const payerEndPoints: ParticipantEndpoint[] = this._rootEntity.endpoints!.map(endPoint => {
         return {
           type: endPoint.type,
           value: endPoint.value
         }
       })
 
-      const payeeEndPoints: ParticipantEndpoint[] = payeeFspEntity?.endpoints?.map(endPoint => {
+      const payeeEndPoints: ParticipantEndpoint[] = payeeFspEntity.endpoints!.map(endPoint => {
         return {
           type: endPoint.type,
           value: endPoint.value
@@ -323,14 +323,14 @@ export class ParticpantsAgg extends BaseEventSourcingAggregate<ParticipantEntity
       this._rootEntity.commitFunds(commandMsg.payload.currency, commandMsg.payload.amount)
       const currentPosition = this._rootEntity.getCurrentPosition(commandMsg.payload.currency)
 
-      const payerEndPoints: ParticipantEndpoint[] = payerFspEntity?.endpoints?.map(endPoint => {
+      const payerEndPoints: ParticipantEndpoint[] = payerFspEntity.endpoints!.map(endPoint => {
         return {
           type: endPoint.type,
           value: endPoint.value
         }
       })
 
-      const payeeEndPoints: ParticipantEndpoint[] = this._rootEntity?.endpoints?.map(endPoint => {
+      const payeeEndPoints: ParticipantEndpoint[] = this._rootEntity.endpoints!.map(endPoint => {
         return {
           type: endPoint.type,
           value: endPoint.value

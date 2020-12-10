@@ -39,15 +39,15 @@
 
 import { StateEventMsg } from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
-import { ParticipantAccountState, ParticipantEndpointState } from '../domain/participant_entity'
+import { ParticipantIdType, ParticipantNameType, ParticipantAccountStateListType, ParticipantEndpointStateListType, PartitionType } from '../domain/participant_entity'
 
 export type ParticipantCreatedStateEvtPayload = {
   participant: {
-    id: string
-    name: string
-    accounts: ParticipantAccountState[]
-    endpoints: ParticipantEndpointState[]
-    partition: number | null
+    id: ParticipantIdType
+    name: ParticipantNameType
+    accounts: ParticipantAccountStateListType
+    endpoints: ParticipantEndpointStateListType
+    partition: PartitionType
   }
 }
 
