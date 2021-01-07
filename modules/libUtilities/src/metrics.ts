@@ -34,7 +34,7 @@ export interface IMetricsFactory {
   getHistogram: (name: string, help?: string, labelNames?: string[], buckets?: number[]) => client.Histogram<string>
   getSummary: (name: string, help?: string, labelNames?: string[], percentiles?: number[], maxAgeSeconds?: number, ageBuckets?: number) => client.Summary<string>
   getGauge: (name: string, help?: string | undefined, labelNames?: string[] | undefined) => client.Gauge<string>
-  getMetricsForPrometheus: () => string
+  getMetricsForPrometheus: () => Promise<string>
   isInitiated: () => boolean
   getDefaultRegister: () => client.Registry
 }
@@ -195,8 +195,8 @@ export class Metrics implements IMetricsFactory {
   /**
      * Get the metrics
      */
-  getMetricsForPrometheus = (): string => {
-    return client.register.metrics()
+  getMetricsForPrometheus = async (): Promise<string> => {
+    return await client.register.metrics()
   }
 
   /**

@@ -217,6 +217,10 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
     this._uncommittedDomainEvents.forEach(msg => msg.passTraceInfo(sourceMsg))
   }
 
+  async store (entityState: S, commandMsg: CommandMsg): Promise<void> {
+    await this._entity_cache_repo.store(entityState)
+  }
+
   async processCommand (commandMsg: CommandMsg): Promise<boolean> {
     const handler = this._commandHandlers.get(commandMsg.msgName)
     if (handler == null) {
@@ -244,7 +248,7 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
       await this.commitEvents(result.stateEvent) // send out the unpublished events regardless
 
       if (this._rootEntity != null) {
-        await this._entity_cache_repo.store(this._rootEntity.exportState())
+        await this.store(this._rootEntity.exportState(), commandMsg)
         this._logger.info(`Aggregate state persisted to repository at the end of command: ${commandMsg.msgName}`)
       } else {
         throw new Error(`Aggregate doesn't have a valid state after processing command with name ${commandMsg.msgName}`)
