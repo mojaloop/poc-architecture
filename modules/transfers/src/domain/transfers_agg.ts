@@ -1,9 +1,10 @@
 /**
  * Created by Roman Pietrzak y@ke.mu on 2020-05-26.
  */
+
 'use strict'
 
-import { BaseAggregate, IEntityStateRepository, IMessagePublisher, ILogger } from '@mojaloop-poc/lib-domain'
+import { BaseAggregate, IEntityStateRepository, IMessagePublisher, ILogger, IEntityDuplicateRepository } from '@mojaloop-poc/lib-domain'
 import { DuplicateTransferDetectedEvt, TransferPrepareAcceptedEvt, TransferFulfilledEvt, TransferFulfilledEvtPayload, TransferNotFoundEvt, TransferPreparedEvt, TransferPreparedEvtPayload, InvalidTransferEvt, InvalidTransferEvtPayload, TransferFulfilAcceptedEvt } from '@mojaloop-poc/lib-public-messages'
 import { PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
 import { TransferEntity, TransferState, TransferInternalStates, PrepareTransferData, FulfilTransferData } from './transfer_entity'
@@ -11,6 +12,9 @@ import { TransfersFactory } from './transfers_factory'
 import { AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
 import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
 import { AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
+import { TransferPreparedStateEvt, TransferPreparedStateEvtPayload } from '../messages/transfer_prepared_stateevt'
+import { TransferStateChangedStateEvt, TransferStateChangedStateEvtPayload } from '../messages/transfer_state_changed_stateevt'
+import { TransferFulfiledStateEvt, TransferFulfiledStateEvtPayload } from '../messages/transfer_fulfiled_stateevt'
 
 export enum TransfersAggTopics {
   'Commands' = 'TransferCommands',
@@ -18,8 +22,13 @@ export enum TransfersAggTopics {
 }
 
 export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
-  constructor (entityStateRepo: IEntityStateRepository<TransferState>, msgPublisher: IMessagePublisher, logger: ILogger) {
+  private readonly _entityDuplicateRepo: IEntityDuplicateRepository
+
+  constructor (entityStateRepo: IEntityStateRepository<TransferState>, entityDuplicateRepo: IEntityDuplicateRepository, msgPublisher: IMessagePublisher, logger: ILogger) {
     super(TransfersFactory.GetInstance(), entityStateRepo, msgPublisher, logger)
+
+    this._entityDuplicateRepo = entityDuplicateRepo
+
     this._registerCommandHandler('PrepareTransferCmd', this.processPrepareTransferCommand)
     this._registerCommandHandler('AckPayerFundsReservedCmd', this.processAckPayerFundsReservedCommand)
     this._registerCommandHandler('AckPayeeFundsCommittedCmd', this.processAckPayeeFundsReservedCommand)
@@ -29,16 +38,16 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
   async processPrepareTransferCommand (commandMsg: PrepareTransferCmd): Promise<boolean> {
     // try loading first to detect duplicates
 
-    await this.load(commandMsg.payload.transferId, false)
+    const isNotDuplicate: boolean = await this._entityDuplicateRepo.add(commandMsg.payload.transferId)
 
-    if (this._rootEntity != null) {
+    if (!isNotDuplicate) {
       this.recordDomainEvent(new DuplicateTransferDetectedEvt(commandMsg.payload.transferId))
       return false
     }
 
     /* TODO: validation of incoming payload */
 
-    this.create()
+    this.create(commandMsg.payload.transferId)
 
     const transferPrepareRequestData: PrepareTransferData = {
       id: commandMsg.payload.transferId,
@@ -65,6 +74,14 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
     }
     this.recordDomainEvent(new TransferPrepareAcceptedEvt(transferPrepareAcceptedEvtPayload))
 
+    // state event
+    const stateEvtPayload: TransferPreparedStateEvtPayload = {
+      transfer: {
+        ...this._rootEntity!.exportState()
+      }
+    }
+    this.recordStateEvent(new TransferPreparedStateEvt(stateEvtPayload))
+
     return true
   }
 
@@ -83,7 +100,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       }
 
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
-      this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      this._logger.isWarnEnabled() && this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
       return false
     }
 
@@ -100,6 +117,15 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       prepare: this._rootEntity.prepare
     }
     this.recordDomainEvent(new TransferPreparedEvt(transferPreparedEvtPayload))
+
+    // state event
+    const stateEvtPayload: TransferStateChangedStateEvtPayload = {
+      transfer: {
+        id: this._rootEntity.id,
+        transferInternalState: this._rootEntity.transferInternalState
+      }
+    }
+    this.recordStateEvent(new TransferStateChangedStateEvt(stateEvtPayload))
 
     return true
   }
@@ -119,11 +145,13 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       }
 
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
-      this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      this._logger.isWarnEnabled() && this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
       return false
     }
 
     /* TODO: validation of incoming payload */
+
+    // TODO validate the participants are the same, so we can remove the validation from the commitCmd on the participants
 
     // # Lets try fulfilling transfer
     try {
@@ -148,7 +176,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
       invalidTransferEvtPayload.reason = `${err.constructor.name} ${err.message}`
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
-      this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      this._logger.isWarnEnabled() && this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
       return false
     }
 
@@ -160,6 +188,19 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       payeeId: this._rootEntity.payeeId
     }
     this.recordDomainEvent(new TransferFulfilAcceptedEvt(transferFulfilAcceptedEvtPayload))
+
+    // state event
+    const state = this._rootEntity.exportState()
+    const stateEvtPayload: TransferFulfiledStateEvtPayload = {
+      transfer: {
+        id: this._rootEntity.id,
+        transferInternalState: this._rootEntity.transferInternalState,
+        completedTimestamp: state.completedTimestamp,
+        fulfil: state.fulfil,
+        fulfilment: state.fulfilment
+      }
+    }
+    this.recordStateEvent(new TransferFulfiledStateEvt(stateEvtPayload))
 
     return true
   }
@@ -179,7 +220,7 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       }
 
       this.recordDomainEvent(new InvalidTransferEvt(invalidTransferEvtPayload))
-      this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
+      this._logger.isWarnEnabled() && this._logger.warn(`InvalidTransferEvtPayload: ${JSON.stringify(invalidTransferEvtPayload)}`)
       return false
     }
 
@@ -196,6 +237,15 @@ export class TransfersAgg extends BaseAggregate<TransferEntity, TransferState> {
       fulfil: this._rootEntity.fulfil
     }
     this.recordDomainEvent(new TransferFulfilledEvt(transferFulfiledEvtPayload))
+
+    // state event
+    const stateEvtPayload: TransferStateChangedStateEvtPayload = {
+      transfer: {
+        id: this._rootEntity.id,
+        transferInternalState: this._rootEntity.transferInternalState
+      }
+    }
+    this.recordStateEvent(new TransferStateChangedStateEvt(stateEvtPayload))
 
     return true
   }

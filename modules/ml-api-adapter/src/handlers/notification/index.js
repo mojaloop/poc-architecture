@@ -113,6 +113,14 @@ const recordPoCTxMetrics = (timeApiPrepare, timeApiFulfil, success, eventType) =
  * @module src/handlers/notification
  */
 
+const crypto = require('crypto')
+
+const Crypto = {
+  randomBytes (byteSize, encoding = 'hex') {
+    return crypto.randomBytes(byteSize).toString(encoding)
+  }
+}
+
 /**
  * @function startConsumer
  * @async
@@ -129,7 +137,7 @@ const startConsumer = async () => {
     topicName = TransfersTopics.DomainEvents
     Logger.isInfoEnabled && Logger.info(`Notification::startConsumer - starting Consumer for topicNames: [${topicName}]`)
     const config = KafkaUtil.getKafkaConfig(Config.KAFKA_CONFIG, ENUM.Kafka.Config.CONSUMER, ENUM.Events.Event.Type.NOTIFICATION.toUpperCase(), ENUM.Events.Event.Action.EVENT.toUpperCase())
-    config.rdkafkaConf['client.id'] = topicName
+    config.rdkafkaConf['client.id'] = `ml-con-notification-${Crypto.randomBytes(8)}`
 
     if (config.rdkafkaConf['enable.auto.commit'] !== undefined) {
       autoCommitEnabled = config.rdkafkaConf['enable.auto.commit']

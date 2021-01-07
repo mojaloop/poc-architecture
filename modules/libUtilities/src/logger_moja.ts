@@ -51,23 +51,23 @@ export class MojaLogger implements ILogger {
   }
 
   isDebugEnabled (): boolean {
-    return this._logger.isDebugEnabled()
+    return this._logger.isDebugEnabled
   }
 
   isInfoEnabled (): boolean {
-    return this._logger.isInfoEnabled()
+    return this._logger.isInfoEnabled
   }
 
   isWarnEnabled (): boolean {
-    return this._logger.isWarnEnabled()
+    return this._logger.isWarnEnabled
   }
 
   isErrorEnabled (): boolean {
-    return this._logger.isErrorEnabled()
+    return this._logger.isErrorEnabled
   }
 
   isFatalEnabled (): boolean {
-    return this._logger.isErrorEnabled()
+    return this._logger.isErrorEnabled
   }
 
   debug (message?: any, ...optional: any[]): void {

@@ -39,7 +39,7 @@
 
 import { MojaLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { TApiServerOptions, ApiServer, IRunHandler, KafkaInfraTypes } from '@mojaloop-poc/lib-infrastructure'
+import { TApiServerOptions, ApiServer, IRunHandler, KafkaInfraTypes, RdKafkaCommitMode } from '@mojaloop-poc/lib-infrastructure'
 import { SimulatorEvtHandler } from './simulatorEvtHandler'
 import * as dotenv from 'dotenv'
 import { Command } from 'commander'
@@ -72,11 +72,21 @@ Program.command('handler')
 
     // # setup application config
     const appConfig = {
+      api: {
+        host: (process.env.SIMULATOR_API_HOST != null) ? process.env.SIMULATOR_API_HOST : '0.0.0.0',
+        port: (process.env.SIMULATOR_API_PORT != null && !isNaN(Number(process.env.SIMULATOR_API_PORT)) && process.env.SIMULATOR_API_PORT?.trim()?.length > 0) ? Number.parseInt(process.env.SIMULATOR_API_PORT) : 4000
+      },
       kafka: {
-        host: process.env.KAFKA_HOST,
+        host: (process.env.KAFKA_HOST != null) ? process.env.KAFKA_HOST : 'localhost:9092',
         consumer: (process.env.KAFKA_CONSUMER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_CONSUMER,
         producer: (process.env.KAFKA_PRODUCER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_PRODUCER,
-        autocommit: (process.env.KAFKA_AUTO_COMIT === 'true')
+        autocommit: (process.env.KAFKA_AUTO_COMMIT === 'true'),
+        autoCommitInterval: (process.env.KAFKA_AUTO_COMMIT_INTERVAL != null && !isNaN(Number(process.env.KAFKA_AUTO_COMMIT_INTERVAL)) && process.env.KAFKA_AUTO_COMMIT_INTERVAL?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_AUTO_COMMIT_INTERVAL) : null,
+        autoCommitThreshold: (process.env.KAFKA_AUTO_COMMIT_THRESHOLD != null && !isNaN(Number(process.env.KAFKA_AUTO_COMMIT_THRESHOLD)) && process.env.KAFKA_AUTO_COMMIT_THRESHOLD?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_AUTO_COMMIT_THRESHOLD) : null,
+        rdKafkaCommitWaitMode: (process.env.RDKAFKA_COMMIT_WAIT_MODE == null) ? RdKafkaCommitMode.RDKAFKA_COMMIT_MSG_SYNC : process.env.RDKAFKA_COMMIT_WAIT_MODE,
+        gzipCompression: (process.env.KAFKA_PRODUCER_GZIP === 'true'),
+        fetchMinBytes: (process.env.KAFKA_FETCH_MIN_BYTES != null && !isNaN(Number(process.env.KAFKA_FETCH_MIN_BYTES)) && process.env.KAFKA_FETCH_MIN_BYTES?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_MIN_BYTES) : 1,
+        fetchWaitMaxMs: (process.env.KAFKA_FETCH_WAIT_MAX_MS != null && !isNaN(Number(process.env.KAFKA_FETCH_WAIT_MAX_MS)) && process.env.KAFKA_FETCH_WAIT_MAX_MS?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_WAIT_MAX_MS) : 100
       }
     }
 
@@ -87,7 +97,7 @@ Program.command('handler')
 
     const metricsConfig: TMetricOptionsType = {
       timeout: 5000, // Set the timeout in ms for the underlying prom-client library. Default is '5000'.
-      prefix: 'poc_sim_', // Set prefix for all defined metrics names
+      prefix: 'poc_', // Set prefix for all defined metrics names
       defaultLabels: { // Set default labels that will be applied to all metrics
         serviceName: 'simulator'
       }
@@ -96,7 +106,7 @@ Program.command('handler')
     const metrics = new Metrics(metricsConfig)
     await metrics.init()
 
-    logger.debug(`appConfig=${JSON.stringify(appConfig)}`)
+    logger.isDebugEnabled() && logger.debug(`appConfig=${JSON.stringify(appConfig)}`)
 
     // list of all handlers
     const runHandlerList: IRunHandler[] = []
@@ -110,10 +120,10 @@ Program.command('handler')
     let apiServer: ApiServer | undefined
     if (args.disableApi == null) {
       const apiServerOptions: TApiServerOptions = {
-        host: '0.0.0.0',
-        port: 4000,
+        host: appConfig.api.host,
+        port: appConfig.api.port,
         metricCallback: async () => {
-          return metrics.getMetricsForPrometheus()
+          return await metrics.getMetricsForPrometheus()
         },
         healthCallback: async () => {
           return {
@@ -130,20 +140,20 @@ Program.command('handler')
     // lets clean up all consumers here
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     const killProcess = async (): Promise<void> => {
-      logger.info('Exiting process...')
-      logger.info('Disconnecting handlers...')
+      logger.isInfoEnabled() && logger.info('Exiting process...')
+      logger.isInfoEnabled() && logger.info('Disconnecting handlers...')
       /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
       runHandlerList.forEach(async (handler) => {
-        logger.info(`\tDestroying handler...${handler.constructor.name}`)
+        logger.isInfoEnabled() && logger.info(`\tDestroying handler...${handler.constructor.name}`)
         await handler.destroy()
       })
 
       if (apiServer != null) {
-        logger.info('Destroying API server...')
+        logger.isInfoEnabled() && logger.info('Destroying API server...')
         await apiServer.destroy()
       }
 
-      logger.info('Exit complete!')
+      logger.isInfoEnabled() && logger.info('Exit complete!')
       process.exit(0)
     }
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */

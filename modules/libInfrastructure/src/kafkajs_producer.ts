@@ -40,7 +40,8 @@
 import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
 import { ILogger, IMessage } from '@mojaloop-poc/lib-domain'
 import { MessageProducer, Options, iMessageProducer } from './imessage_producer'
-import { CompressionTypes, TopicMessages, logLevel, Producer, Partitioners, ProducerConfig, KafkaConfig, Kafka as Kafkajs } from 'kafkajs'
+import { CompressionTypes as _CompressionTypes, TopicMessages, logLevel, Producer, Partitioners, ProducerConfig, KafkaConfig, Kafka as Kafkajs, CompressionTypes } from 'kafkajs'
+export { CompressionTypes as KafkaJsCompressionTypes } from 'kafkajs'
 
 export enum KafkajsAcks {
   ALL = -1,
@@ -71,18 +72,16 @@ export class KafkajsProducer extends MessageProducer {
     // make a copy of the options
     this._options = { ...options }
 
-    if (logger != null) {
-      this._logger = new ConsoleLogger()
-    }
+    this._logger = logger ?? new ConsoleLogger()
 
-    this._logger.info('KafkaGenericProducer instance created')
+    this._logger.isInfoEnabled() && this._logger.info('KafkaJsProducer instance created')
   }
 
-  static Create<tOptions>(options: tOptions, logger: ILogger): iMessageProducer {
+  static Create<tOptions> (options: tOptions, logger: ILogger): iMessageProducer {
     const producer = Reflect.construct(this, arguments)
 
     producer.on('error', (err: Error): void => {
-      logger.error(`event::error - ${JSON.stringify(err)}`)
+      logger.isErrorEnabled() && logger.error(`event::error - ${JSON.stringify(err)}`)
     })
 
     return producer
@@ -95,7 +94,7 @@ export class KafkajsProducer extends MessageProducer {
   }
 
   async init (): Promise<void> {
-    this._logger.info('initialising...')
+    this._logger.isInfoEnabled() && this._logger.info('initialising...')
 
     const defaultKafkajsOptions: KafkajsConfig = {
       client: { // https://kafka.js.org/docs/configuration#options
@@ -111,14 +110,14 @@ export class KafkajsProducer extends MessageProducer {
         // retry: null,
         metadataMaxAge: 300000,
         allowAutoTopicCreation: true,
-        idempotent: true, // false is default
+        idempotent: false, // false is default
         // transactionalId?: string // cant find much about this?
         transactionTimeout: 60000
         // maxInFlightRequests: 1 // default is unlimited
       },
       acks: KafkajsAcks.ALL,
       timeout: 30000,
-      compression: CompressionTypes.None
+      compression: _CompressionTypes.None
     }
 
     // copy default config
@@ -128,7 +127,7 @@ export class KafkajsProducer extends MessageProducer {
 
     this._defaultedKafkajsConfig = Object.assign({}, KafkajsOptions)
 
-    this._logger.debug(`Producer options: \n${JSON.stringify(KafkajsOptions)}`)
+    this._logger.isDebugEnabled() && this._logger.debug(`Producer options: \n${JSON.stringify(KafkajsOptions)}`)
 
     this._client = new Kafkajs(KafkajsOptions.client)
     this._producer = this._client.producer()
@@ -152,15 +151,22 @@ export class KafkajsProducer extends MessageProducer {
           messages: []
         }
       }
-      payloadsForEachTopic[kafkaMsg.msgTopic].messages.push(
-        {
+      let message: any
+      if (kafkaMsg.msgPartition !== null) {
+        message = {
           key: kafkaMsg.msgKey,
-          value: JSON.stringify(kafkaMsg)
-          // partition?: number
+          value: JSON.stringify(kafkaMsg),
+          partition: kafkaMsg.msgPartition
           // headers?: IHeaders
           // timestamp?: string
         }
-      )
+      } else {
+        message = {
+          key: kafkaMsg.msgKey,
+          value: JSON.stringify(kafkaMsg)
+        }
+      }
+      payloadsForEachTopic[kafkaMsg.msgTopic].messages.push(message)
     })
 
     const topicMessages = Object.values(payloadsForEachTopic)

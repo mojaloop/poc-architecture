@@ -1,38 +1,53 @@
-import { publishMessageMultiple, publishMessageMultipleInit, publishMessageMultipleDestroy } from '../utilities/publisher'
+import * as Publisher from '../utilities/publisher'
 import {
   CurrencyTypes,
   TransferPrepareRequestedEvt
 } from '@mojaloop-poc/lib-public-messages'
 import { v4 as uuidv4 } from 'uuid'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { ConsoleLogger } from '@mojaloop-poc/lib-utilities'
+import { MojaLogger, injectTraceStateToMessage, Metrics, getEnvBoolOrDefault, TMetricOptionsType, getEnvIntegerOrDefault, getEnvValueOrDefault } from '@mojaloop-poc/lib-utilities'
+import { getRandomFsps } from '../utilities/participant'
+import { ApiServer, TApiServerOptions } from '@mojaloop-poc/lib-infrastructure'
+import * as dotenv from 'dotenv'
+
+/* eslint-disable-next-line @typescript-eslint/no-var-requires */
+const pckg = require('../../package.json')
 
 /* eslint-disable @typescript-eslint/no-var-requires */
 const encodePayload = require('@mojaloop/central-services-shared').Util.StreamingProtocol.encodePayload
 
-const logger: ILogger = new ConsoleLogger()
-const INJECTED_PER_SECOND = 50
+const logger: ILogger = new MojaLogger()
+const STR_INJECTED_PER_SECOND = process.env?.INJECTED_PER_SECOND ?? '50'
+const INJECTED_PER_SECOND = Number.parseInt(STR_INJECTED_PER_SECOND)
 const contentType = 'application/vnd.interoperability.transfers+json;version=1'
 
 const timeout = async (ms: number): Promise<void> => {
   return await new Promise(resolve => setTimeout(resolve, ms))
 }
 
-const getRandomFsps = (): string[] => {
-  const fspIds = ['fsp-1', 'fsp-2', 'fsp-3', 'fsp-4']
-  const random = Math.floor(Math.random() * Math.floor(fspIds.length))
+let histoSendHandlerMetric: any | undefined
+let histoSendPublishHandlerMetric: any | undefined
+let histoSendConstructHandlerMetric: any | undefined
+let histoSendConstructSingleHandlerMetric: any | undefined
+let histSendAllTimer: any | undefined
+let histSendPublishTimer: any | undefined
+let histSendConstructTimer: any | undefined
+let histSendConstructSingleTimer: any | undefined
 
-  const payer: string = fspIds[random]
-  const payee: string = random + 1 >= fspIds.length ? fspIds[0] : fspIds[random + 1]
-  return [payer, payee]
-}
+let evts: TransferPrepareRequestedEvt[] = []
+let expireDate = new Date()
+const send = async (metrics?: Metrics | undefined): Promise<void> => {
+  if (metrics !== undefined) histSendAllTimer = histoSendHandlerMetric.startTimer()
 
-const send = async (): Promise<void> => {
-  const evts: TransferPrepareRequestedEvt[] = []
-  const expireDate = new Date()
+  const startTime = Date.now()
+  evts = []
+  expireDate = new Date()
   expireDate.setMinutes(expireDate.getMinutes() + 5)
 
+  if (metrics !== undefined) histSendConstructTimer = histoSendConstructHandlerMetric.startTimer()
   for (let i = 0; i < INJECTED_PER_SECOND; i++) {
+    if (metrics !== undefined) histSendConstructSingleTimer = histoSendConstructSingleHandlerMetric.startTimer()
+
     const fspIds = getRandomFsps()
 
     const preparePayload = {
@@ -51,8 +66,7 @@ const send = async (): Promise<void> => {
     }
 
     const encodedPreparePayload = encodePayload(Buffer.from(JSON.stringify(preparePayload)), contentType)
-
-    evts.push(new TransferPrepareRequestedEvt({
+    const newEvent = new TransferPrepareRequestedEvt({
       transferId: preparePayload.transferId,
       payerId: preparePayload.payerFsp,
       payeeId: preparePayload.payeeFsp,
@@ -80,27 +94,143 @@ const send = async (): Promise<void> => {
         },
         payload: encodedPreparePayload
       }
-    }
-    ))
+    })
+    injectTraceStateToMessage(newEvent, { timeApiPrepare: Date.now() })
+
+    evts.push(newEvent)
+
+    if (metrics !== undefined) histSendConstructSingleTimer({ payerId: preparePayload.payerFsp })
   }
-  await publishMessageMultiple(evts)
-  await timeout(1000)
+  if (metrics !== undefined) histSendConstructTimer()
+
+  const constructMsgsMs = Date.now() - startTime
+
+  if (metrics !== undefined) histSendPublishTimer = histoSendPublishHandlerMetric.startTimer()
+  await Publisher.publishMessageMultiple(evts)
+  if (metrics !== undefined) histSendPublishTimer()
+
+  const totalTimeMs = Date.now() - startTime
+  const publishMsgsMs = totalTimeMs - constructMsgsMs
+
+  if (totalTimeMs > 1000) {
+    // eslint-disable-next-line no-console
+    console.info(`Sending batches of ${INJECTED_PER_SECOND} messages - ${constructMsgsMs} ms to construct - ${publishMsgsMs} ms to publish - ${totalTimeMs} ms total - NOT COPING`)
+  } else {
+    // eslint-disable-next-line no-console
+    console.info(`Sending batches of ${INJECTED_PER_SECOND} messages - ${constructMsgsMs} ms to construct - ${publishMsgsMs} ms to publish - ${totalTimeMs} ms total`)
+  }
+
+  await timeout(totalTimeMs > 1000 ? 10 : 1000 - totalTimeMs)
+  if (metrics !== undefined) histSendAllTimer()
 }
+
+let apiServer: ApiServer | undefined
+let metrics: Metrics | undefined
 
 /* eslint-disable-next-line @typescript-eslint/explicit-function-return-type */
 const start = async () => {
-  await publishMessageMultipleInit()
+  logger.isInfoEnabled() && logger.info('Starting pubPrepareMultipleTransferEvt publisher!')
 
-  while (true) {
-    await send()
+  // TODO: Figure a better way to handle env config here
+  dotenv.config({ path: '../../.env' })
+
+  // # setup application config
+  const appConfig = {
+    api: {
+      isDisabled: getEnvBoolOrDefault('PERFTOOLCLIENT_API_DISABLED'),
+      host: getEnvValueOrDefault('PERFTOOLCLIENT_API_HOST', '0.0.0.0'),
+      port: getEnvIntegerOrDefault('PERFTOOLCLIENT_API_PORT', 4002)
+    }
   }
 
-  // eslint-disable-next-line no-unreachable
-  await publishMessageMultipleDestroy()
-  // process.exit(0)
+  // start API
+  if (appConfig.api.isDisabled === false) {
+    /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
+    logger.isInfoEnabled() && logger.info(`Starting pubPrepareMultipleTransferEvt api Server on ${appConfig.api.host}:${appConfig.api.port}`)
+
+    // init metrics
+    const metricsConfig: TMetricOptionsType = {
+      timeout: 5000, // Set the timeout in ms for the underlying prom-client library. Default is '5000'.
+      prefix: 'poc_', // Set prefix for all defined metrics names
+      defaultLabels: { // Set default labels that will be applied to all metrics
+        serviceName: 'perftoolclient'
+      }
+    }
+
+    metrics = new Metrics(metricsConfig)
+    await metrics.init()
+
+    if (metrics !== undefined) {
+      histoSendHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+        'sendAll', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+        'Instrumentation for perfClientTools for a sending a batch of transfers', // Description of metric
+        [] // Define a custom label 'success'
+      )
+      histoSendConstructSingleHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+        'sendConstructSingle', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+        'Instrumentation for perfClientTools for constructing a single transfer', // Description of metric
+        ['payerId'] // Define a custom label 'success'
+      )
+      histoSendConstructHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+        'sendConstruct', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+        'Instrumentation for perfClientTools for constructing a batch of transfers', // Description of metric
+        [] // Define a custom label 'success'
+      )
+      histoSendPublishHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+        'sendPublish', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+        'Instrumentation for perfClientTools for publishing a batch of transfers to kafka', // Description of metric
+        [] // Define a custom label 'success'
+      )
+    }
+
+    const apiServerOptions: TApiServerOptions = {
+      host: appConfig.api.host,
+      port: appConfig.api.port,
+      metricCallback: async () => {
+        return await metrics!.getMetricsForPrometheus()
+      },
+      healthCallback: async () => {
+        return {
+          status: 'ok',
+          version: pckg.version,
+          name: pckg.name
+        }
+      }
+    }
+    apiServer = new ApiServer(apiServerOptions, logger)
+    await apiServer.init()
+  } else {
+    logger.isInfoEnabled() && logger.info('pubPrepareMultipleTransferEvt api Server disabled')
+  }
+
+  // start publisher
+  await Publisher.init()
+  await Publisher.publishMessageMultipleInit()
+  while (true) {
+    await send(metrics)
+  }
 }
 
+// lets clean up all consumers here
+/* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+const killProcess = async (): Promise<void> => {
+  logger.isInfoEnabled() && logger.info('Exiting process...')
+
+  if (apiServer != null) {
+    logger.isInfoEnabled() && logger.info('Destroying API server...')
+    await apiServer.destroy()
+  }
+
+  logger.isInfoEnabled() && logger.info('Destroying handlers...')
+  await Publisher.publishMessageMultipleDestroy()
+
+  logger.isInfoEnabled() && logger.info('Exit complete!')
+  process.exit(0)
+}
+/* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+process.on('SIGINT', killProcess)
+
 start().catch((err) => {
-  logger.error(err)
+  logger.isErrorEnabled() && logger.error(err)
 }).finally(() => {
 })

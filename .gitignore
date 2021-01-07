@@ -125,6 +125,8 @@ dist/
 
 # Env ignore
 .env
+.env.*
+**/.env.*
 
 # Lerna files
 **/*.lerna_backup
@@ -132,3 +134,17 @@ dist/
 **/dist/**/**.js
 **/src/**/**.js.map
 **/src/**/**.d.ts
+
+# helm
+**/charts
+**/*requirements.lock
+**/helm/.*
+
+# clinic
+**/.clinic
+**/test/**/**.js
+**/test/**/**.js.map
+**/test/**/**.d.ts
+
+# PlantUML
+**/out/**/**.*

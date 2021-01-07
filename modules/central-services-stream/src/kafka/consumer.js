@@ -474,7 +474,7 @@ class Consumer extends EventEmitter {
           }
         } else {
           // lets transform the messages into the desired format
-          messages.map(msg => {
+          messages.forEach(msg => {
             const parsedValue = Protocol.parseValue(msg.value, this._config.options.messageCharset, this._config.options.messageAsJSON)
             msg.value = parsedValue
           })
@@ -541,7 +541,7 @@ class Consumer extends EventEmitter {
         }
       } else {
         // lets transform the messages into the desired format
-        messages.map(msg => {
+        messages.forEach(msg => {
           const parsedValue = Protocol.parseValue(msg.value, this._config.options.messageCharset, this._config.options.messageAsJSON)
           msg.value = parsedValue
         })

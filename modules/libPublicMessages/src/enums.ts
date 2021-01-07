@@ -45,7 +45,8 @@ export enum MLTopics {
 export enum ParticipantsTopics {
   'Commands' = 'ParticipantCommands',
   'DomainEvents' = 'ParticipantDomainEvents',
-  // "StateEvents" = "ParticipantStateEvents"
+  'StateEvents' = 'ParticipantStateEvents',
+  'SnapshotEvents' = 'ParticipantSnapshotEvents'
 }
 
 export enum ParticipantAccountTypes {
@@ -64,6 +65,8 @@ export enum AccountLimitTypes {
 export enum TransfersTopics {
   'Commands' = 'TransferCommands',
   'DomainEvents' = 'TransferDomainEvents',
+  'StateEvents' = 'TransferStateEvents',
+  'SnapshotEvents' = 'TransferSnapshotEvents'
 }
 
 export enum TransferInternalStates {

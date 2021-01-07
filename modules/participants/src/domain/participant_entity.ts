@@ -68,6 +68,7 @@ export class ParticipantState extends BaseEntityState {
   name: string
   accounts: ParticipantAccountState[]
   endpoints: ParticipantEndpointState[]
+  partition: number | null
 }
 
 export class ParticipantEntity extends BaseEntity<ParticipantState> {
@@ -85,6 +86,10 @@ export class ParticipantEntity extends BaseEntity<ParticipantState> {
 
   get endpoints (): ParticipantEndpointState[] {
     return this._state.endpoints
+  }
+
+  get partition (): number | null {
+    return this._state.partition
   }
 
   static CreateInstance (initialState?: ParticipantState): ParticipantEntity {

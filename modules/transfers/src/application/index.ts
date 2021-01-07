@@ -37,14 +37,16 @@
 
 'use strict'
 
-import { MojaLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
+import { getEnvIntegerOrDefault, getEnvValueOrDefault, getEnvBoolOrDefault, MojaLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { TApiServerOptions, ApiServer, IRunHandler, KafkaInfraTypes } from '@mojaloop-poc/lib-infrastructure'
+import { TApiServerOptions, ApiServer, IRunHandler, KafkaInfraTypes, RdKafkaCommitMode } from '@mojaloop-poc/lib-infrastructure'
 import { TransferCmdHandler } from './transferCmdHandler'
 import { TransferEvtHandler } from './transferEvtHandler'
+import { TransferStateEvtHandler } from './transferStateEvtHandler'
 import * as dotenv from 'dotenv'
 import { Command } from 'commander'
 import { resolve as Resolve } from 'path'
+import { RepoInfraTypes } from '../infrastructure'
 
 /* eslint-disable-next-line @typescript-eslint/no-var-requires */
 const pckg = require('../../package.json')
@@ -60,6 +62,7 @@ Program.command('handler')
   .option('--disableApi', 'Disable API server for health & metrics')
   .option('--transferEvt', 'Start the Transfers Evt Handler')
   .option('--transferCmd', 'Start the Transfers Cmd Handler')
+  .option('--transferStateEvt', 'Start the Transfers Read Side State Handler')
 
   // function to execute when command is uses
   .action(async (args: any): Promise<void> => {
@@ -75,14 +78,43 @@ Program.command('handler')
 
     // # setup application config
     const appConfig = {
+      metrics: {
+        prefix: getEnvValueOrDefault('METRIC_PREFIX', 'poc_') as string
+      },
+      api: {
+        host: (process.env.TRANSFERS_API_HOST != null) ? process.env.TRANSFERS_API_HOST : '0.0.0.0',
+        port: (process.env.TRANSFERS_API_PORT != null && !isNaN(Number(process.env.TRANSFERS_API_PORT)) && process.env.TRANSFERS_API_PORT?.trim()?.length > 0) ? Number.parseInt(process.env.TRANSFERS_API_PORT) : 3002
+      },
       kafka: {
-        host: process.env.KAFKA_HOST,
+        host: (process.env.KAFKA_HOST != null) ? process.env.KAFKA_HOST : 'localhost:9092',
         consumer: (process.env.KAFKA_CONSUMER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_CONSUMER,
         producer: (process.env.KAFKA_PRODUCER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_PRODUCER,
-        autocommit: (process.env.KAFKA_AUTO_COMIT === 'true')
+        autocommit: (process.env.KAFKA_AUTO_COMMIT === 'true'),
+        autoCommitInterval: (process.env.KAFKA_AUTO_COMMIT_INTERVAL != null && !isNaN(Number(process.env.KAFKA_AUTO_COMMIT_INTERVAL)) && process.env.KAFKA_AUTO_COMMIT_INTERVAL?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_AUTO_COMMIT_INTERVAL) : null,
+        autoCommitThreshold: (process.env.KAFKA_AUTO_COMMIT_THRESHOLD != null && !isNaN(Number(process.env.KAFKA_AUTO_COMMIT_THRESHOLD)) && process.env.KAFKA_AUTO_COMMIT_THRESHOLD?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_AUTO_COMMIT_THRESHOLD) : null,
+        rdKafkaCommitWaitMode: (process.env.RDKAFKA_COMMIT_WAIT_MODE == null) ? RdKafkaCommitMode.RDKAFKA_COMMIT_MSG_SYNC : process.env.RDKAFKA_COMMIT_WAIT_MODE,
+        gzipCompression: (process.env.KAFKA_PRODUCER_GZIP === 'true'),
+        fetchMinBytes: (process.env.KAFKA_FETCH_MIN_BYTES != null && !isNaN(Number(process.env.KAFKA_FETCH_MIN_BYTES)) && process.env.KAFKA_FETCH_MIN_BYTES?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_MIN_BYTES) : 1,
+        fetchWaitMaxMs: (process.env.KAFKA_FETCH_WAIT_MAX_MS != null && !isNaN(Number(process.env.KAFKA_FETCH_WAIT_MAX_MS)) && process.env.KAFKA_FETCH_WAIT_MAX_MS?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_WAIT_MAX_MS) : 100
       },
-      redis: {
-        host: process.env.REDIS_HOST
+      // state_cache: {
+      //   type: (process.env.TRANSFERS_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.TRANSFERS_REPO_TYPE,
+      //   host: getEnvValueOrDefault('REDIS_HOST', 'redis://localhost:6379') as string,
+      //   expirationInSeconds: getEnvIntegerOrDefault('REDIS_EXPIRATION_IN_SEC', -1) as number
+      // },
+      entity_state: {
+        type: (process.env.TRANSFERS_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.TRANSFERS_REPO_TYPE,
+        host: getEnvValueOrDefault('REDIS_HOST', 'redis://localhost:6379') as string,
+        expirationInSeconds: getEnvIntegerOrDefault('REDIS_EXPIRATION_IN_SEC', -1) as number,
+        clustered: getEnvBoolOrDefault('TRANSFERS_REPO_CLUSTERED')
+      },
+      duplicate_store: {
+        type: (process.env.DUPLICATE_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.DUPLICATE_REPO_TYPE,
+        host: getEnvValueOrDefault('REDIS_DUPL_HOST', 'redis://localhost:6379') as string,
+        clustered: getEnvBoolOrDefault('DUPLICATE_REPO_CLUSTERED')
+      },
+      readside_store: {
+        uri: getEnvValueOrDefault('TRANSFERS_READSIDE_MONGO_DB_HOST', 'mongodb://localhost:27017/') as string
       }
     }
 
@@ -93,7 +125,7 @@ Program.command('handler')
 
     const metricsConfig: TMetricOptionsType = {
       timeout: 5000, // Set the timeout in ms for the underlying prom-client library. Default is '5000'.
-      prefix: 'poc_tran_', // Set prefix for all defined metrics names
+      prefix: appConfig.metrics.prefix, // Set prefix for all defined metrics names
       defaultLabels: { // Set default labels that will be applied to all metrics
         serviceName: 'transfers'
       }
@@ -102,40 +134,41 @@ Program.command('handler')
     const metrics = new Metrics(metricsConfig)
     await metrics.init()
 
-    logger.debug(`appConfig=${JSON.stringify(appConfig)}`)
+    logger.isDebugEnabled() && logger.debug(`appConfig=${JSON.stringify(appConfig)}`)
 
     // list of all handlers
     const runHandlerList: IRunHandler[] = []
+    const runAllHAndlers = args.transferEvt === undefined && args.transferCmd === undefined && args.transferStateEvt === undefined
 
-    // start all handlers here
-    if (args.transferEvt == null && args.transferCmd == null) {
-      const transferEvtHandler = new TransferEvtHandler()
-      await transferEvtHandler.start(appConfig, logger, metrics)
-      runHandlerList.push(transferEvtHandler)
-
-      const transferCmdHandler = new TransferCmdHandler()
-      await transferCmdHandler.start(appConfig, logger, metrics)
-      runHandlerList.push(transferCmdHandler)
-    }
-    if (args.transferEvt != null) {
+    // start TransferEvtHandler
+    if (runAllHAndlers || args.transferEvt != null) {
       const transferEvtHandler = new TransferEvtHandler()
       await transferEvtHandler.start(appConfig, logger, metrics)
       runHandlerList.push(transferEvtHandler)
     }
-    if (args.transferCmd != null) {
-      const transferCmdHandler = new TransferCmdHandler()
-      await transferCmdHandler.start(appConfig, logger, metrics)
-      runHandlerList.push(transferCmdHandler)
+
+    // start TransferEvtHandler
+    if (runAllHAndlers || args.transferCmd != null) {
+      const transferEvtHandler = new TransferCmdHandler()
+      await transferEvtHandler.start(appConfig, logger, metrics)
+      runHandlerList.push(transferEvtHandler)
+    }
+
+    // start TransferEvtHandler
+    if (runAllHAndlers || args.transferStateEvt != null) {
+      const transferStateEvtHandler = new TransferStateEvtHandler()
+      await transferStateEvtHandler.start(appConfig, logger, metrics)
+      runHandlerList.push(transferStateEvtHandler)
     }
 
     // start only API
     let apiServer: ApiServer | undefined
     if (args.disableApi == null) {
       const apiServerOptions: TApiServerOptions = {
-        host: '0.0.0.0',
-        port: 3002,
+        host: appConfig.api.host,
+        port: appConfig.api.port,
         metricCallback: async () => {
-          return metrics.getMetricsForPrometheus()
+          return await metrics.getMetricsForPrometheus()
         },
         healthCallback: async () => {
           return {
@@ -152,20 +185,20 @@ Program.command('handler')
     // lets clean up all consumers here
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     const killProcess = async (): Promise<void> => {
-      logger.info('Exiting process...')
-      logger.info('Destroying handlers...')
+      logger.isInfoEnabled() && logger.info('Exiting process...')
+      logger.isInfoEnabled() && logger.info('Destroying handlers...')
       /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
       runHandlerList.forEach(async (handler) => {
-        logger.info(`\tDestroying handler...${handler.constructor.name}`)
+        logger.isInfoEnabled() && logger.info(`\tDestroying handler...${handler.constructor.name}`)
         await handler.destroy()
       })
 
       if (apiServer != null) {
-        logger.info('Destroying API server...')
+        logger.isInfoEnabled() && logger.info('Destroying API server...')
         await apiServer.destroy()
       }
 
-      logger.info('Exit complete!')
+      logger.isInfoEnabled() && logger.info('Exit complete!')
       process.exit(0)
     }
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */

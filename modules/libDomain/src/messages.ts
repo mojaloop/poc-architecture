@@ -42,6 +42,7 @@ import { v4 as uuidv4 } from 'uuid'
 
 export enum MessageTypes{
   'STATE_EVENT' =0, // for private event-sourcing events
+  'STATE_SNAPSHOT', // for private event-sourcing snapshot events
   'DOMAIN_EVENT', // public domain events
   'COMMAND', // commands
 }
@@ -53,10 +54,13 @@ export type TTraceInfo = {
 
 export interface IMessage{
   msgType: MessageTypes
+  msgName: string // name of the event or command
   msgId: string // unique per message
   msgTimestamp: number
   msgKey: string // usually the id of the aggregate (used for partitioning)
   msgTopic: string
+  msgPartition: number | null
+  msgOffset: number | null
   // TODO: for later
 
   // source_system_name:string // source system name
@@ -75,21 +79,74 @@ export interface IMessage{
 // domain specific
 
 export interface IDomainMessage extends IMessage{
-  msgName: string // name of the event or command
 
   aggregateName: string // name of the source/target aggregate (source if event, target if command)
   aggregateId: string // id of the source/target aggregate (source if event, target if command)
   // aggregate_version:number; // version of the source/target aggregate (source if event, target if command)
 }
 
+// export abstract class BaseDomainMsg implements IDomainMessage {
+//   msgId: string = uuidv4() // unique per message
+//   msgTimestamp: number = Date.now()
+//   msg_name: string = (this as any).constructor.name
+//
+//   abstract msgType: MessageTypes
+//   abstract msgKey: string // usually the id of the aggregate (used for partitioning)
+//   abstract msgTopic: string
+//
+//   abstract aggregateId: string
+//   abstract aggregate_name: string
+//   // abstract aggregate_version: number;
+//
+//   abstract payload: any
+// }
+
+// export class DomainMsg implements IDomainMessage{
+//   msgId: string = uuidv4() // unique per message
+//   msgTimestamp: number = Date.now()
+//   msg_name: string = (this as any).constructor.name
+//
+//   msgType!: MessageTypes
+//   msgKey!: string
+//   msgTopic!: string
+//
+//   aggregateId!: string
+//   aggregate_name!: string
+//   // abstract aggregate_version: number;
+//
+//   payload: any
+//
+//   static fromIDomainMessage (msg:IDomainMessage):DomainMsg{
+//     // parse the headers
+//     const obj = new DomainMsg()
+//     obj.msg_name = msg.msg_name;
+//     obj.msgId = msg.msgId;
+//     obj.msgKey = msg.msgKey;
+//     obj.msgTimestamp = msg.msgTimestamp;
+//     obj.msgTopic = msg.msgTopic;
+//     obj.msgType = msg.msgType;
+//
+//     obj.aggregate_name = msg.aggregate_name;
+//     obj.aggregateId = msg.aggregateId;
+//
+//     return obj.fromDomainMsg();
+//   }
+//
+//   protected fromDomainMsg<T extends DomainMsg>():T{
+//     throw new Error('should be override by implementation')
+//   }
+// }
+
 export abstract class DomainMsg implements IDomainMessage {
   msgId: string = uuidv4() // unique per message
   msgTimestamp: number = Date.now()
   msgName: string = (this as any).constructor.name
+  msgPartition: number | null = null
+  msgOffset: number | null
   traceInfo: TTraceInfo | null = null
 
   abstract msgType: MessageTypes
-  abstract msgKey: string // usually the id of the aggregate (used for partitioning)
+  abstract msgKey: string
   abstract msgTopic: string
 
   abstract aggregateId: string
@@ -109,7 +166,7 @@ export abstract class DomainMsg implements IDomainMessage {
     return obj
   }
 
-  addTraceInfo (traceInfo: TTraceInfo): void{
+  addTraceInfo (traceInfo: TTraceInfo): void {
     this.traceInfo = traceInfo
   }
 
@@ -117,7 +174,17 @@ export abstract class DomainMsg implements IDomainMessage {
     this.traceInfo = origMsg.traceInfo
   }
 
-  abstract validatePayload(): void
+  abstract validatePayload (): void
+}
+
+export abstract class StateEventMsg extends DomainMsg {
+  msgType: MessageTypes = MessageTypes.STATE_EVENT
+}
+
+export abstract class StateSnapshotMsg extends DomainMsg {
+  msgType: MessageTypes = MessageTypes.STATE_SNAPSHOT
+  lastEventOffset: number // offset of the last event that was considered for the snapshot
+  eventsPartition: number // partition from the events
 }
 
 export abstract class DomainEventMsg extends DomainMsg {

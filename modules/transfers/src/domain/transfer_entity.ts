@@ -40,6 +40,7 @@ export class TransferState extends BaseEntityState {
   completedTimestamp: string
   fulfil: TransferRawPayload
   reject: TransferRawPayload
+  // expireStateInSec: number
 }
 
 export type PrepareTransferData = {

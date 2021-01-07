@@ -1,0 +1,169 @@
+/'*****
+ License
+ --------------
+ Copyright © 2017 Bill & Melinda Gates Foundation
+ The Mojaloop files are made available by the Bill & Melinda Gates Foundation under the Apache License, Version 2.0 (the "License") and you may not use these files except in compliance with the License. You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, the Mojaloop files are distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+
+ Contributors
+ --------------
+ This is the official list (alphabetical ordering) of the Mojaloop project contributors for this file.
+ Names of the original copyright holders (individuals or organizations)
+ should be listed with a '*' in the first column. People who have
+ contributed from an organization can be listed under the organization
+ that actually holds the copyright for their contributions (see the
+ Gates Foundation organization for an example). Those individuals should have
+ their names indented and be marked with a '-'. Email address can be added
+ optionally within square brackets <email>.
+
+ * Gates Foundation
+ - Name Surname <name.surname@gatesfoundation.com>
+
+ * Coil
+ - Donovan Changfoot <donovan.changfoot@coil.com>
+
+ * Crosslake
+ - Pedro Sousa Barreto <pedrob@crosslaketech.com>
+
+ * ModusBox
+ - Miguel de Barros <miguel.debarros@modusbox.com>
+ - Roman Pietrzak <roman.pietrzak@modusbox.com>
+
+ --------------
+******'/
+
+@startuml
+' declate title
+title 1.2. Transfer Prepare - Invalid Participants
+
+autonumber
+' Actor Keys:
+' boundary - APIs/Interfaces, etc
+' collections - Kafka Topics
+' control - Event Handlers
+' entity - Command Handlers
+' database - Persistance Store
+
+' declare actors
+actor "PayerFSP" as PAYER
+actor "PayeeFSP" as PAYEE
+boundary "ML-API-ADAPTER\nService" as MLAPI
+' boundary "ML-API-ADAPTER\nNotification Handler" as MLNOTIFY
+' entity "Transfers\nEvt & Command\nHandler" as TRANSFERS
+' entity "Participants Evt &\nCommand Handler" as PARTICIPANTS
+' entity "Transfers\nQuery\nHandler" as TRANSFER_QUERY
+control "TransfersEvt" as TRANSFERS_EVT
+entity "TransfersCmd" as TRANSFERS_CMD
+control "ParticipantsEvt" as PARTICIPANTS_EVT
+entity "ParticipantsCmd" as PARTICIPANTS_CMD
+database "Transfer Store" as TRANSFERS_STORE
+database "Participant Store" as PARTICIPANTS_STORE
+database "Transers\nCmd Duplicate\nStore" as TRANSFERS_DUPLICATE_STORE
+' database "Transfer Query Store" as TRANSFER_QUERY_STORE
+
+collections "Topic: MLIngressEvents" as TOPIC_MLINGRESS_EVT
+collections "Topic: ParticipantsDomainEvt" as TOPIC_PARTICIPANTS_EVT
+collections "Topic: ParticipantCommands" as TOPIC_PARTICIPANTS_CMD
+collections "Topic: TransfersDomainEvt" as TOPIC_TRANSFERS_EVT
+collections "Topic: TransferCommands" as TOPIC_TRANSFERS_CMD
+collections "Topic: NotificationsDomainEvt" as TOPIC_NOTIFICATIONS_EVT
+' collections "Topic: TransferQueryReponse" as TOPIC_TRANSFER_QUERY_RESPONSE
+
+box "Participants" #LightSlateGrey
+  participant PAYER
+  participant PAYEE
+end box
+
+box "ML API Adapter Service" #LightBlue
+  participant MLAPI
+  participant TOPIC_MLINGRESS_EVT
+  participant TOPIC_NOTIFICATIONS_EVT
+end box
+
+box "Command Services" #LightYellow
+  participant TRANSFERS_EVT
+  participant TOPIC_TRANSFERS_CMD
+  participant TRANSFERS_CMD
+  participant TRANSFERS_DUPLICATE_STORE
+  participant TRANSFERS_STORE
+  participant TOPIC_TRANSFERS_EVT
+  participant PARTICIPANTS_EVT
+  participant TOPIC_PARTICIPANTS_CMD
+  participant PARTICIPANTS_CMD
+  participant PARTICIPANTS_STORE
+  participant TOPIC_PARTICIPANTS_EVT
+end box
+
+' box "Query Services" #LightCyan
+'   participant TRANSFER_QUERY
+'   participant TOPIC_TRANSFER_QUERY_RESPONSE
+' end box
+
+' start flow
+PAYER <-> MLAPI: POST Transfer Request
+
+MLAPI --> TOPIC_MLINGRESS_EVT: Publish TransferPrepareRequestedEVT
+
+TOPIC_MLINGRESS_EVT --> TRANSFERS_EVT: Consume TransferPrepareRequestedEVT - Transfer Prepare request from PayerFSP
+
+  TRANSFERS_EVT --> TOPIC_TRANSFERS_CMD: Publish PrepareTransferCmd
+
+TOPIC_TRANSFERS_CMD --> TRANSFERS_CMD: Consume PrepareTransferCmd
+  
+  TRANSFERS_CMD <-> TRANSFERS_DUPLICATE_STORE: Add TransferId to SET
+  TRANSFERS_CMD -> TRANSFERS_CMD: Validate Duplicate Result - Ref <color:red>"Duplicate Validation Match"</color> Exception Scenario
+  TRANSFERS_CMD -> TRANSFERS_CMD: Create Transfer with status <b>"RECEIVED_PREPARE"</b> & set TTL <color:red>"in-memory"</color> & TLL <color:red>"persisted"</color> - Ref <color:red>"Unable to Persist State for Transfers"</color> Exception Scenario
+  TRANSFERS_CMD --> TOPIC_TRANSFERS_EVT: Publish TransferPrepareAcceptedEvt
+
+TOPIC_TRANSFERS_EVT --> PARTICIPANTS_EVT: Consume TransferPrepareAcceptedEvt
+  
+  PARTICIPANTS_EVT <-> PARTICIPANTS_STORE: Lookup PayerFSP Participants Partition
+  PARTICIPANTS_EVT --> TOPIC_PARTICIPANTS_CMD: Publish ReservePayerFundsCmd
+
+TOPIC_PARTICIPANTS_CMD --> PARTICIPANTS_CMD: Consume ReservePayerFundsCmd
+
+  alt PayerFSP Validation Failure
+    PARTICIPANTS_CMD <-> PARTICIPANTS_STORE: Load PayerFSP (<color:red>in-memory & persistent-store</color>)
+    PARTICIPANTS_CMD -> PARTICIPANTS_CMD: Validate PayerFSP Participant - <b>Error <color:red>"InvalidPayerParticipantError"</color> thrown</b>
+    PARTICIPANTS_CMD --> TOPIC_PARTICIPANTS_EVT: Publish InvalidPayerParticipantEvt with PayerFSP.id
+
+    TOPIC_PARTICIPANTS_EVT --> TRANSFERS_EVT: Consume InvalidPayerParticipantEvt
+  
+    TRANSFERS_EVT --> TOPIC_TRANSFERS_CMD: Publish TransferRejectCmd
+
+    TOPIC_TRANSFERS_CMD --> TRANSFERS_CMD: Consume TransferRejectCmd
+      TRANSFERS_CMD -> TRANSFERS_CMD: Load Transfer (<color:red>in-memory</color>) - Ref <color:red>"Consistency Miss-match for Transfers"</color> Exception Scenario
+      TRANSFERS_CMD -> TRANSFERS_CMD: Update Transfer state with status <b>"ABORTED_ERROR"</b>, reason <b>"3202"</b>
+      ''## Do we publish any event since we do not want to communicate that the Payer is invalid?
+      TRANSFERS_CMD --> TOPIC_TRANSFERS_EVT: Publish TransferRejectedEvt
+
+    TOPIC_TRANSFERS_EVT --> MLAPI: Consume TransferRejectedEvt
+      MLAPI <-> MLAPI: Log Transfer <b><color:red>Error: 3202</color></b> <i>(Not responding to PayerFSP due to security concerns)</i>
+      
+      'MLAPI <-> PAYER: PUT Transfer <b><color:red>Error: 3202</color></b>
+      'MLAPI --> TOPIC_NOTIFICATIONS_EVT: Publish AckNotificationEvt
+
+  else PayeeFSP Validation Failure
+    PARTICIPANTS_CMD <-> PARTICIPANTS_STORE: Load PayeeFSP (<color:red>in-memory & persistent-store</color>)
+    PARTICIPANTS_CMD -> PARTICIPANTS_CMD: Validate PayeeFSP Participant - <b>Error <color:red>"InvalidPayeeParticipantError"</color> thrown</b>
+    PARTICIPANTS_CMD --> TOPIC_PARTICIPANTS_EVT: Publish InvalidPayeeParticipantEvt with PayeeFSP.id
+
+    TOPIC_PARTICIPANTS_EVT --> TRANSFERS_EVT: Consume InvalidPayeeParticipantEvt
+  
+    TRANSFERS_EVT --> TOPIC_TRANSFERS_CMD: Publish TransferRejectCmd
+
+    TOPIC_TRANSFERS_CMD --> TRANSFERS_CMD: Consume TransferRejectCmd
+      
+      TRANSFERS_CMD -> TRANSFERS_CMD: Load Transfer (<color:red>in-memory</color>) - Ref <color:red>"Consistency Miss-match for Transfers"</color> Exception Scenario
+      TRANSFERS_CMD -> TRANSFERS_CMD: Update Transfer state with status <b>"ABORTED_ERROR"</b>, reason <b>"3203"</b>
+      TRANSFERS_CMD --> TOPIC_TRANSFERS_EVT: Publish TransferRejectedEvt
+
+    TOPIC_TRANSFERS_EVT --> MLAPI: Consume TransferRejectedEvt
+      
+      MLAPI <-> PAYER: PUT Transfer <b><color:red>Error: 3203</color></b>
+      MLAPI --> TOPIC_NOTIFICATIONS_EVT: Publish AckNotificationEvt
+  end
+@enduml

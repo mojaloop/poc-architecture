@@ -30,5 +30,5 @@ export class TransferPrepareAcceptedEvt extends DomainEventMsg {
     this.payload = payload
   }
 
-  validatePayload (): void{ }
+  validatePayload (): void { }
 }

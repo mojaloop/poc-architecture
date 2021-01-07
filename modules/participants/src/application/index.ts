@@ -37,14 +37,22 @@
 
 'use strict'
 
-import { MojaLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
+import {
+  MojaLogger,
+  Metrics,
+  TMetricOptionsType,
+  getEnvValueOrDefault,
+  getEnvBoolOrDefault
+} from '@mojaloop-poc/lib-utilities'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { TApiServerOptions, ApiServer, IRunHandler, KafkaInfraTypes } from '@mojaloop-poc/lib-infrastructure'
+import { TApiServerOptions, ApiServer, IRunHandler, KafkaInfraTypes, RdKafkaCommitMode } from '@mojaloop-poc/lib-infrastructure'
 import { ParticipantCmdHandler } from './participantCmdHandler'
 import { ParticipantEvtHandler } from './participantEvtHandler'
 import * as dotenv from 'dotenv'
 import { Command } from 'commander'
 import { resolve as Resolve } from 'path'
+import { RepoInfraTypes } from '../infrastructure'
+import { ParticipantStateEvtHandler } from './participantStateEvtHandler'
 
 /* eslint-disable-next-line @typescript-eslint/no-var-requires */
 const pckg = require('../../package.json')
@@ -58,8 +66,9 @@ Program.command('handler')
   .description('Start Participant Handlers') // command description
   .option('-c, --config [configFilePath]', '.env config file')
   .option('--disableApi', 'Disable API server for health & metrics')
-  .option('--participantsEvt', 'Start the Participant Evt Handler')
+  .option('--participantsEvt', 'Start the Participant Evt Handler') // TODO: change this to the proper name
   .option('--participantsCmd', 'Start the Participant Cmd Handler')
+  .option('--participantsStateEvt', 'Start the Participant Read Side State Handler')
 
   // function to execute when command is uses
   .action(async (args: any): Promise<void> => {
@@ -75,14 +84,37 @@ Program.command('handler')
 
     // # setup application config
     const appConfig = {
+      metrics: {
+        prefix: getEnvValueOrDefault('METRIC_PREFIX', 'poc_') as string
+      },
+      api: {
+        host: (process.env.PARTICIPANTS_API_HOST != null) ? process.env.PARTICIPANTS_API_HOST : '0.0.0.0',
+        port: (process.env.PARTICIPANTS_API_PORT != null && !isNaN(Number(process.env.PARTICIPANTS_API_PORT)) && process.env.PARTICIPANTS_API_PORT?.trim()?.length > 0) ? Number.parseInt(process.env.PARTICIPANTS_API_PORT) : 3003
+      },
       kafka: {
-        host: process.env.KAFKA_HOST,
+        host: (process.env.KAFKA_HOST != null) ? process.env.KAFKA_HOST : 'localhost:9092',
         consumer: (process.env.KAFKA_CONSUMER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_CONSUMER,
         producer: (process.env.KAFKA_PRODUCER == null) ? KafkaInfraTypes.NODE_KAFKA : process.env.KAFKA_PRODUCER,
-        autocommit: (process.env.KAFKA_AUTO_COMIT === 'true')
+        autocommit: (process.env.KAFKA_AUTO_COMMIT === 'true'),
+        autoCommitInterval: (process.env.KAFKA_AUTO_COMMIT_INTERVAL != null && !isNaN(Number(process.env.KAFKA_AUTO_COMMIT_INTERVAL)) && process.env.KAFKA_AUTO_COMMIT_INTERVAL?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_AUTO_COMMIT_INTERVAL) : null,
+        autoCommitThreshold: (process.env.KAFKA_AUTO_COMMIT_THRESHOLD != null && !isNaN(Number(process.env.KAFKA_AUTO_COMMIT_THRESHOLD)) && process.env.KAFKA_AUTO_COMMIT_THRESHOLD?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_AUTO_COMMIT_THRESHOLD) : null,
+        rdKafkaCommitWaitMode: (process.env.RDKAFKA_COMMIT_WAIT_MODE == null) ? RdKafkaCommitMode.RDKAFKA_COMMIT_MSG_SYNC : process.env.RDKAFKA_COMMIT_WAIT_MODE,
+        gzipCompression: (process.env.KAFKA_PRODUCER_GZIP === 'true'),
+        fetchMinBytes: (process.env.KAFKA_FETCH_MIN_BYTES != null && !isNaN(Number(process.env.KAFKA_FETCH_MIN_BYTES)) && process.env.KAFKA_FETCH_MIN_BYTES?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_MIN_BYTES) : 1,
+        fetchWaitMaxMs: (process.env.KAFKA_FETCH_WAIT_MAX_MS != null && !isNaN(Number(process.env.KAFKA_FETCH_WAIT_MAX_MS)) && process.env.KAFKA_FETCH_WAIT_MAX_MS?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_WAIT_MAX_MS) : 100
       },
-      redis: {
-        host: process.env.REDIS_HOST
+      state_cache: {
+        type: (process.env.PARTICIPANTS_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.PARTICIPANTS_REPO_TYPE,
+        host: process.env.REDIS_HOST,
+        clustered: getEnvBoolOrDefault('PARTICIPANTS_REPO_CLUSTERED')
+      },
+      duplicate_store: {
+        type: (process.env.DUPLICATE_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.DUPLICATE_REPO_TYPE,
+        host: getEnvValueOrDefault('REDIS_DUPL_HOST', 'redis://localhost:6379') as string,
+        clustered: getEnvBoolOrDefault('DUPLICATE_REPO_CLUSTERED')
+      },
+      readside_store: {
+        uri: getEnvValueOrDefault('PARTICIPANTS_READSIDE_MONGO_DB_HOST', 'mongodb://localhost:27017/') as string
       }
     }
 
@@ -93,7 +125,7 @@ Program.command('handler')
 
     const metricsConfig: TMetricOptionsType = {
       timeout: 5000, // Set the timeout in ms for the underlying prom-client library. Default is '5000'.
-      prefix: 'poc_part_', // Set prefix for all defined metrics names
+      prefix: appConfig.metrics.prefix, // Set prefix for all defined metrics names
       defaultLabels: { // Set default labels that will be applied to all metrics
         serviceName: 'participants'
       }
@@ -102,44 +134,41 @@ Program.command('handler')
     const metrics = new Metrics(metricsConfig)
     await metrics.init()
 
-    logger.debug(`appConfig=${JSON.stringify(appConfig)}`)
+    logger.isDebugEnabled() && logger.debug(`appConfig=${JSON.stringify(appConfig)}`)
 
     // list of all handlers
     const runHandlerList: IRunHandler[] = []
+    const runAllHAndlers = args.participantsEvt === undefined && args.participantsCmd === undefined && args.participantsStateEvt === undefined
 
-    // start all handlers here
-    if (args.participantsEvtHandler == null && args.participantsCmdHandler == null) {
-      const participantEvtHandler = new ParticipantEvtHandler()
-      await participantEvtHandler.start(appConfig, logger, metrics)
-      runHandlerList.push(participantEvtHandler)
-
-      const participantCmdHandler = new ParticipantCmdHandler()
-      await participantCmdHandler.start(appConfig, logger, metrics)
-      runHandlerList.push(participantCmdHandler)
-    }
-
-    // start only participantsEvtHandler
-    if (args.participantsEvtHandler != null) {
+    // start participantsEvtHandler
+    if (runAllHAndlers || args.participantsEvt != null) {
       const participantEvtHandler = new ParticipantEvtHandler()
       await participantEvtHandler.start(appConfig, logger, metrics)
       runHandlerList.push(participantEvtHandler)
     }
 
-    // start only participantsCmdHandler
-    if (args.participantsCmdHandler != null) {
+    // start participantsCmdHandler
+    if (runAllHAndlers || args.participantsCmd != null) {
       const participantCmdHandler = new ParticipantCmdHandler()
       await participantCmdHandler.start(appConfig, logger, metrics)
       runHandlerList.push(participantCmdHandler)
+    }
+
+    // start participantStateEvtHandler
+    if (runAllHAndlers || args.participantsStateEvt != null) {
+      const participantStateEvtHandler = new ParticipantStateEvtHandler()
+      await participantStateEvtHandler.start(appConfig, logger, metrics)
+      runHandlerList.push(participantStateEvtHandler)
     }
 
     // start only API
     let apiServer: ApiServer | undefined
     if (args.disableApi == null) {
       const apiServerOptions: TApiServerOptions = {
-        host: '0.0.0.0',
-        port: 3003,
+        host: appConfig.api.host,
+        port: appConfig.api.port,
         metricCallback: async () => {
-          return metrics.getMetricsForPrometheus()
+          return await metrics.getMetricsForPrometheus()
         },
         healthCallback: async () => {
           return {
@@ -156,20 +185,20 @@ Program.command('handler')
     // lets clean up all consumers here
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     const killProcess = async (): Promise<void> => {
-      logger.info('Exiting process...')
-      logger.info('Destroying handlers...')
+      logger.isInfoEnabled() && logger.info('Exiting process...')
+      logger.isInfoEnabled() && logger.info('Destroying handlers...')
       /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
       runHandlerList.forEach(async (handler) => {
-        logger.info(`\tDestroying handler...${handler.constructor.name}`)
+        logger.isInfoEnabled() && logger.info(`\tDestroying handler...${handler.constructor.name}`)
         await handler.destroy()
       })
 
       if (apiServer != null) {
-        logger.info('Destroying API server...')
+        logger.isInfoEnabled() && logger.info('Destroying API server...')
         await apiServer.destroy()
       }
 
-      logger.info('Exit complete!')
+      logger.isInfoEnabled() && logger.info('Exit complete!')
       process.exit(0)
     }
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */

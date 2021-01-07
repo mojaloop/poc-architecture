@@ -61,5 +61,5 @@ export class InvalidTransferEvt extends DomainEventMsg {
     this.payload = payload
   }
 
-  validatePayload (): void{ }
+  validatePayload (): void { }
 }

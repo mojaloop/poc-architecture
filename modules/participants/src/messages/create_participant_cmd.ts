@@ -46,6 +46,7 @@ export type CreateParticipantCmdPayload = {
     name: string
     accounts: ParticipantAccount[]
     endpoints: ParticipantEndpoint[]
+    partition: number | null
   }
 }
 
@@ -67,5 +68,5 @@ export class CreateParticipantCmd extends CommandMsg {
     this.payload = payload
   }
 
-  validatePayload (): void{ }
+  validatePayload (): void { }
 }
