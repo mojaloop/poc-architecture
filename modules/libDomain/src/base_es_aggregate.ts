@@ -217,7 +217,7 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
     this._uncommittedDomainEvents.forEach(msg => msg.passTraceInfo(sourceMsg))
   }
 
-  async store(entityState: S, commandMsg: CommandMsg): Promise<void> {
+  async store (entityState: S, commandMsg: CommandMsg): Promise<void> {
     await this._entity_cache_repo.store(entityState)
   }
 
