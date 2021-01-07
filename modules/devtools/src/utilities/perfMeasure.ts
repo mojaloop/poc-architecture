@@ -302,7 +302,7 @@ const start = async () => {
       host: appConfig.api.host,
       port: appConfig.api.port,
       metricCallback: async () => {
-        return metrics.getMetricsForPrometheus()
+        return await metrics.getMetricsForPrometheus()
       },
       healthCallback: async () => {
         return {
