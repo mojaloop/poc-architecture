@@ -80,6 +80,13 @@ export class InMemoryParticipantStateRepo implements IParticipantRepo {
     })
   }
 
+  async getAllIds (): Promise<string[]> {
+    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+    return await new Promise(async (resolve, reject) => {
+      return resolve(Array.from(this._list.keys()))
+    })
+  }
+
   async hasAccount (participantId: string, accType: ParticipantAccountTypes, currency: string): Promise<boolean> {
     const participant = await this.load(participantId)
     return participant?.accounts?.find(account => account.type === accType && account.currency === currency) != null

@@ -46,7 +46,8 @@ export enum ParticipantsTopics {
   'Commands' = 'ParticipantCommands',
   'DomainEvents' = 'ParticipantDomainEvents',
   'StateEvents' = 'ParticipantStateEvents',
-  'SnapshotEvents' = 'ParticipantSnapshotEvents'
+  'SnapshotEvents' = 'ParticipantSnapshotEvents',
+  'SnapshotOperatorCommands' = 'SnapshotOperatorCommands'
 }
 
 export enum ParticipantAccountTypes {

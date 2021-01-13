@@ -205,6 +205,28 @@ export class CachedPersistedRedisParticipantStateRepo implements IParticipantRep
     })
   }
 
+  async getAllIds (): Promise<string[]> {
+    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+    return await new Promise(async (resolve, reject) => {
+      this._logger.isDebugEnabled() && this._logger.debug('CachedPersistedRedisParticipantStateRepo::getAll() - start')
+
+      if (!this.canCall()) return reject(new Error('Repository not ready'))
+      this._redisClient.keys(this.keyPrefix + '*', (err: Error | null, result: string[]) => {
+        if (err != null) {
+          this._logger.isErrorEnabled() && this._logger.error(err, `Error retrieving all keys with prefix: ${this.keyPrefix}`)
+          return reject(err)
+        }
+        this._logger.isDebugEnabled() && this._logger.debug(`CachedPersistedRedisParticipantStateRepo::getAll() - got back, ${result.length} results'`)
+        let results: string[]
+        result.forEach((val: string) => {
+          results.push(val.replace(this.keyPrefix, ''))
+        })
+
+        return resolve(result)
+      })
+    })
+  }
+
   private keyWithPrefix (key: string): string {
     return this.keyPrefix + key
   }

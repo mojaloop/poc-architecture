@@ -27,7 +27,7 @@
   ],
   "scripts": {
     "start": "npm run participants",
-    "participants": "tsc && node dist/application/index.js handler --config ../../.env --participantsEvt --participantsCmd --participantsStateEvt",
+    "participants": "tsc && node dist/application/index.js handler --config ../../.env --participantsEvt --participantsCmd --participantsStateEvt --participantsSnapshotOperator",
     "build": "tsc",
     "watch": "tsc -w",
     "clean": "rm -Rf dist",

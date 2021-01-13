@@ -39,13 +39,11 @@
 
 import * as redis from 'redis'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { ParticipantState } from '../domain/participant_entity'
-import { IParticipantRepo } from '../domain/participant_repo'
-import { ParticipantAccountTypes, ParticipantEndpoint } from '@mojaloop-poc/lib-public-messages'
+import { ParticipantSnapshotOperatorState } from '../domain/participant_operator_state'
 // @ts-expect-error
 import RedisClustr = require('redis-clustr')
 
-export class RedisParticipantStateRepo implements IParticipantRepo {
+export class RedisParticipantOperatorStateRepo {
   protected _redisClient!: redis.RedisClient
   protected _redisClustered: boolean
   private readonly _redisConnStr: string
@@ -53,7 +51,7 @@ export class RedisParticipantStateRepo implements IParticipantRepo {
   private readonly _redisConnClusterPort: number
   private readonly _logger: ILogger
   private _initialized: boolean = false
-  private readonly keyPrefix: string = 'participant_'
+  private readonly _key: string = 'participantOperatorState'
 
   constructor (connStr: string, clusteredRedis: boolean, logger: ILogger) {
     this._redisConnStr = connStr
@@ -100,113 +98,53 @@ export class RedisParticipantStateRepo implements IParticipantRepo {
     return this._initialized // for now, no circuit breaker exists
   }
 
-  async load (id: string): Promise<ParticipantState|null> {
+  async load (): Promise<ParticipantSnapshotOperatorState|null> {
     return await new Promise((resolve, reject) => {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
 
-      const key: string = this.keyWithPrefix(id)
-
-      this._redisClient.get(key, (err: Error | null, result: string | null) => {
+      this._redisClient.get(this._key, (err: Error | null, result: string | null) => {
         if (err != null) {
-          this._logger.isErrorEnabled() && this._logger.error(err, 'Error fetching entity state from redis - for key: ' + key)
+          this._logger.isErrorEnabled() && this._logger.error(err, 'Error fetching ParticipantSnapshotOperatorState from redis - key: ' + this._key)
           return reject(err)
         }
         if (result == null) {
-          this._logger.isDebugEnabled() && this._logger.debug('Entity state not found in redis - for key: ' + key)
+          this._logger.isDebugEnabled() && this._logger.debug('ParticipantSnapshotOperatorState not found in redis - key: ' + this._key)
           return resolve(null)
         }
         try {
-          const state: ParticipantState = JSON.parse(result)
+          const state: ParticipantSnapshotOperatorState = JSON.parse(result)
           return resolve(state)
         } catch (err) {
-          this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state from redis - for key: ' + key)
+          this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing ParticipantSnapshotOperatorState from redis - key: ' + this._key)
           return reject(err)
         }
       })
     })
   }
 
-  async remove (id: string): Promise<void> {
+  async store (state: ParticipantSnapshotOperatorState): Promise<void> {
     return await new Promise((resolve, reject) => {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
 
-      const key: string = this.keyWithPrefix(id)
-
-      this._redisClient.del(key, (err?: Error|null, result?: number) => {
-        if (err != null) {
-          this._logger.isErrorEnabled() && this._logger.error(err, 'Error removing entity state from redis - for key: ' + key)
-          return reject(err)
-        }
-        if (result !== 1) {
-          this._logger.isDebugEnabled() && this._logger.debug('Entity state not found in redis - for key: ' + key)
-          return resolve()
-        }
-
-        return resolve()
-      })
-    })
-  }
-
-  async store (entityState: ParticipantState): Promise<void> {
-    return await new Promise((resolve, reject) => {
-      if (!this.canCall()) return reject(new Error('Repository not ready'))
-
-      const key: string = this.keyWithPrefix(entityState.id)
       let stringValue: string
       try {
-        stringValue = JSON.stringify(entityState)
+        stringValue = JSON.stringify(state)
       } catch (err) {
-        this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
+        this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing ParticipantSnapshotOperatorState JSON - key: ' + this._key)
         return reject(err)
       }
 
-      this._redisClient.set(key, stringValue, (err: Error | null, reply: string) => {
+      this._redisClient.set(this._key, stringValue, (err: Error | null, reply: string) => {
         if (err != null) {
-          this._logger.isErrorEnabled() && this._logger.error(err, 'Error storing entity state to redis - for key: ' + key)
+          this._logger.isErrorEnabled() && this._logger.error(err, 'Error storing ParticipantSnapshotOperatorState to redis - key: ' + this._key)
           return reject(err)
         }
         if (reply !== 'OK') {
-          this._logger.isErrorEnabled() && this._logger.error('Unsuccessful attempt to store the entity state in redis - for key: ' + key)
+          this._logger.isErrorEnabled() && this._logger.error('Unsuccessful attempt to store the ParticipantSnapshotOperatorState in redis - key: ' + this._key)
           return reject(err)
         }
         return resolve()
       })
     })
-  }
-
-  async getAllIds (): Promise<string[]> {
-    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-    return await new Promise(async (resolve, reject) => {
-      this._logger.isDebugEnabled() && this._logger.debug('RedisParticipantStateRepo::getAll() - start')
-
-      if (!this.canCall()) return reject(new Error('Repository not ready'))
-      this._redisClient.keys(this.keyPrefix + '*', (err: Error | null, result: string[]) => {
-        if (err != null) {
-          this._logger.isErrorEnabled() && this._logger.error(err, `Error retrieving all keys with prefix: ${this.keyPrefix}`)
-          return reject(err)
-        }
-        this._logger.isDebugEnabled() && this._logger.debug(`RedisParticipantStateRepo::getAll() - got back, ${result.length} results'`)
-        const results: string[] = []
-        result.forEach((val: string) => {
-          results.push(val.replace(this.keyPrefix, ''))
-        })
-
-        return resolve(result)
-      })
-    })
-  }
-
-  private keyWithPrefix (key: string): string {
-    return this.keyPrefix + key
-  }
-
-  async hasAccount (participantId: string, accType: ParticipantAccountTypes, currency: string): Promise<boolean> {
-    const participant = await this.load(participantId)
-    return participant?.accounts?.find(account => account.type === accType && account.currency === currency) != null
-  }
-
-  async getEndPoints (participantId: string): Promise<ParticipantEndpoint[]|undefined> {
-    const participant = await this.load(participantId)
-    return participant?.endpoints
   }
 }

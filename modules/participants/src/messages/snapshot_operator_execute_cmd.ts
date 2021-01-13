@@ -21,7 +21,7 @@
 
  * Gates Foundation
  - Name Surname <name.surname@gatesfoundation.com>
-
+k
  * Coil
  - Donovan Changfoot <donovan.changfoot@coil.com>
 
@@ -37,16 +37,21 @@
 
 'use strict'
 
-import { IEntityStateRepository } from '@mojaloop-poc/lib-domain'
-import { ParticipantAccountTypes } from '@mojaloop-poc/lib-public-messages'
-import { ParticipantState } from './participant_entity'
+import { CommandMsg } from '@mojaloop-poc/lib-domain'
+import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
 
-export type IParticipantRepo = {
-  hasAccount: (participantId: string, accType: ParticipantAccountTypes, currency: string) => Promise<boolean>
-  getAllIds: () => Promise<string[]>
-} & IEntityStateRepository<ParticipantState>
+export class SnapshotOperatorExecuteCmd extends CommandMsg {
+  aggregateId: string
+  aggregateName: string = 'ParticipantsOperator'
+  msgKey: string
+  msgTopic: string = ParticipantsTopics.SnapshotOperatorCommands
 
-export interface IDupParticipantRepo{
-  add: (participantId: string) => Promise<void>
-  exists: (participantId: string) => Promise<boolean>
+  payload: null
+
+  constructor () {
+    super()
+    this.aggregateId = this.msgKey = 'FixedSnapshotOperatorExecuteCmdKey'
+  }
+
+  validatePayload (): void { }
 }

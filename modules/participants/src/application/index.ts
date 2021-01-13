@@ -53,6 +53,7 @@ import { Command } from 'commander'
 import { resolve as Resolve } from 'path'
 import { RepoInfraTypes } from '../infrastructure'
 import { ParticipantStateEvtHandler } from './participantStateEvtHandler'
+import { ParticipantSnapshotOperator } from './participantSnapshotOperator'
 
 /* eslint-disable-next-line @typescript-eslint/no-var-requires */
 const pckg = require('../../package.json')
@@ -69,6 +70,7 @@ Program.command('handler')
   .option('--participantsEvt', 'Start the Participant Evt Handler') // TODO: change this to the proper name
   .option('--participantsCmd', 'Start the Participant Cmd Handler')
   .option('--participantsStateEvt', 'Start the Participant Read Side State Handler')
+  .option('--participantsSnapshotOperator', 'Start the Participant Snashot Operator Side State Handler')
 
   // function to execute when command is uses
   .action(async (args: any): Promise<void> => {
@@ -138,7 +140,7 @@ Program.command('handler')
 
     // list of all handlers
     const runHandlerList: IRunHandler[] = []
-    const runAllHAndlers = args.participantsEvt === undefined && args.participantsCmd === undefined && args.participantsStateEvt === undefined
+    const runAllHAndlers = args.participantsEvt === undefined && args.participantsCmd === undefined && args.participantsStateEvt === undefined && args.participantsSnapshotOperator === undefined
 
     // start participantsEvtHandler
     if (runAllHAndlers || args.participantsEvt != null) {
@@ -159,6 +161,13 @@ Program.command('handler')
       const participantStateEvtHandler = new ParticipantStateEvtHandler()
       await participantStateEvtHandler.start(appConfig, logger, metrics)
       runHandlerList.push(participantStateEvtHandler)
+    }
+
+    // start participantStateEvtHandler
+    if (runAllHAndlers || args.participantsSnapshotOperator != null) {
+      const participantSnapshotOperator = new ParticipantSnapshotOperator()
+      await participantSnapshotOperator.start(appConfig, logger, metrics)
+      runHandlerList.push(participantSnapshotOperator)
     }
 
     // start only API

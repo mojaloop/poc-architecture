@@ -71,6 +71,7 @@ import { CachedPersistedRedisParticipantStateRepo } from '../infrastructure/cach
 import { RepoInfraTypes } from '../infrastructure'
 import { RedisParticipantStateRepo } from '../infrastructure/redis_participant_repo'
 import { InMemoryParticipantStateRepo } from '../infrastructure/inmemory_participant_repo'
+import { SnapshotParticipantStateCmd } from '../messages/snapshot_participant_state_cmd'
 
 export class ParticipantCmdHandler implements IRunHandler {
   private _logger: ILogger
@@ -223,6 +224,10 @@ export class ParticipantCmdHandler implements IRunHandler {
         }
         case CommitPayeeFundsCmd.name: {
           participantCmd = CommitPayeeFundsCmd.fromIDomainMessage(message)
+          break
+        }
+        case SnapshotParticipantStateCmd.name: {
+          participantCmd = SnapshotParticipantStateCmd.fromIDomainMessage(message)
           break
         }
         default: {

@@ -33,20 +33,24 @@
  - Roman Pietrzak <roman.pietrzak@modusbox.com>
 
  --------------
-******/
+ ******/
 
 'use strict'
 
-import { IEntityStateRepository } from '@mojaloop-poc/lib-domain'
-import { ParticipantAccountTypes } from '@mojaloop-poc/lib-public-messages'
-import { ParticipantState } from './participant_entity'
+export class ParticipantSnapshotState {
+  participantId: string
+  // when this number reaches zero a new snapshot should be created, this avoids loosing count on restarts,
+  // as it always sends a snapshot command on restart
+  stateEventsToNextSnapshot: number = 0
+  // timestamp of last snapshot
+  lastSnapshotTs: number = 0
+  constructor (id: string, stateEventsToNextSnapshot: number) {
+    this.participantId = id
+    this.stateEventsToNextSnapshot = stateEventsToNextSnapshot
+  }
+}
 
-export type IParticipantRepo = {
-  hasAccount: (participantId: string, accType: ParticipantAccountTypes, currency: string) => Promise<boolean>
-  getAllIds: () => Promise<string[]>
-} & IEntityStateRepository<ParticipantState>
-
-export interface IDupParticipantRepo{
-  add: (participantId: string) => Promise<void>
-  exists: (participantId: string) => Promise<boolean>
+export class ParticipantSnapshotOperatorState {
+  lastOnTimerTs: number = 0
+  participantSnapshotStates: ParticipantSnapshotState[] = []
 }
