@@ -5,7 +5,7 @@
 'use strict'
 
 import { IDomainMessage, ILogger } from '@mojaloop-poc/lib-domain'
-import { KafkaGenericConsumer, KafkaGenericConsumerOptions, KafkaInfraTypes, MessageConsumer, RDKafkaConsumer, RDKafkaConsumerOptions, KafkaStreamConsumer, EnumOffset, KafkaJsConsumerOptions, KafkaJsConsumer, RdKafkaCommitMode, ApiServer, TApiServerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { KafkaInfraTypes, MessageConsumer, RDKafkaConsumer, RDKafkaConsumerOptions, EnumOffset, RdKafkaCommitMode, ApiServer, TApiServerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { MojaLogger, Crypto, getEnvIntegerOrDefault, TMetricOptionsType, Metrics } from '@mojaloop-poc/lib-utilities'
 // import { ConsoleLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
 
@@ -74,55 +74,6 @@ const CreateConsumer = async (topic: string): Promise<MessageConsumer | undefine
     groupId = 'perf_measure_consumer' + Date.now().toString()
   }
   switch (appConfig.kafka.consumer) {
-    case (KafkaInfraTypes.NODE_KAFKA): {
-      const simulatorEvtConsumerOptions: KafkaGenericConsumerOptions = {
-        client: {
-          kafkaHost: appConfig.kafka.host,
-          id: clientId,
-          groupId,
-          fromOffset: EnumOffset.LATEST,
-          autoCommit: appConfig.kafka.autocommit
-        },
-        topics: [topic]
-      }
-      consumer = new KafkaGenericConsumer(simulatorEvtConsumerOptions, logger)
-      break
-    }
-    case (KafkaInfraTypes.NODE_KAFKA_STREAM): {
-      const simulatorEvtConsumerOptions: KafkaGenericConsumerOptions = {
-        client: {
-          kafkaHost: appConfig.kafka.host,
-          id: clientId,
-          groupId,
-          fromOffset: EnumOffset.LATEST,
-          autoCommit: appConfig.kafka.autocommit
-        },
-        topics: [topic]
-      }
-      consumer = new KafkaStreamConsumer(simulatorEvtConsumerOptions, logger)
-      break
-    }
-    case (KafkaInfraTypes.KAFKAJS): {
-      const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
-        client: {
-          client: { // https://kafka.js.org/docs/configuration#options
-            brokers: [appConfig.kafka.host],
-            clientId
-          },
-          consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
-            groupId
-          },
-          consumerRunConfig: {
-            autoCommit: appConfig.kafka.autocommit,
-            autoCommitInterval: appConfig.kafka.autoCommitInterval,
-            autoCommitThreshold: appConfig.kafka.autoCommitThreshold
-          }
-        },
-        topics: [topic]
-      }
-      consumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
-      break
-    }
     case (KafkaInfraTypes.NODE_RDKAFKA): {
       const rdKafkaConsumerOptions: RDKafkaConsumerOptions = {
         client: {

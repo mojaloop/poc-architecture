@@ -38,9 +38,6 @@
 'use strict'
 
 export enum RepoInfraTypes {
-  REDIS = 'redis',
-  MEMORY = 'memory',
   NODECACHE = 'nodecache',
-  CACHEDREDIS = 'cachedredis',
   CACHEDPERSISTEDREDIS = 'cachedpersistedredis'
 }

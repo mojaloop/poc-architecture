@@ -50,15 +50,23 @@ export enum RedisDuplicateInfraTypes {
   MEMORY = 'memory'
 }
 
+export enum EnumOffset {
+  LATEST= 'latest',
+  EARLIEST= 'earliest',
+  NONE = 'none'
+}
+
+export enum EnumEncoding {
+  UTF8 = 'utf8',
+  BUFFER = 'buffer'
+}
+
+export enum EnumProtocols {
+  ROUNDROBIN='roundrobin',
+  RAGE='range'
+}
+
 // Exports for Infrastructure
-export * from './kafka_generic_consumer'
-export * from './kafka_stream_consumer'
-export * from './kafkajs_consumer'
-export * from './kafka_generic_producer'
-export * from './kafka_message_publisher'
-export * from './kafkajs_consumer'
-export * from './kafkajs_producer'
-export * from './kafkajs_message_publisher'
 export * from './rdkafka_consumer'
 export * from './rdkafka_producer'
 export * from './rdkafka_message_publisher'

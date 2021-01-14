@@ -39,7 +39,7 @@
 
 import { getEnvIntegerOrDefault, getEnvValueOrDefault, getEnvBoolOrDefault, MojaLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
 import { ILogger } from '@mojaloop-poc/lib-domain'
-import { TApiServerOptions, ApiServer, IRunHandler, KafkaInfraTypes, RdKafkaCommitMode } from '@mojaloop-poc/lib-infrastructure'
+import { TApiServerOptions, ApiServer, IRunHandler, KafkaInfraTypes, RdKafkaCommitMode, RedisDuplicateInfraTypes } from '@mojaloop-poc/lib-infrastructure'
 import { TransferCmdHandler } from './transferCmdHandler'
 import { TransferEvtHandler } from './transferEvtHandler'
 import { TransferStateEvtHandler } from './transferStateEvtHandler'
@@ -103,13 +103,13 @@ Program.command('handler')
       //   expirationInSeconds: getEnvIntegerOrDefault('REDIS_EXPIRATION_IN_SEC', -1) as number
       // },
       entity_state: {
-        type: (process.env.TRANSFERS_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.TRANSFERS_REPO_TYPE,
+        type: (process.env.TRANSFERS_REPO_TYPE == null) ? RepoInfraTypes.NODECACHE : process.env.TRANSFERS_REPO_TYPE,
         host: getEnvValueOrDefault('REDIS_HOST', 'redis://localhost:6379') as string,
         expirationInSeconds: getEnvIntegerOrDefault('REDIS_EXPIRATION_IN_SEC', -1) as number,
         clustered: getEnvBoolOrDefault('TRANSFERS_REPO_CLUSTERED')
       },
       duplicate_store: {
-        type: (process.env.DUPLICATE_REPO_TYPE == null) ? RepoInfraTypes.REDIS : process.env.DUPLICATE_REPO_TYPE,
+        type: (process.env.DUPLICATE_REPO_TYPE == null) ? RedisDuplicateInfraTypes.REDIS : process.env.DUPLICATE_REPO_TYPE,
         host: getEnvValueOrDefault('REDIS_DUPL_HOST', 'redis://localhost:6379') as string,
         clustered: getEnvBoolOrDefault('DUPLICATE_REPO_CLUSTERED')
       },

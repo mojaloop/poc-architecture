@@ -206,6 +206,12 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
     })
   }
 
+  async storeMany (entityStates: TransferState[]): Promise<void> {
+    return await new Promise((resolve, reject) => {
+      resolve()
+    })
+  }
+
   private keyWithPrefix (key: string): string {
     return this.keyPrefix + key
   }

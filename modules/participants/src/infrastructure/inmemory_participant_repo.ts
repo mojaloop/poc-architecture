@@ -80,6 +80,12 @@ export class InMemoryParticipantStateRepo implements IParticipantRepo {
     })
   }
 
+  async storeMany (entityStates: ParticipantState[]): Promise<void> {
+    return await new Promise((resolve, reject) => {
+      resolve()
+    })
+  }
+
   async getAllIds (): Promise<string[]> {
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
     return await new Promise(async (resolve, reject) => {

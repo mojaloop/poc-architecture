@@ -43,14 +43,7 @@ import {
   EnumOffset,
   IRunHandler,
   KafkaInfraTypes,
-  KafkaMessagePublisher,
   MessageConsumer,
-  // node-kafka imports
-  KafkaGenericConsumer, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, KafkaNodeCompressionTypes,
-  // node-kafka-stream imports
-  KafkaStreamConsumer,
-  // kafkajs imports
-  KafkaJsCompressionTypes, KafkaJsConsumer, KafkaJsConsumerOptions, KafkajsMessagePublisher, KafkaJsProducerOptions,
   // rdkafka imports
   RDKafkaCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher, RDKafkaConsumerOptions, RDKafkaConsumer
 } from '@mojaloop-poc/lib-infrastructure'
@@ -73,43 +66,6 @@ export class TransferEvtHandler implements IRunHandler {
     logger.isInfoEnabled() && logger.info(`Creating ${appConfig.kafka.producer} transferEvtHandler.kafkaMsgPublisher...`)
     let clientId = `transferEvtHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
-      case (KafkaInfraTypes.NODE_KAFKA_STREAM):
-      case (KafkaInfraTypes.NODE_KAFKA): {
-        const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
-          client: {
-            kafka: {
-              kafkaHost: appConfig.kafka.host,
-              clientId
-            },
-            compression: appConfig.kafka.gzipCompression === true ? KafkaNodeCompressionTypes.GZIP : KafkaNodeCompressionTypes.None
-          }
-        }
-        kafkaMsgPublisher = new KafkaMessagePublisher(
-          kafkaGenericProducerOptions,
-          logger
-        )
-        break
-      }
-      case (KafkaInfraTypes.KAFKAJS): {
-        const kafkaJsProducerOptions: KafkaJsProducerOptions = {
-          client: {
-            client: { // https://kafka.js.org/docs/configuration#options
-              brokers: [appConfig.kafka.host],
-              clientId
-            },
-            producer: { // https://kafka.js.org/docs/producing#options
-              allowAutoTopicCreation: true,
-              transactionTimeout: 60000
-            },
-            compression: appConfig.kafka.gzipCompression as boolean ? KafkaJsCompressionTypes.GZIP : KafkaJsCompressionTypes.None
-          }
-        }
-        kafkaMsgPublisher = new KafkajsMessagePublisher(
-          kafkaJsProducerOptions,
-          logger
-        )
-        break
-      }
       case (KafkaInfraTypes.NODE_RDKAFKA): {
         const rdKafkaProducerOptions: RDKafkaProducerOptions = {
           client: {
@@ -219,55 +175,6 @@ export class TransferEvtHandler implements IRunHandler {
     logger.isInfoEnabled() && logger.info(`TransferEvtConsumer - Creating ${appConfig.kafka.consumer as string} transferEvtConsumer...`)
     clientId = `transferEvtConsumer-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.consumer) {
-      case (KafkaInfraTypes.NODE_KAFKA): {
-        const transferEvtConsumerOptions: KafkaGenericConsumerOptions = {
-          client: {
-            kafkaHost: appConfig.kafka.host,
-            id: clientId,
-            groupId: 'transferEvtGroup',
-            fromOffset: EnumOffset.LATEST,
-            autoCommit: appConfig.kafka.autocommit
-          },
-          topics: [MLTopics.Events, ParticipantsTopics.DomainEvents]
-        }
-        transferEvtConsumer = new KafkaGenericConsumer(transferEvtConsumerOptions, logger)
-        break
-      }
-      case (KafkaInfraTypes.NODE_KAFKA_STREAM): {
-        const transferEvtConsumerOptions: KafkaGenericConsumerOptions = {
-          client: {
-            kafkaHost: appConfig.kafka.host,
-            id: clientId,
-            groupId: 'transferEvtGroup',
-            fromOffset: EnumOffset.LATEST,
-            autoCommit: appConfig.kafka.autocommit
-          },
-          topics: [MLTopics.Events, ParticipantsTopics.DomainEvents]
-        }
-        transferEvtConsumer = new KafkaStreamConsumer(transferEvtConsumerOptions, logger)
-        break
-      }
-      case (KafkaInfraTypes.KAFKAJS): {
-        const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
-          client: {
-            client: { // https://kafka.js.org/docs/configuration#options
-              brokers: [appConfig.kafka.host],
-              clientId
-            },
-            consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
-              groupId: 'transferEvtGroup'
-            },
-            consumerRunConfig: {
-              autoCommit: appConfig.kafka.autocommit,
-              autoCommitInterval: appConfig.kafka.autoCommitInterval,
-              autoCommitThreshold: appConfig.kafka.autoCommitThreshold
-            }
-          },
-          topics: [MLTopics.Events, ParticipantsTopics.DomainEvents]
-        }
-        transferEvtConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
-        break
-      }
       case (KafkaInfraTypes.NODE_RDKAFKA): {
         const rdKafkaConsumerOptions: RDKafkaConsumerOptions = {
           client: {

@@ -44,13 +44,9 @@ import { TransferPrepareAcceptedEvt, TransferFulfilAcceptedEvt, TransfersTopics 
 import {
   IRunHandler,
   KafkaInfraTypes,
-  KafkaMessagePublisher,
-  // node-kafka imports
-  KafkaGenericProducerOptions, KafkaNodeCompressionTypes,
-  // kafkajs imports
-  KafkaJsCompressionTypes, KafkajsMessagePublisher, KafkaJsProducerOptions,
-  // rdkafka importsz
+  // rdkafka imports
   RDKafkaCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher, RDKafkaConsumerOptions,
+  // rdkafka batch imports
   RDKafkaConsumerBatched
 } from '@mojaloop-poc/lib-infrastructure'
 import { ReservePayerFundsCmd, ReservePayerFundsCmdPayload } from '../messages/reserve_payer_funds_cmd'
@@ -83,43 +79,6 @@ export class ParticipantEvtHandler implements IRunHandler {
     logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Creating ${appConfig.kafka.producer as string} participantEvtHandler.kafkaMsgPublisher...`)
     let clientId = `participantEvtHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
-      case (KafkaInfraTypes.NODE_KAFKA_STREAM):
-      case (KafkaInfraTypes.NODE_KAFKA): {
-        const kafkaGenericProducerOptions: KafkaGenericProducerOptions = {
-          client: {
-            kafka: {
-              kafkaHost: appConfig.kafka.host,
-              clientId
-            },
-            compression: appConfig.kafka.gzipCompression === true ? KafkaNodeCompressionTypes.GZIP : KafkaNodeCompressionTypes.None
-          }
-        }
-        kafkaMsgPublisher = new KafkaMessagePublisher(
-          kafkaGenericProducerOptions,
-          logger
-        )
-        break
-      }
-      case (KafkaInfraTypes.KAFKAJS): {
-        const kafkaJsProducerOptions: KafkaJsProducerOptions = {
-          client: {
-            client: { // https://kafka.js.org/docs/configuration#options
-              brokers: [appConfig.kafka.host],
-              clientId
-            },
-            producer: { // https://kafka.js.org/docs/producing#options
-              allowAutoTopicCreation: true,
-              transactionTimeout: 60000
-            },
-            compression: appConfig.kafka.gzipCompression as boolean ? KafkaJsCompressionTypes.GZIP : KafkaJsCompressionTypes.None
-          }
-        }
-        kafkaMsgPublisher = new KafkajsMessagePublisher(
-          kafkaJsProducerOptions,
-          logger
-        )
-        break
-      }
       case (KafkaInfraTypes.NODE_RDKAFKA): {
         const rdKafkaProducerOptions: RDKafkaProducerOptions = {
           client: {

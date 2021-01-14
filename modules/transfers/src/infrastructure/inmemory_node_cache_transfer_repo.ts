@@ -96,4 +96,10 @@ export class InMemoryNodeCacheTransferStateRepo implements IEntityStateRepositor
       resolve()
     })
   }
+
+  async storeMany (entityStates: TransferState[]): Promise<void> {
+    return await new Promise((resolve, reject) => {
+      resolve()
+    })
+  }
 }

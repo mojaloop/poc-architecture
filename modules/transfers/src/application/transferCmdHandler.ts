@@ -63,14 +63,11 @@ import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 import { TransfersAgg } from '../domain/transfers_agg'
 import { PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
 import { AckPayerFundsReservedCmd } from '../messages/ack_payer_funds_reserved_cmd'
-import { RedisTransferStateRepo } from '../infrastructure/redis_transfer_repo'
 import { ITransfersRepo } from '../domain/transfers_repo'
 import { FulfilTransferCmd } from '../messages/fulfil_transfer_cmd'
 import { AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed_cmd'
-import { InMemoryTransferStateRepo } from '../infrastructure/inmemory_transfer_repo'
 import { RepoInfraTypes } from '../infrastructure'
 import { CachedPersistedRedisTransferStateRepo } from '../infrastructure/cachedpersistedredis_transfer_repo'
-import { CachedRedisTransferStateRepo } from '../infrastructure/cachedredis_transfer_repo'
 import { InMemoryNodeCacheTransferStateRepo } from '../infrastructure/inmemory_node_cache_transfer_repo'
 
 export class TransferCmdHandler implements IRunHandler {
@@ -91,14 +88,6 @@ export class TransferCmdHandler implements IRunHandler {
     logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Creating Statecache-repo of type ${appConfig.entity_state.type as string}`)
     // switch (appConfig.state_cache.type) {
     switch (appConfig.entity_state.type) {
-      case RepoInfraTypes.REDIS: {
-        this._entityStateRepo = new RedisTransferStateRepo(appConfig.entity_state.host, appConfig.entity_state.clustered, logger, appConfig.entity_state.expirationInSeconds)
-        break
-      }
-      case RepoInfraTypes.CACHEDREDIS: {
-        this._entityStateRepo = new CachedRedisTransferStateRepo(appConfig.entity_state.host, appConfig.entity_state.clustered, logger, appConfig.entity_state.expirationInSeconds)
-        break
-      }
       case RepoInfraTypes.CACHEDPERSISTEDREDIS: {
         this._entityStateRepo = new CachedPersistedRedisTransferStateRepo(appConfig.entity_state.host, appConfig.entity_state.clustered, logger, appConfig.entity_state.expirationInSeconds)
         break
@@ -108,7 +97,7 @@ export class TransferCmdHandler implements IRunHandler {
         break
       }
       default: { // defaulting to In-Memory
-        this._entityStateRepo = new InMemoryTransferStateRepo()
+        this._entityStateRepo = new InMemoryNodeCacheTransferStateRepo(logger, appConfig.entity_state.expirationInSeconds)
       }
     }
     logger.isInfoEnabled() && logger.info(`TransferCmdHandler - Created Statecache-repo of type ${this._entityStateRepo.constructor.name}`)
