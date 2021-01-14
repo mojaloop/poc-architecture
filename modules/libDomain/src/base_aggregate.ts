@@ -69,6 +69,10 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
     this._msgPublisher = msgPublisher
   }
 
+  async store (entityState: S, commandMsg: CommandMsg): Promise<void> {
+    await this._entity_state_repo.store(entityState)
+  }
+
   async processCommand (commandMsg: CommandMsg): Promise<boolean> {
     const handler = this._commandHandlers.get(commandMsg.msgName)
     if (handler == null) {
@@ -90,7 +94,7 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
       }
 
       if (this._rootEntity != null) {
-        await this._entity_state_repo.store(this._rootEntity.exportState())
+        await this.store(this._rootEntity.exportState(), commandMsg)
       } else {
         throw new Error(`Aggregate doesn't have a valid state to process command with name ${commandMsg.msgName}`)
       }
