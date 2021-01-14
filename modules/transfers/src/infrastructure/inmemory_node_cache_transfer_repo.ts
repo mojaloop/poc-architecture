@@ -99,6 +99,12 @@ export class InMemoryNodeCacheTransferStateRepo implements IEntityStateRepositor
 
   async storeMany (entityStates: TransferState[]): Promise<void> {
     return await new Promise((resolve, reject) => {
+      entityStates.forEach( (entityState: TransferState) => {
+        const result = this._nodeCache.set(entityState.id, entityState, this._expirationInSeconds)
+        if (result !== true) {
+          reject(new Error('Unsuccessful attempt to store the entity state in redis - for key: ' + entityState.id))
+        }
+      })
       resolve()
     })
   }
