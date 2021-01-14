@@ -209,9 +209,7 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
   async storeMany (entityStates: TransferState[]): Promise<void> {
     return await new Promise((resolve, reject) => {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
-
-      // Array to store redisClient.mset arguments.
-      const redisArgs: string[] = []
+      
       // Array to store all keys being processed, mainly for handling errors on the mset operation.
       const keys: string[] = []
  
