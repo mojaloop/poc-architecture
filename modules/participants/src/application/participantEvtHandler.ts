@@ -40,20 +40,18 @@
 // import {InMemoryParticipantStateRepo} from "../infrastructure/inmemory_participant_repo";
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { TransferPrepareAcceptedEvt, TransferFulfilAcceptedEvt, TransfersTopics } from '@mojaloop-poc/lib-public-messages'
+
 import {
-  EnumOffset,
   IRunHandler,
   KafkaInfraTypes,
   KafkaMessagePublisher,
-  MessageConsumer,
   // node-kafka imports
-  KafkaGenericConsumer, KafkaGenericConsumerOptions, KafkaGenericProducerOptions, KafkaNodeCompressionTypes,
-  // node-kafka-stream imports
-  KafkaStreamConsumerOptions, KafkaStreamConsumer,
+  KafkaGenericProducerOptions, KafkaNodeCompressionTypes,
   // kafkajs imports
-  KafkaJsCompressionTypes, KafkaJsConsumer, KafkaJsConsumerOptions, KafkajsMessagePublisher, KafkaJsProducerOptions,
-  // rdkafka imports
-  RDKafkaCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher, RDKafkaConsumerOptions, RDKafkaConsumer
+  KafkaJsCompressionTypes, KafkajsMessagePublisher, KafkaJsProducerOptions,
+  // rdkafka importsz
+  RDKafkaCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher, RDKafkaConsumerOptions,
+  RDKafkaConsumerBatched
 } from '@mojaloop-poc/lib-infrastructure'
 import { ReservePayerFundsCmd, ReservePayerFundsCmdPayload } from '../messages/reserve_payer_funds_cmd'
 import { CommitPayeeFundsCmd, CommitPayeeFundsCmdPayload } from '../messages/commit_payee_funds_cmd'
@@ -63,7 +61,7 @@ import { IParticipantRepo } from '../domain/participant_repo'
 import { CachedRedisParticipantStateRepo } from '../infrastructure/cachedredis_participant_repo'
 
 export class ParticipantEvtHandler implements IRunHandler {
-  private _consumer: MessageConsumer
+  private _consumer: RDKafkaConsumerBatched
   private _publisher: IMessagePublisher
   private _repo: IParticipantRepo
   private readonly _partipantsPartitions: Array<{ id: string, partition: number }> = []
@@ -154,157 +152,112 @@ export class ParticipantEvtHandler implements IRunHandler {
     this._publisher = kafkaMsgPublisher
     await kafkaMsgPublisher.init()
 
-    const histoParticipantEvtHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
-      'participantEvtHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
-      'Instrumentation for participantEvtHandler', // Description of metric
-      ['success', 'error', 'evtname'] // Define a custom label 'success'
-    )
+    // TODO re-enable the histograms/metrics
+    // const histoParticipantEvtHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+    //   'participantEvtHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+    //   'Instrumentation for participantEvtHandler', // Description of metric
+    //   ['success', 'error', 'evtname'] // Define a custom label 'success'
+    // )
 
-    const participantEvtHandler = async (message: IDomainMessage): Promise<void> => {
-      const histTimer = histoParticipantEvtHandlerMetric.startTimer()
-      const evtname = message.msgName ?? 'unknown'
-      try {
-        logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
-        let participantEvt: DomainEventMsg | undefined
-        let participantCmd: CommandMsg | undefined
-        // # Transform messages into correct Command
-        switch (message.msgName) {
-          case TransferPrepareAcceptedEvt.name: {
-            participantEvt = TransferPrepareAcceptedEvt.fromIDomainMessage(message)
-            if (participantEvt == null) throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - ${TransferPrepareAcceptedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
-            const reservePayerFundsCmdPayload: ReservePayerFundsCmdPayload = participantEvt.payload
-            participantCmd = new ReservePayerFundsCmd(reservePayerFundsCmdPayload)
-            participantCmd.passTraceInfo(participantEvt)
-            // lets find and set the appropriate partition for the participant
-            const participant = await this._repo.load(participantCmd.msgKey)
-            if (participant == null) {
-              throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - Participant '${participantCmd.msgKey}' is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+    const participantEvtHandler = async (messages: IDomainMessage[]): Promise<void> => {
+      logger.isDebugEnabled() && logger.debug(`ParticipantEvtHandler - processing ${messages?.length} message(s)`)
+
+      // FIXME see todo above
+      // const histTimer = histoParticipantEvtHandlerMetric.startTimer()
+
+      const commands: IDomainMessage[] = []
+
+      for (const message of messages) {
+        // const evtname = message.msgName ?? 'unknown' // FIXME see todo above
+        try {
+          logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+          let participantEvt: DomainEventMsg | undefined
+          let participantCmd: CommandMsg | undefined
+          // # Transform messages into correct Command
+          switch (message.msgName) {
+            case TransferPrepareAcceptedEvt.name: {
+              participantEvt = TransferPrepareAcceptedEvt.fromIDomainMessage(message)
+              if (participantEvt == null) throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - ${TransferPrepareAcceptedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+              const reservePayerFundsCmdPayload: ReservePayerFundsCmdPayload = participantEvt.payload
+              participantCmd = new ReservePayerFundsCmd(reservePayerFundsCmdPayload)
+              participantCmd.passTraceInfo(participantEvt)
+              // lets find and set the appropriate partition for the participant
+              const participant = await this._repo.load(participantCmd.msgKey)
+              if (participant == null) {
+                throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - Participant '${participantCmd.msgKey}' is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+              }
+              participantCmd.msgPartition = participant.partition
+              break
             }
-            participantCmd.msgPartition = participant.partition
-            break
-          }
-          case TransferFulfilAcceptedEvt.name: {
-            participantEvt = TransferPrepareAcceptedEvt.fromIDomainMessage(message)
-            if (participantEvt == null) throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - ${TransferFulfilAcceptedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
-            const commitPayeeFundsCmdPayload: CommitPayeeFundsCmdPayload = participantEvt.payload
-            participantCmd = new CommitPayeeFundsCmd(commitPayeeFundsCmdPayload)
-            participantCmd.passTraceInfo(participantEvt)
-            // lets find and set the appropriate partition for the participant
-            const participant = await this._repo.load(participantCmd.msgKey)
-            if (participant == null) {
-              throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - Participant '${participantCmd.msgKey}' is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+            case TransferFulfilAcceptedEvt.name: {
+              participantEvt = TransferPrepareAcceptedEvt.fromIDomainMessage(message)
+              if (participantEvt == null) throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - ${TransferFulfilAcceptedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+              const commitPayeeFundsCmdPayload: CommitPayeeFundsCmdPayload = participantEvt.payload
+              participantCmd = new CommitPayeeFundsCmd(commitPayeeFundsCmdPayload)
+              participantCmd.passTraceInfo(participantEvt)
+              // lets find and set the appropriate partition for the participant
+              const participant = await this._repo.load(participantCmd.msgKey)
+              if (participant == null) {
+                throw new InvalidParticipantEvtError(`ParticipantEvtHandler is unable to process event - Participant '${participantCmd.msgKey}' is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+              }
+              participantCmd.msgPartition = participant.partition
+              break
             }
-            participantCmd.msgPartition = participant.partition
-            break
+            default: {
+              logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+              // histTimer({ success: 'true', evtname }) // FIXME see todo above
+              return
+            }
           }
-          default: {
-            logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
-            histTimer({ success: 'true', evtname })
-            return
+
+          if (participantCmd != null) {
+            logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - queuing Cmd: ${participantCmd?.msgName}:${message?.msgKey}:${participantCmd?.msgId} `)
+            commands.push(participantCmd)
+          } else {
+            logger.isWarnEnabled() && logger.warn(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
           }
-        }
 
-        if (participantCmd != null) {
-          logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${participantCmd?.msgName}:${message?.msgKey}:${participantCmd?.msgId}`)
-          await kafkaMsgPublisher!.publish(participantCmd)
-        } else {
-          logger.isWarnEnabled() && logger.warn(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
+          // histTimer({ success: 'true', evtname }) // FIXME see todo above
+        } catch (err) {
+          const errMsg: string = err?.message?.toString()
+          logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+          logger.isErrorEnabled() && logger.error(err)
+          // histTimer({ success: 'false', evtname }) // FIXME see todo above
         }
+      }
 
-        logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: true`)
-        histTimer({ success: 'true', evtname })
-      } catch (err) {
-        const errMsg: string = err?.message?.toString()
-        logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
-        logger.isErrorEnabled() && logger.error(err)
-        histTimer({ success: 'false', /* error: err.message, */ evtname })
+      if (commands.length > 0) {
+        logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - publishing ${commands.length} cmd(s)`)
+        await kafkaMsgPublisher!.publishMany(commands)
+      } else {
+        logger.isWarnEnabled() && logger.warn('ParticipantEvtHandler - no commands to publish at batch end')
       }
     }
 
-    let participantEvtConsumer: MessageConsumer | undefined
-
-    logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Creating ${appConfig.kafka.consumer as string} participantEvtConsumer...`)
+    logger.isInfoEnabled() && logger.info('ParticipantEvtHandler - Creating $RDKafkaConsumerBatched participantEvtConsumer...')
     clientId = `participantEvtConsumer-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
-    switch (appConfig.kafka.consumer) {
-      case (KafkaInfraTypes.NODE_KAFKA): {
-        const participantEvtConsumerOptions: KafkaGenericConsumerOptions = {
-          client: {
-            kafkaHost: appConfig.kafka.host,
-            id: clientId,
-            groupId: 'participantEvtGroup',
-            fromOffset: EnumOffset.LATEST,
-            autoCommit: appConfig.kafka.autocommit
-          },
-          topics: [TransfersTopics.DomainEvents]
-        }
-        participantEvtConsumer = new KafkaGenericConsumer(participantEvtConsumerOptions, logger)
-        break
-      }
-      case (KafkaInfraTypes.NODE_KAFKA_STREAM): {
-        const participantEvtConsumerOptions: KafkaStreamConsumerOptions = {
-          client: {
-            kafkaHost: appConfig.kafka.host,
-            id: clientId,
-            groupId: 'participantEvtGroup',
-            fromOffset: EnumOffset.LATEST,
-            autoCommit: appConfig.kafka.autocommit
-          },
-          topics: [TransfersTopics.DomainEvents]
-        }
-        participantEvtConsumer = new KafkaStreamConsumer(participantEvtConsumerOptions, logger)
-        break
-      }
-      case (KafkaInfraTypes.KAFKAJS): {
-        const kafkaJsConsumerOptions: KafkaJsConsumerOptions = {
-          client: {
-            client: { // https://kafka.js.org/docs/configuration#options
-              brokers: [appConfig.kafka.host],
-              clientId
-            },
-            consumer: { // https://kafka.js.org/docs/consuming#a-name-options-a-options
-              groupId: 'participantEvtGroup'
-            },
-            consumerRunConfig: {
-              autoCommit: appConfig.kafka.autocommit,
-              autoCommitInterval: appConfig.kafka.autoCommitInterval,
-              autoCommitThreshold: appConfig.kafka.autoCommitThreshold
-            }
-          },
-          topics: [TransfersTopics.DomainEvents]
-        }
-        participantEvtConsumer = new KafkaJsConsumer(kafkaJsConsumerOptions, logger)
-        break
-      }
-      case (KafkaInfraTypes.NODE_RDKAFKA): {
-        const rdKafkaConsumerOptions: RDKafkaConsumerOptions = {
-          client: {
-            consumerConfig: {
-              'metadata.broker.list': appConfig.kafka.host,
-              'group.id': 'participantEvtGroup',
-              'enable.auto.commit': appConfig.kafka.autocommit,
-              'auto.commit.interval.ms': appConfig.kafka.autoCommitInterval,
-              'client.id': clientId,
-              'socket.keepalive.enable': true,
-              'fetch.min.bytes': appConfig.kafka.fetchMinBytes,
-              'fetch.wait.max.ms': appConfig.kafka.fetchWaitMaxMs
-            },
-            topicConfig: {},
-            rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode
-          },
-          topics: [TransfersTopics.DomainEvents]
-        }
-        participantEvtConsumer = new RDKafkaConsumer(rdKafkaConsumerOptions, logger)
-        break
-      }
-      default: {
-        logger.isWarnEnabled() && logger.warn('ParticipantEvtHandler - Unable to find a Kafka consumer implementation!')
-        throw new Error('participantEvtConsumer was not created!')
-      }
+
+    const rdKafkaConsumerOptions: RDKafkaConsumerOptions = {
+      client: {
+        consumerConfig: {
+          'metadata.broker.list': appConfig.kafka.host,
+          'group.id': 'participantEvtGroup',
+          'enable.auto.commit': appConfig.kafka.autocommit,
+          'auto.commit.interval.ms': appConfig.kafka.autoCommitInterval,
+          'client.id': clientId,
+          'socket.keepalive.enable': true,
+          'fetch.min.bytes': appConfig.kafka.fetchMinBytes,
+          'fetch.wait.max.ms': appConfig.kafka.fetchWaitMaxMs
+        },
+        topicConfig: {},
+        rdKafkaCommitWaitMode: appConfig.kafka.rdKafkaCommitWaitMode
+      },
+      topics: [TransfersTopics.DomainEvents]
     }
+    this._consumer = new RDKafkaConsumerBatched(rdKafkaConsumerOptions, logger)
 
-    logger.isInfoEnabled() && logger.info(`ParticipantEvtHandler - Created kafkaConsumer of type ${participantEvtConsumer.constructor.name}`)
+    logger.isInfoEnabled() && logger.info('ParticipantEvtHandler - Created RDKafkaConsumerBatched')
 
-    this._consumer = participantEvtConsumer
     logger.isInfoEnabled() && logger.info('ParticipantEvtHandler - Initializing participantCmdConsumer...')
 
     const subscribedMsgNames = [
@@ -313,7 +266,7 @@ export class ParticipantEvtHandler implements IRunHandler {
     ]
 
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-    await participantEvtConsumer.init(participantEvtHandler, subscribedMsgNames)
+    await this._consumer.init(participantEvtHandler, subscribedMsgNames)
   }
 
   async destroy (): Promise<void> {

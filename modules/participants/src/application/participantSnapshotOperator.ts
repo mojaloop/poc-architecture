@@ -286,6 +286,7 @@ export class ParticipantSnapshotOperator implements IRunHandler {
         }
       }
 
+      // TODO slow this down to every min (max)
       await this._updateState()
 
       // histTimer({ success: 'true', evtname })
