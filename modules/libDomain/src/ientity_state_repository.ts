@@ -47,5 +47,6 @@ export type IEntityStateRepository<S extends BaseEntityState> = {
 
   load: (id: string) => Promise<S | null>
   store: (entityState: S) => Promise<void>
+  storeMany: (entityStates: S[]) => Promise<void>
   remove: (id: string) => Promise<void>
 }
