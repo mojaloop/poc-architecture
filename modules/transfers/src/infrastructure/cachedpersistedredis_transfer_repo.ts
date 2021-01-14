@@ -222,10 +222,7 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
 
         this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::storeMany - storing ${entityState.id} in-memory only!`)
 
-        this._logger.isWarnEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::storeMany - warning storeMany does not support expiration of cache entry!`)
-        // This is disabled due to redis not supporting mset with expiration. See below comment above the mset operation for more information.
-        // this._nodeCache.set(key, entityState, this._expirationInSeconds)
-        this._nodeCache.set(key, entityState)
+        this._nodeCache.set(key, entityState, this._expirationInSeconds)
 
         let stringValue: string
         try {
@@ -255,12 +252,15 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
           replies.forEach( (reply, index) => {
             this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::storeMany - Reply ${index}:${reply.toString()}`)
           })
+        } else {
+          this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::storeMany - Replies ${JSON.stringify(replies)}`)
         }
         return resolve()
       })
     })
   }
 
+  //// Commented this out for the above method to use multi-batch request which suppors expiration of entries.
   // async storeMany (entityStates: TransferState[]): Promise<void> {
   //   return await new Promise((resolve, reject) => {
   //     if (!this.canCall()) return reject(new Error('Repository not ready'))
