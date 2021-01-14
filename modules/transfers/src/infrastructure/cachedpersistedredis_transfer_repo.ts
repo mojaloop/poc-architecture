@@ -208,7 +208,52 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
 
   async storeMany (entityStates: TransferState[]): Promise<void> {
     return await new Promise((resolve, reject) => {
-      resolve()
+      if (!this.canCall()) return reject(new Error('Repository not ready'))
+
+      // Array to store redisClient.mset arguments.
+      const redisArgs: string[] = []
+      // Array to store all keys being processed, mainly for handling errors on the mset operation.
+      const keys: string[] = []
+ 
+      entityStates.forEach( (entityState:TransferState) => {
+        const key: string = this.keyWithPrefix(entityState.id)
+
+        this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::store - storing ${entityState.id} in-memory only!`)
+
+        this._logger.isWarnEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::store - warning storeMany does not support expiration of cache entry!`)
+        // This is disabled due to redis not supporting mset with expiration. See below comment above the mset operation for more information.
+        // this._nodeCache.set(key, entityState, this._expirationInSeconds)
+        this._nodeCache.set(key, entityState)
+
+        let stringValue: string
+        try {
+          stringValue = JSON.stringify(entityState)
+        } catch (err) {
+          this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
+          return reject(err)
+        }
+  
+        if (stringValue === null) {
+          return resolve()
+        }
+        redisArgs.push(key)
+        redisArgs.push(stringValue)
+        keys.push(key)
+      } )
+
+      this._logger.isWarnEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::store - warning storeMany does not support expiration of store entry!`)
+      // There unfortunately is no mset operation that supports setting expiration of each key-value. Ref: https://github.com/redis/redis/issues/5867
+      this._redisClient.mset(...redisArgs, (err: Error | null, reply: boolean) => {
+        if (err != null) {
+          this._logger.isErrorEnabled() && this._logger.error(err, 'Error storing entity state to redis - for keys: ' + JSON.stringify(keys))
+          return reject(err)
+        }
+        if (reply !== true) {
+          this._logger.isErrorEnabled() && this._logger.error('Unsuccessful attempt to store the entity state in redis - for keys: ' + JSON.stringify(keys))
+          return reject(new Error('Unsuccessful attempt to store the entity state in redis - for keys: ' + JSON.stringify(keys)))
+        }
+        return resolve()
+      })
     })
   }
 
