@@ -209,7 +209,7 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
   async storeMany (entityStates: TransferState[]): Promise<void> {
     return await new Promise((resolve, reject) => {
       if (!this.canCall()) return reject(new Error('Repository not ready'))
-      
+
       // Array to store all keys being processed, mainly for handling errors on the mset operation.
       const keys: string[] = []
  
@@ -233,10 +233,13 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
         if (stringValue === null) {
           return resolve()
         }
+
+        this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::storeMany - scheduling setex - for key: ${key}`)
         redisMultiClient.setex(key, this._expirationInSeconds, stringValue)
         keys.push(key)
       } )
 
+      this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::storeMany - executing batch - for keys: ${JSON.stringify(keys)}`)
       redisMultiClient.exec((err: Error | null, replies: any) => {
         if (err != null) {
           this._logger.isErrorEnabled() && this._logger.error(err, 'CachedRedisParticipantStateRepo::storeMany - Error storing entity state to redis - for keys: ' + JSON.stringify(keys))
