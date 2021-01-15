@@ -55,6 +55,7 @@ import { InvalidTransferEvtError } from './errors'
 import { PrepareTransferCmdPayload, PrepareTransferCmd } from '../messages/prepare_transfer_cmd'
 import { FulfilTransferCmd, FulfilTransferCmdPayload } from '../messages/fulfil_transfer_cmd'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
+import { v4 as uuidv4 } from 'uuid'
 
 export class TransferEvtHandler implements IRunHandler {
   private _consumer: MessageConsumer
@@ -183,8 +184,8 @@ export class TransferEvtHandler implements IRunHandler {
     // Batch Handler
     const transferEvtBatchHandler = async (messages: IDomainMessage[]): Promise<void> => {
       const histTimer = histoTransferEvtBatchHandlerMetric.startTimer()
-
-      logger.isInfoEnabled() && logger.info(`transferEvtBatchHandler - processing events - length:${messages?.length} - Start`)
+      const batchId = uuidv4()
+      logger.isInfoEnabled() && logger.info(`transferEvtBatchHandler - processing events - batchId: ${batchId} - length:${messages?.length} - Start`)
 
       const commands: IDomainMessage[] = []
 
@@ -192,14 +193,14 @@ export class TransferEvtHandler implements IRunHandler {
         for (const message of messages) {
           const evtname = message.msgName ?? 'unknown'
           try {
-            logger.isInfoEnabled() && logger.info(`transferEvtBatchHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+            logger.isInfoEnabled() && logger.info(`transferEvtBatchHandler - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
             let transferEvt: DomainEventMsg | undefined
             let transferCmd: CommandMsg | null = null
             // # Transform messages into correct Command
             switch (message.msgName) {
               case PayerFundsReservedEvt.name: {
                 transferEvt = PayerFundsReservedEvt.fromIDomainMessage(message)
-                if (transferEvt == null) throw new InvalidTransferEvtError(`transferEvtBatchHandler is unable to process event - ${PayerFundsReservedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+                if (transferEvt == null) throw new InvalidTransferEvtError(`transferEvtBatchHandler - batchId: ${batchId} - is unable to process event - ${PayerFundsReservedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
                 const ackPayerFundsReservedCmdPayload: AckPayerFundsReservedCmdPayload = transferEvt.payload
                 transferCmd = new AckPayerFundsReservedCmd(ackPayerFundsReservedCmdPayload)
                 transferCmd.passTraceInfo(transferEvt)
@@ -207,7 +208,7 @@ export class TransferEvtHandler implements IRunHandler {
               }
               case PayeeFundsCommittedEvt.name: {
                 transferEvt = PayeeFundsCommittedEvt.fromIDomainMessage(message)
-                if (transferEvt == null) throw new InvalidTransferEvtError(`transferEvtBatchHandler is unable to process event - ${PayeeFundsCommittedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+                if (transferEvt == null) throw new InvalidTransferEvtError(`transferEvtBatchHandler - batchId: ${batchId} - is unable to process event - ${PayeeFundsCommittedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
                 const ackPayeeFundsCommittedCmdPayload: AckPayeeFundsCommittedCmdPayload = transferEvt.payload
                 transferCmd = new AckPayeeFundsCommittedCmd(ackPayeeFundsCommittedCmdPayload)
                 transferCmd.passTraceInfo(transferEvt)
@@ -215,7 +216,7 @@ export class TransferEvtHandler implements IRunHandler {
               }
               case TransferPrepareRequestedEvt.name: {
                 transferEvt = TransferPrepareRequestedEvt.fromIDomainMessage(message)
-                if (transferEvt == null) throw new InvalidTransferEvtError(`transferEvtBatchHandler is unable to process event - ${TransferPrepareRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+                if (transferEvt == null) throw new InvalidTransferEvtError(`transferEvtBatchHandler - batchId: ${batchId} - is unable to process event - ${TransferPrepareRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
                 const prepareTransferCmdPayload: PrepareTransferCmdPayload = transferEvt.payload
                 transferCmd = new PrepareTransferCmd(prepareTransferCmdPayload)
                 transferCmd.passTraceInfo(transferEvt)
@@ -223,7 +224,7 @@ export class TransferEvtHandler implements IRunHandler {
               }
               case TransferFulfilRequestedEvt.name: {
                 transferEvt = TransferFulfilRequestedEvt.fromIDomainMessage(message)
-                if (transferEvt == null) throw new InvalidTransferEvtError(`transferEvtBatchHandler is unable to process event - ${TransferFulfilRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+                if (transferEvt == null) throw new InvalidTransferEvtError(`transferEvtBatchHandler - batchId: ${batchId} - is unable to process event - ${TransferFulfilRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
                 const fulfilTransferCmdPayload: FulfilTransferCmdPayload = transferEvt.payload
                 transferCmd = new FulfilTransferCmd(fulfilTransferCmdPayload)
                 transferCmd.passTraceInfo(transferEvt)
@@ -234,18 +235,18 @@ export class TransferEvtHandler implements IRunHandler {
                 break
               }
               default: {
-                logger.isDebugEnabled() && logger.debug(`transferEvtBatchHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+                logger.isDebugEnabled() && logger.debug(`transferEvtBatchHandler - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
               }
             }
     
             if (transferCmd != null) {
-              logger.isInfoEnabled() && logger.info(`transferEvtBatchHandler - publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${transferCmd?.msgName}:${transferCmd?.msgId}`)
+              logger.isInfoEnabled() && logger.info(`transferEvtBatchHandler - batchId: ${batchId} - publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${transferCmd?.msgName}:${transferCmd?.msgId}`)
               commands.push(transferCmd)
-              logger.isInfoEnabled() && logger.info(`transferEvtBatchHandler - publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+              logger.isInfoEnabled() && logger.info(`transferEvtBatchHandler - batchId: ${batchId} - publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
             }
           } catch (err) {
             const errMsg: string = err?.message?.toString()
-            logger.isWarnEnabled() && logger.warn(`transferEvtBatchHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+            logger.isWarnEnabled() && logger.warn(`transferEvtBatchHandler - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
             logger.isErrorEnabled() && logger.error(err)
             histTimer({ success: 'false', error: err.message, evtname })
             throw err
@@ -253,13 +254,14 @@ export class TransferEvtHandler implements IRunHandler {
         }
       } catch (err) {
         // TODO: Handle something here?
+        throw err
       }
       if (commands != null && commands.length >0) {
-        logger.isInfoEnabled() && logger.info(`transferEvtBatchHandler - publishing cmd list - length:${commands?.length}`)
+        logger.isInfoEnabled() && logger.info(`transferEvtBatchHandler - batchId: ${batchId} - publishing cmd list - length:${commands?.length}`)
         await kafkaMsgPublisher!.publishMany(commands)
-        logger.isInfoEnabled() && logger.info(`transferEvtBatchHandler - publishing cmd Finished`)
+        logger.isInfoEnabled() && logger.info(`transferEvtBatchHandler - batchId: ${batchId} - publishing cmd Finished`)
       } else {
-        logger.isDebugEnabled() && logger.debug(`transferEvtBatchHandler - No commands processed.`)
+        logger.isDebugEnabled() && logger.debug(`transferEvtBatchHandler - batchId: ${batchId} - No commands processed.`)
       }
       histTimer({ success: 'true', evtname: 'unknown' })
     }
