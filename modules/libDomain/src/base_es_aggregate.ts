@@ -105,7 +105,8 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
 
   private _resetBatchAndState (): void {
     this._unpersistedEntityStates = []
-    this._resetState()
+    this._uncommittedDomainEvents = []
+    this._rootEntity = null
     this._batchId = null
   }
 
