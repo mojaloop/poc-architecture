@@ -38,7 +38,7 @@
 
 'use strict'
 
-import { BaseEventSourcingAggregate, IMessagePublisher, ILogger, TCommandResult, IESourcingStateRepository, IEntityDuplicateRepository, StateSnapshotMsg } from '@mojaloop-poc/lib-domain'
+import { CommandMsg, BaseEventSourcingAggregate, IMessagePublisher, ILogger, TCommandResult, IESourcingStateRepository, IEntityDuplicateRepository, StateSnapshotMsg } from '@mojaloop-poc/lib-domain'
 import { ParticipantEntity, ParticipantState, InvalidAccountError, InvalidLimitError, NetDebitCapLimitExceededError, ParticipantEndpointState, ParticipantAccountState, ParticipantLimitState } from './participant_entity'
 import { ParticipantsFactory } from './participants_factory'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
@@ -403,5 +403,11 @@ export class ParticpantsAgg extends BaseEventSourcingAggregate<ParticipantEntity
       reason: err?.message
     }
     this.recordDomainEvent(new InvalidParticipantEvt(InvalidParticipantEvtPayload))
+  }
+
+  protected async store (entityState: ParticipantState, commandMsg: CommandMsg): Promise<void> {
+    // because we are using the inMemory cache backed by redis,
+    // we can actually afford to store on each command process even when in batchMode
+    await this._entity_cache_repo.store(entityState)
   }
 }

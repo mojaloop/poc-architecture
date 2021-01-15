@@ -50,17 +50,21 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
   private readonly _commandHandlers: Map<string, (cmd: CommandMsg) => Promise<boolean>>
 
   private _uncommittedEvents: DomainMsg[]
-  protected _rootEntity: E | null
+  private _unpersistedEntityStates: S[]
 
+  protected _rootEntity: E | null
   protected _entity_factory: IEntityFactory<E, S>
   protected _msgPublisher: IMessagePublisher
   protected _entity_state_repo: IEntityStateRepository<S>
+  protected _batchedMode: boolean = false
+  protected _batchId: string | null = null
 
   constructor (entityFactory: IEntityFactory<E, S>, entityStateRepo: IEntityStateRepository<S>, msgPublisher: IMessagePublisher, logger: ILogger) {
     this._logger = logger
 
     this._commandHandlers = new Map<string, (cmd: CommandMsg) => Promise<boolean>>()
     this._uncommittedEvents = []
+    this._unpersistedEntityStates = []
     this._rootEntity = null
 
     this._entity_factory = entityFactory
@@ -69,8 +73,25 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
     this._msgPublisher = msgPublisher
   }
 
+  private _resetState (): void {
+    if (!this._batchedMode) {
+      this._uncommittedEvents = []
+    }
+    this._rootEntity = null
+  }
+
+  private _resetBatchAndState (): void {
+    this._unpersistedEntityStates = []
+    this._resetBatchAndState()
+    this._batchId = null
+  }
+
   async store (entityState: S, commandMsg: CommandMsg): Promise<void> {
-    await this._entity_state_repo.store(entityState)
+    if (this._batchedMode) {
+      this._unpersistedEntityStates.push(entityState)
+    } else {
+      await this._entity_state_repo.store(entityState)
+    }
   }
 
   async processCommand (commandMsg: CommandMsg): Promise<boolean> {
@@ -155,14 +176,21 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
     const eventNames = this._uncommittedEvents.map(evt => evt.msgName)
 
     this._uncommittedEvents.forEach(evt => {
-      this._logger.isDebugEnabled() && this._logger.debug(`Commiting name:'${evt.msgName}';key:'${evt.msgKey}';id:'${evt.msgId}'`)
+      if (this._batchedMode && this._batchId !== null) {
+        evt.msgBatchId = this._batchId
+        this._logger.isDebugEnabled() && this._logger.debug(`Adding event to the uncommitted events batch list name:'${evt.msgName}'; key:'${evt.msgKey}'; id:'${evt.msgId}'`)
+      } else {
+        this._logger.isDebugEnabled() && this._logger.debug(`Committing name:'${evt.msgName}'; key:'${evt.msgKey}'; id:'${evt.msgId}'`)
+      }
     })
 
-    await this._msgPublisher.publishMany(this._uncommittedEvents)
-
-    this._logger.isDebugEnabled() && this._logger.debug(`Aggregate committed ${this._uncommittedEvents.length} events - ${JSON.stringify(eventNames)}`)
-
-    this._uncommittedEvents = []
+    if (!this._batchedMode) {
+      await this._msgPublisher.publishMany(this._uncommittedEvents)
+      this._logger.isDebugEnabled() && this._logger.debug(`Aggregate committed ${this._uncommittedEvents.length} events - ${JSON.stringify(eventNames)}`)
+      this._uncommittedEvents = []
+    } else {
+      this._logger.isDebugEnabled() && this._logger.debug(`Aggregate added ${this._uncommittedEvents.length} events - ${JSON.stringify(eventNames)} to the uncommitted events batch list`)
+    }
   }
 
   protected propagateTraceInfo (sourceMsg: IDomainMessage): void {
@@ -171,8 +199,28 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
     this._uncommittedEvents.forEach(msg => msg.passTraceInfo(sourceMsg))
   }
 
-  private _resetState (): void {
-    this._uncommittedEvents = []
-    this._rootEntity = null
+  public enableBatchMode (): void {
+    this._batchedMode = true
+  }
+
+  public disableBatchMode (): void {
+    this._batchedMode = false
+  }
+
+  public startBatch (batchId: string = ''): void {
+    this._resetBatchAndState()
+    this._batchId = batchId
+  }
+
+  public getUncommitedDomainEvents (): DomainMsg[] {
+    return this._uncommittedEvents
+  }
+
+  public getUnpersistedEntityStates (): S[] {
+    return this._unpersistedEntityStates
+  }
+
+  public getBatchId (): string | null {
+    return this._batchId
   }
 }

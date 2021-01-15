@@ -44,7 +44,7 @@ import {
   IMessagePublisher,
   IEntityDuplicateRepository,
   IESourcingStateRepository,
-  BatchedCommandProcessResult, DomainMsg
+  DomainEventMsg
 } from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
 import {
@@ -155,6 +155,9 @@ export class ParticipantCmdHandler implements IRunHandler {
 
     this._participantAgg = new ParticpantsAgg(this._stateCacheRepo, this._duplicateRepo, this._eventSourcingRepo, this._publisher, logger)
 
+    // batched mode
+    this._participantAgg.enableBatchMode()
+
     this._histoParticipantCmdHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
       'participantCmdHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
       'Instrumentation for participantCmdHandler', // Description of metric
@@ -197,7 +200,7 @@ export class ParticipantCmdHandler implements IRunHandler {
   private async _cmdHandler (messages: IDomainMessage[]): Promise<void> {
     this._logger.isDebugEnabled() && this._logger.debug(`ParticipantCmdConsumer - processing ${messages?.length} message(s)`)
 
-    const uncommittedDomainEvents: DomainMsg[] = []
+    this._participantAgg.startBatch()
 
     //    const histTimer = this._histoParticipantCmdHandlerMetric.startTimer()
     for (const message of messages) {
@@ -228,33 +231,37 @@ export class ParticipantCmdHandler implements IRunHandler {
             break
           }
         }
-        let processCommandResult: BatchedCommandProcessResult<ParticipantState> = new BatchedCommandProcessResult<ParticipantState>()
+
         if (participantCmd != null) {
-          processCommandResult = await this._participantAgg.processCommandBatched(participantCmd)
-          if (processCommandResult.success === true) {
-            if (processCommandResult.stateEvent !== null) {
-              uncommittedDomainEvents.push(processCommandResult.stateEvent)
-            }
-            if (processCommandResult.uncommittedDomainEvents !== null) {
-              uncommittedDomainEvents.push(...processCommandResult.uncommittedDomainEvents)
-            }
+          const success = await this._participantAgg.processCommand(participantCmd)
+          if (success) {
+            this._logger.isDebugEnabled() && this._logger.debug(`ParticipantCmdConsumer - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - success`)
+          } else {
+            this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdConsumer - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - failed`)
           }
         } else {
-          this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
+          this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdConsumer - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - unhandled command found`)
         }
-        this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.success.toString()}`)
         // histTimer({success: 'true', evtname})
       } catch (err) {
         const errMsg: string = err?.message?.toString()
-        this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+        this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
         this._logger.isErrorEnabled() && this._logger.error(err)
         // histTimer({success: 'false', error: err.message, evtname})
       }
     }
 
-    if (uncommittedDomainEvents.length > 0) {
-      this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - publishing ${uncommittedDomainEvents.length} domain event(s)`)
-      await this._publisher.publishMany(uncommittedDomainEvents)
+    const uncommitedEvents: DomainEventMsg[] = this._participantAgg.getUncommitedDomainEvents()
+    // const unpersistedStates: ParticipantState[] = this._participantAgg.getUnpersistedEntityStates()
+
+    if (uncommitedEvents.length > 0) {
+      this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - publishing ${uncommitedEvents.length} domain event(s)`)
+      await this._publisher.publishMany(uncommitedEvents)
+
+      // The participant_agg is overloading the base agg store() and persiting in all calls (even in batch)
+      // for (const state of unpersistedStates) {
+      //   await this._stateCacheRepo.store(state)
+      // }
     } else {
       this._logger.isWarnEnabled() && this._logger.warn('ParticipantCmdConsumer - no domain events to publish at _cmdHandler batch end')
     }
