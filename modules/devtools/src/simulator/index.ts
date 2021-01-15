@@ -44,6 +44,7 @@ import { SimulatorEvtHandler } from './simulatorEvtHandler'
 import * as dotenv from 'dotenv'
 import { Command } from 'commander'
 import { resolve as Resolve } from 'path'
+import { SimulatorBatchedEvtHandler } from './simulatorEvtHandler_batched'
 
 /* eslint-disable-next-line @typescript-eslint/no-var-requires */
 const pckg = require('../../package.json')
@@ -112,7 +113,8 @@ Program.command('handler')
     const runHandlerList: IRunHandler[] = []
 
     // start all handlers here
-    const simulatorEvtHandler = new SimulatorEvtHandler()
+    // const simulatorEvtHandler = new SimulatorEvtHandler()
+    const simulatorEvtHandler = new SimulatorBatchedEvtHandler()
     await simulatorEvtHandler.start(appConfig, logger, metrics)
     runHandlerList.push(simulatorEvtHandler)
 

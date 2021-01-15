@@ -52,6 +52,13 @@ export type TCommandResult = {
   stateEvent: StateEventMsg | null
 }
 
+export class BatchedCommandProcessResult<S extends BaseEntityState> {
+  success: boolean = false
+  stateEvent: StateEventMsg | null = null
+  uncommittedDomainEvents: DomainEventMsg[] = []
+  rootEntityState: S | null = null
+}
+
 export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S extends BaseEntityState> {
   protected _logger: ILogger
   private readonly _stateEventHandlers: Map<string, (stateEvent: StateEventMsg, replayed?: boolean) => Promise<void>>
@@ -66,6 +73,7 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
   protected _entity_cache_repo: IEntityStateRepository<S>
   protected _entityDuplicateRepo: IEntityDuplicateRepository | null
   protected _esRepo: IESourcingStateRepository
+  protected _batchedMode: boolean = false
 
   constructor (entityFactory: IEntityFactory<E, S>, entityStateCacheRepo: IEntityStateRepository<S>, entityDuplicateRepo: IEntityDuplicateRepository | null, esStateRepo: IESourcingStateRepository, msgPublisher: IMessagePublisher, logger: ILogger) {
     this._logger = logger
@@ -260,6 +268,55 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
       await this.commitEvents(null) // we still send out the unpublished domain events... but not state
       this._logger.isErrorEnabled() && this._logger.error(err, `Aggregate error trying to process command: ${commandMsg.msgName}`)
       throw err
+    })
+  }
+
+  async processCommandBatched (commandMsg: CommandMsg): Promise<BatchedCommandProcessResult<S>> {
+    const handler = this._commandHandlers.get(commandMsg.msgName)
+    if (handler == null) {
+      throw new Error(`Aggregate doesn't have a handler for a command with name ${commandMsg.msgName}`)
+    }
+
+    this._resetState()
+    // the local cmd handler code must either load or create the aggregate
+
+    return await new Promise<BatchedCommandProcessResult<S>>((resolve, reject) => {
+      handler.call(this, commandMsg).then(async (result: TCommandResult) => {
+        this.propagateTraceInfo(commandMsg)
+
+        if (!result.success) {
+          // we don't commit on the batched process
+          // await this.commitEvents(null)
+          this._logger.isInfoEnabled() && this._logger.info(`Command '${commandMsg.msgName}' execution failed`)
+
+          const ret: BatchedCommandProcessResult<S> = new BatchedCommandProcessResult<S>()
+          ret.success = false
+          resolve(ret)
+        }
+
+        if (result.stateEvent === null || result.stateEvent === undefined) {
+          this._logger.isWarnEnabled() && this._logger.warn(`Command '${commandMsg.msgName}' execution was successful but no state event was returned`)
+        }
+
+        if (this._rootEntity != null) {
+          await this.store(this._rootEntity.exportState(), commandMsg)
+          this._logger.info(`Aggregate state persisted to repository at the end of command: ${commandMsg.msgName}`)
+        }
+
+        this._logger.isInfoEnabled() && this._logger.info(`Aggregate successfully processed command: ${commandMsg.msgName}`)
+
+        const ret: BatchedCommandProcessResult<S> = new BatchedCommandProcessResult<S>()
+        ret.rootEntityState = this._rootEntity === null ? null : this._rootEntity.exportState()
+        ret.stateEvent = result.stateEvent
+        ret.uncommittedDomainEvents = this._uncommittedDomainEvents
+        ret.success = true
+
+        resolve(ret)
+      }).catch(async (err: any) => {
+        await this.commitEvents(null) // we still send out the unpublished domain events... but not state
+        this._logger.isErrorEnabled() && this._logger.error(err, `Aggregate error trying to process command: ${commandMsg.msgName}`)
+        reject(err)
+      })
     })
   }
 }

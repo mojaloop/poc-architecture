@@ -39,7 +39,7 @@ import * as RDKafka from 'node-rdkafka'
 import { ILogger, IDomainMessage } from '@mojaloop-poc/lib-domain'
 import { RdKafkaCommitMode, RDKafkaConsumerOptions } from './rdkafka_consumer'
 
-const RDKAFKA_CONSUMER_BATCH_SIZE = 50
+const RDKAFKA_CONSUMER_BATCH_SIZE = 100
 
 export class RDKafkaConsumerBatched {
   protected _logger: ILogger
@@ -164,7 +164,7 @@ export class RDKafkaConsumerBatched {
               consumeRecursiveWrapper()
             })
           }
-          // this._logger.isWarnEnabled() && this._logger.warn(`RDKafkaConsumerBatched - consumeRecursiveWrapper received batch of ${messages.length} messages`)
+          this._logger.isWarnEnabled() && this._logger.warn(`RDKafkaConsumerBatched - consumeRecursiveWrapper received batch of ${messages.length} messages`)
 
           const domainMessages: IDomainMessage[] = []
 
