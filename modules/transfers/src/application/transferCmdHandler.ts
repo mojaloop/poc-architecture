@@ -36,8 +36,6 @@
 ******/
 
 'use strict'
-// import { v4 as uuidv4 } from 'uuid'
-// import {InMemorytransferStateRepo} from "../infrastructure/inmemory_transfer_repo";
 import {
   CommandMsg,
   IDomainMessage,
@@ -69,7 +67,7 @@ import { AckPayeeFundsCommittedCmd } from '../messages/ack_payee_funds_committed
 import { RepoInfraTypes } from '../infrastructure'
 import { CachedPersistedRedisTransferStateRepo } from '../infrastructure/cachedpersistedredis_transfer_repo'
 import { InMemoryNodeCacheTransferStateRepo } from '../infrastructure/inmemory_node_cache_transfer_repo'
-import { v4 as uuidv4 } from 'uuid'
+import { TransferState } from '../domain/transfer_entity'
 
 export class TransferCmdHandler implements IRunHandler {
   private _logger: ILogger
@@ -168,6 +166,9 @@ export class TransferCmdHandler implements IRunHandler {
     // this._transfersAgg = new TransfersAgg(this._entityStateRepo, this._duplicateRepo, this._eventSourcingRepo, this._publisher, this._logger)
     this._transfersAgg = new TransfersAgg(this._entityStateRepo, this._duplicateRepo, this._publisher, this._logger)
 
+    // batched mode
+    if (appConfig.batch.enabled === true) this._transfersAgg.enableBatchMode()
+
     this._histoTransfersCmdHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
       'transferCmdHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
       'Instrumentation for transferCmdHandler', // Description of metric
@@ -260,7 +261,7 @@ export class TransferCmdHandler implements IRunHandler {
 
   private async _cmdBatchHandler (messages: IDomainMessage[]): Promise<void> {
     const histTimer = this._histoTransfersCmdBatchHandlerMetric.startTimer()
-    const batchId = uuidv4()
+    const batchId = this._transfersAgg.startBatch()
     this._logger.isInfoEnabled() && this._logger.info(`transferCmdBatchHandler - batchId: ${batchId} - processing events - length:${messages?.length} - Start`)
     try {
       for (const message of messages) {
@@ -305,6 +306,24 @@ export class TransferCmdHandler implements IRunHandler {
           histTimer({ success: 'false', error: err.message, evtname })
         }
       }
+
+      const unpersistedStates: TransferState[] = this._transfersAgg.getUnpersistedEntityStates()
+      const uncommitedEvents: IDomainMessage[] = this._transfersAgg.getUncommitedDomainEvents()
+
+      if (unpersistedStates?.length > 0) {
+        this._logger.isInfoEnabled() && this._logger.info(`transferCmdBatchHandler - batchId: ${batchId} - peristing ${unpersistedStates.length} states`)
+        await this._entityStateRepo.storeMany(unpersistedStates)
+      } else {
+        this._logger.isWarnEnabled() && this._logger.warn('transferCmdBatchHandler - batchId: ${batchId} - no unpersisted states at _cmdHandler batch end')
+      }
+
+      if (uncommitedEvents?.length > 0) {
+        this._logger.isInfoEnabled() && this._logger.info(`transferCmdBatchHandler - batchId: ${batchId} - publishing ${uncommitedEvents.length} domain event(s)`)
+        await this._publisher.publishMany(uncommitedEvents)
+      } else {
+        this._logger.isWarnEnabled() && this._logger.warn('transferCmdBatchHandler - batchId: ${batchId} - no domain events to publish at _cmdHandler batch end')
+      }
+
     } catch (err) {
       // TODO: Handle something here?
       throw err

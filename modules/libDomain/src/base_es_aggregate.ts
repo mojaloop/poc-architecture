@@ -47,6 +47,7 @@ import { IEntityFactory } from './entity_factory'
 import { ILogger } from './ilogger'
 import { IEntityDuplicateRepository } from './ientity_duplicate_repository'
 import { now } from './local_utils'
+import { v4 as uuidv4 } from 'uuid'
 
 export type TCommandResult = {
   success: boolean
@@ -252,9 +253,10 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
     this._batchedMode = false
   }
 
-  public startBatch (batchId: string = ''): void {
+  public startBatch (batchId?: string | undefined): string {
     this._resetBatchAndState()
-    this._batchId = batchId
+    this._batchId = batchId != null ? batchId : uuidv4()
+    return this._batchId
   }
 
   public getUncommitedDomainEvents (): DomainEventMsg[] {

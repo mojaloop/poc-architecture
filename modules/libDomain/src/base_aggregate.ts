@@ -44,6 +44,7 @@ import { IMessagePublisher } from './imessage_publisher'
 import { IEntityStateRepository } from './ientity_state_repository'
 import { IEntityFactory } from './entity_factory'
 import { ILogger } from './ilogger'
+import { v4 as uuidv4 } from 'uuid'
 
 export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntityState> {
   protected _logger: ILogger
@@ -207,9 +208,10 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
     this._batchedMode = false
   }
 
-  public startBatch (batchId: string = ''): void {
+  public startBatch (batchId?: string | undefined): string {
     this._resetBatchAndState()
-    this._batchId = batchId
+    this._batchId = batchId != null ? batchId : uuidv4()
+    return this._batchId
   }
 
   public getUncommitedDomainEvents (): DomainMsg[] {
