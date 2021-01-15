@@ -306,7 +306,14 @@ class Producer extends EventEmitter {
         key: topicConf.key
       }))
       const producedAt = Date.now()
-      await this._producer.produce(topicConf.topicName, topicConf.partition, parsedMessageBuffer, topicConf.key, producedAt, topicConf.opaqueKey)
+
+      const headers = [
+        { msgType: parsedMessage.msgType === undefined ? '' : parsedMessage.msgType.toString() },
+        { msgName: parsedMessage.msgName === undefined ? '' : parsedMessage.msgName },
+        { msgKey: parsedMessage.msgKey === undefined ? '' : parsedMessage.msgKey }
+      ]
+
+      await this._producer.produce(topicConf.topicName, topicConf.partition, parsedMessageBuffer, topicConf.key, producedAt, topicConf.opaqueKey, headers)
       return true
     } catch (e) {
       Logger.isDebugEnabled && logger.debug(e)
