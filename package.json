@@ -70,6 +70,7 @@
     "docker:backend:start": "docker-compose start kafka redis simulator mongodb",
     "docker:backend:stop": "docker-compose stop kafka redis simulator mongodb",
     "docker:backend:logs": "docker-compose logs -f kafka redis simulator mongodb",
+    "docker:backend:rm": "docker-compose rm -s -f kafka redis simulator mongodb",
     "docker:rm": "docker-compose rm -s -f"
   },
   "dependencies": {
