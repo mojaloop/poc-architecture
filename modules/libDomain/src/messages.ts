@@ -61,6 +61,7 @@ export interface IMessage{
   msgTopic: string
   msgPartition: number | null
   msgOffset: number | null
+  msgBatchId: string | null
   // TODO: for later
 
   // source_system_name:string // source system name
@@ -144,6 +145,7 @@ export abstract class DomainMsg implements IDomainMessage {
   msgPartition: number | null = null
   msgOffset: number | null
   traceInfo: TTraceInfo | null = null
+  msgBatchId: string | null
 
   abstract msgType: MessageTypes
   abstract msgKey: string
