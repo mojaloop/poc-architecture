@@ -82,7 +82,7 @@ export abstract class BaseAggregate<E extends BaseEntity<S>, S extends BaseEntit
 
   private _resetBatchAndState (): void {
     this._unpersistedEntityStates = []
-    this._resetBatchAndState()
+    this._resetState()
     this._batchId = null
   }
 
