@@ -251,6 +251,7 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
             return reject(new Error('Unsuccessful attempt to store the entity state in redis - for keys: ' + JSON.stringify(keys)))
           }
           replies.forEach( (reply, index) => {
+            // TODO: Need to see if there are any failed replies here, and determine how best to deal with it.
             this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::storeMany - Reply ${index}:${reply.toString()}`)
           })
         } else {
