@@ -66,6 +66,8 @@ const start = async () => {
   const transferPrepareRequestedEvt = new TransferPrepareRequestedEvt(transferPrepareRequestedEvtPayload)
 
   await Publisher.publishMessage(transferPrepareRequestedEvt)
+
+  logger.info(`Published TransferPrepareRequestedEvt:${transferPrepareRequestedEvt.msgKey}`)
   process.exit(0)
 }
 
