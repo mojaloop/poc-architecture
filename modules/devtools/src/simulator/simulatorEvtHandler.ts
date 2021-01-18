@@ -43,7 +43,6 @@ import {
   IRunHandler,
   KafkaInfraTypes,
   MessageConsumer,
-  EnumOffset,
   RDKafkaCompressionTypes,
   RDKafkaProducerOptions,
   RDKafkaMessagePublisher,

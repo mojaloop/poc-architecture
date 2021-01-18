@@ -117,6 +117,9 @@ Program.command('handler')
       },
       readside_store: {
         uri: getEnvValueOrDefault('PARTICIPANTS_READSIDE_MONGO_DB_HOST', 'mongodb://localhost:27017/') as string
+      },
+      batch: {
+        enabled: getEnvBoolOrDefault('PARTICIPANTS_BATCH_ENABLED')
       }
     }
 

@@ -53,7 +53,7 @@ import {
   RDKafkaProducerOptions,
   RDKafkaMessagePublisher,
   RDKafkaConsumerOptions,
-  EventSourcingStateRepo, RDKafkaConsumerBatched
+  EventSourcingStateRepo, RDKafkaConsumerBatched, RDKafkaConsumer, MessageConsumer
 } from '@mojaloop-poc/lib-infrastructure'
 import { ParticpantsAgg } from '../domain/participants_agg'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
@@ -67,16 +67,17 @@ import { RepoInfraTypes } from '../infrastructure'
 import { RedisParticipantStateRepo } from '../infrastructure/redis_participant_repo'
 import { InMemoryParticipantStateRepo } from '../infrastructure/inmemory_participant_repo'
 import { SnapshotParticipantStateCmd } from '../messages/snapshot_participant_state_cmd'
-import { ParticipantState } from '../domain/participant_entity'
 
 export class ParticipantCmdHandler implements IRunHandler {
   private _logger: ILogger
-  private _consumer: RDKafkaConsumerBatched
+  private _consumer: MessageConsumer
+  private _consumerBatched: RDKafkaConsumerBatched
   private _publisher: IMessagePublisher
   private _stateCacheRepo: IParticipantRepo
   private _duplicateRepo: IEntityDuplicateRepository | null
   private _eventSourcingRepo: IESourcingStateRepository
   private _histoParticipantCmdHandlerMetric: any
+  private _histoParticipantCmdHandlerBatchesMetric: any
   private _participantAgg: ParticpantsAgg
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
@@ -156,13 +157,20 @@ export class ParticipantCmdHandler implements IRunHandler {
     this._participantAgg = new ParticpantsAgg(this._stateCacheRepo, this._duplicateRepo, this._eventSourcingRepo, this._publisher, logger)
 
     // batched mode
-    this._participantAgg.enableBatchMode()
+    if (appConfig.batch.enabled === true) this._participantAgg.enableBatchMode()
 
     this._histoParticipantCmdHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
       'participantCmdHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
-      'Instrumentation for participantCmdHandler', // Description of metric
+      'Instrumentation for participantCmdHandler - time it takes for each command to be processed', // Description of metric
       ['success', 'error', 'evtname'] // Define a custom label 'success'
     )
+    if (appConfig.batch.enabled === true) {
+      this._histoParticipantCmdHandlerBatchesMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+        'participantCmdHandlerBatch', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+        'Instrumentation for participantCmdHandler - time it takes for batch of commands to be processed', // Description of metric
+        ['success', 'error'] // Define a custom label 'success'
+      )
+    }
 
     this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - Creating ${appConfig.kafka.consumer as string} participantCmdConsumer...`)
     clientId = `participantCmdConsumer-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
@@ -184,91 +192,146 @@ export class ParticipantCmdHandler implements IRunHandler {
       },
       topics: [ParticipantsTopics.Commands]
     }
-    this._consumer = new RDKafkaConsumerBatched(rdKafkaConsumerOptions, this._logger)
 
-    this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - Created kafkaConsumer of type ${this._consumer.constructor.name}`)
+    if (appConfig.batch.enabled === true) {
+      this._consumerBatched = new RDKafkaConsumerBatched(rdKafkaConsumerOptions, this._logger)
+      this._logger.isInfoEnabled() && this._logger.info('ParticipantCmdConsumer - Created RDKafkaConsumerBatched')
+      this._logger.isInfoEnabled() && this._logger.info('ParticipantCmdConsumer - Initializing RDKafkaConsumerBatched...')
 
-    this._logger.isInfoEnabled() && this._logger.info('ParticipantCmdConsumer - Initializing participantCmdConsumer...')
+      // load all participants to mem
+      // await this._participantAgg.loadAllToInMemoryCache()
 
-    // load all participants to mem
-    // await this._participantAgg.loadAllToInMemoryCache()
+      /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+      await this._consumerBatched.init(this._cmdHandlerBatched.bind(this), null) // by design we're interested in all commands
+    } else {
+      this._consumer = new RDKafkaConsumer(rdKafkaConsumerOptions, this._logger)
+      this._logger.isInfoEnabled() && this._logger.info('ParticipantCmdConsumer - Created RDKafkaConsumer')
+      this._logger.isInfoEnabled() && this._logger.info('ParticipantCmdConsumer - Initializing RDKafkaConsumer...')
 
-    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-    await this._consumer.init(this._cmdHandler.bind(this), null) // by design we're interested in all commands
+      // load all participants to mem
+      // await this._participantAgg.loadAllToInMemoryCache()
+
+      /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+      await this._consumer.init(this._cmdHandler.bind(this), null) // by design we're interested in all commands
+    }
   }
 
-  private async _cmdHandler (messages: IDomainMessage[]): Promise<void> {
-    const batchId = this._participantAgg.startBatch()
-    
+  private async _cmdHandlerBatched (messages: IDomainMessage[]): Promise<void> {
+    const batchId: string = this._participantAgg.startBatch()
+
     this._logger.isDebugEnabled() && this._logger.debug(`ParticipantCmdConsumer - batchId: ${batchId} - processing ${messages?.length} message(s)`)
 
-    //    const histTimer = this._histoParticipantCmdHandlerMetric.startTimer()
-    for (const message of messages) {
-      // const evtname = message.msgName ?? 'unknown'
-      try {
-        this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - batchId: ${batchId} - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
-        let participantCmd: CommandMsg | undefined
-        // # Transform messages into correct Command
-        switch (message.msgName) {
-          case CreateParticipantCmd.name: {
-            participantCmd = CreateParticipantCmd.fromIDomainMessage(message)
-            break
+    const histTimer = this._histoParticipantCmdHandlerMetric.startTimer()
+    const histTimerBatches = this._histoParticipantCmdHandlerBatchesMetric.startTimer()
+    try {
+      for (const message of messages) {
+        // const evtname = message.msgName ?? 'unknown'
+        try {
+          this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - batchId: ${batchId} - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+          const participantCmd: CommandMsg | undefined = this._getCommandFromMessage(message)
+
+          if (participantCmd !== undefined) {
+            const success = await this._participantAgg.processCommand(participantCmd)
+            if (success) {
+              this._logger.isDebugEnabled() && this._logger.debug(`ParticipantCmdConsumer - batchId: ${batchId} - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - success`)
+            } else {
+              this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdConsumer - batchId: ${batchId} - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - failed`)
+            }
+          } else {
+            this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdConsumer - batchId: ${batchId} - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - unhandled command found`)
           }
-          case ReservePayerFundsCmd.name: {
-            participantCmd = ReservePayerFundsCmd.fromIDomainMessage(message)
-            break
-          }
-          case CommitPayeeFundsCmd.name: {
-            participantCmd = CommitPayeeFundsCmd.fromIDomainMessage(message)
-            break
-          }
-          case SnapshotParticipantStateCmd.name: {
-            participantCmd = SnapshotParticipantStateCmd.fromIDomainMessage(message)
-            break
-          }
-          default: {
-            this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdConsumer - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
-            break
-          }
+        } catch (err) {
+          const errMsg: string = err?.message?.toString()
+          this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - batchId: ${batchId} - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+          this._logger.isErrorEnabled() && this._logger.error(err)
+          histTimer({ success: 'false', error: err.message, evtname: message.msgName ?? 'unknown' })
+        }
+      }
+
+      const uncommitedEvents: DomainEventMsg[] = this._participantAgg.getUncommitedDomainEvents()
+      // const unpersistedStates: ParticipantState[] = this._participantAgg.getUnpersistedEntityStates()
+
+      if (uncommitedEvents.length > 0) {
+        this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - batchId: ${batchId} - publishing ${uncommitedEvents.length} domain event(s)`)
+        await this._publisher.publishMany(uncommitedEvents)
+
+        for (const message of messages) {
+          histTimer({ success: 'true', evtname: message.msgName ?? 'unknown' })
         }
 
-        if (participantCmd != null) {
-          const success = await this._participantAgg.processCommand(participantCmd)
-          if (success) {
-            this._logger.isDebugEnabled() && this._logger.debug(`ParticipantCmdConsumer - batchId: ${batchId} - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - success`)
-          } else {
-            this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdConsumer - batchId: ${batchId} - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - failed`)
-          }
-        } else {
-          this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdConsumer - batchId: ${batchId} - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - unhandled command found`)
-        }
-        // histTimer({success: 'true', evtname})
-      } catch (err) {
-        const errMsg: string = err?.message?.toString()
-        this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - batchId: ${batchId} - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
-        this._logger.isErrorEnabled() && this._logger.error(err)
-        // histTimer({success: 'false', error: err.message, evtname})
+        // The participant_agg is overloading the base agg store() and persisting in all calls (even in batch)
+        // for (const state of unpersistedStates) {
+        //   await this._stateCacheRepo.store(state)
+        // }
+      } else {
+        this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdConsumer - batchId: ${batchId} - no domain events to publish at _cmdHandlerBatched batch end`)
+      }
+
+      this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - batchId: ${batchId} - finished`)
+      histTimerBatches({ success: 'true' })
+    } catch (err) {
+      this._logger.isErrorEnabled() && this._logger.error(`ParticipantCmdConsumer - batchId: ${batchId} - failed`)
+      this._logger.isErrorEnabled() && this._logger.error(err)
+      histTimer({ success: 'false', error: err.message })
+      histTimerBatches({ success: 'true' })
+      throw err
+    }
+  }
+
+  private async _cmdHandler (message: IDomainMessage): Promise<void> {
+    const histTimer = this._histoParticipantCmdHandlerMetric.startTimer()
+    const evtname = message.msgName ?? 'unknown'
+    try {
+      this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+      const participantCmd: CommandMsg | undefined = this._getCommandFromMessage(message)
+      let processCommandResult: boolean = false
+
+      if (participantCmd !== undefined) {
+        processCommandResult = await this._participantAgg.processCommand(participantCmd)
+      } else {
+        this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
+      }
+      this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
+      histTimer({ success: 'true', evtname })
+    } catch (err) {
+      const errMsg: string = err?.message?.toString()
+      this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+      this._logger.isErrorEnabled() && this._logger.error(err)
+      histTimer({ success: 'false', error: err.message, evtname })
+    }
+  }
+
+  private _getCommandFromMessage (message: IDomainMessage): CommandMsg | undefined {
+    let participantCmd: CommandMsg | undefined
+    // # Transform messages into correct Command
+    switch (message.msgName) {
+      case CreateParticipantCmd.name: {
+        participantCmd = CreateParticipantCmd.fromIDomainMessage(message)
+        break
+      }
+      case ReservePayerFundsCmd.name: {
+        participantCmd = ReservePayerFundsCmd.fromIDomainMessage(message)
+        break
+      }
+      case CommitPayeeFundsCmd.name: {
+        participantCmd = CommitPayeeFundsCmd.fromIDomainMessage(message)
+        break
+      }
+      case SnapshotParticipantStateCmd.name: {
+        participantCmd = SnapshotParticipantStateCmd.fromIDomainMessage(message)
+        break
+      }
+      default: {
+        this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+        break
       }
     }
-
-    const uncommitedEvents: DomainEventMsg[] = this._participantAgg.getUncommitedDomainEvents()
-    // const unpersistedStates: ParticipantState[] = this._participantAgg.getUnpersistedEntityStates()
-
-    if (uncommitedEvents.length > 0) {
-      this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - batchId: ${batchId} - publishing ${uncommitedEvents.length} domain event(s)`)
-      await this._publisher.publishMany(uncommitedEvents)
-
-      // The participant_agg is overloading the base agg store() and persiting in all calls (even in batch)
-      // for (const state of unpersistedStates) {
-      //   await this._stateCacheRepo.store(state)
-      // }
-    } else {
-      this._logger.isWarnEnabled() && this._logger.warn('ParticipantCmdConsumer - batchId: ${batchId} - no domain events to publish at _cmdHandler batch end')
-    }
+    return participantCmd
   }
 
   async destroy (): Promise<void> {
-    await this._consumer.destroy(true)
+    if (this._consumer !== undefined) await this._consumer.destroy(true)
+    if (this._consumerBatched !== undefined) await this._consumerBatched.destroy(true)
     await this._publisher.destroy()
     await this._stateCacheRepo.destroy()
     // await this._duplicateRepo.destroy()

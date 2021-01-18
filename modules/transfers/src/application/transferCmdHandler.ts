@@ -54,7 +54,7 @@ import {
   RDKafkaCompressionTypes, RDKafkaProducerOptions, RDKafkaMessagePublisher, RDKafkaConsumerOptions, RDKafkaConsumer,
   // rdkafka batch imports
   RDKafkaConsumerBatched
-  
+
 } from '@mojaloop-poc/lib-infrastructure'
 import { TransfersTopics } from '@mojaloop-poc/lib-public-messages'
 import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
@@ -203,15 +203,15 @@ export class TransferCmdHandler implements IRunHandler {
     }
     if (appConfig.batch.enabled === true) {
       this._consumerBatch = new RDKafkaConsumerBatched(rdKafkaConsumerOptions, this._logger)
-      this._logger.isInfoEnabled() && this._logger.info(`TransferCmdHandler - Created kafkaConsumer of type ${this._consumerBatch.constructor.name}`)
+      this._logger.isInfoEnabled() && this._logger.info('TransferCmdHandler - Created kafkaConsumer of type RDKafkaConsumerBatched')
       this._logger.isInfoEnabled() && this._logger.info('TransferCmdHandler - Initializing transferCmdBatchConsumer...')
-    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+      /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
       await this._consumerBatch.init(this._cmdBatchHandler.bind(this), null) // by design we're interested in all commands
     } else {
       this._consumer = new RDKafkaConsumer(rdKafkaConsumerOptions, this._logger)
-      this._logger.isInfoEnabled() && this._logger.info(`TransferCmdHandler - Created kafkaConsumer of type ${this._consumer.constructor.name}`)
+      this._logger.isInfoEnabled() && this._logger.info('TransferCmdHandler - Created kafkaConsumer of type RDKafkaConsumer')
       this._logger.isInfoEnabled() && this._logger.info('TransferCmdHandler - Initializing transferCmdConsumer...')
-    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+      /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
       await this._consumer.init(this._cmdHandler.bind(this), null) // by design we're interested in all commands
     }
   }
@@ -221,32 +221,9 @@ export class TransferCmdHandler implements IRunHandler {
     const evtname = message.msgName ?? 'unknown'
     try {
       this._logger.isInfoEnabled() && this._logger.info(`TransferCmdHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
-      let transferCmd: CommandMsg | undefined
-      // Transform messages into correct Command
-      switch (message.msgName) {
-        case PrepareTransferCmd.name: {
-          transferCmd = PrepareTransferCmd.fromIDomainMessage(message)
-          break
-        }
-        case AckPayerFundsReservedCmd.name: {
-          transferCmd = AckPayerFundsReservedCmd.fromIDomainMessage(message)
-          break
-        }
-        case AckPayeeFundsCommittedCmd.name: {
-          transferCmd = AckPayeeFundsCommittedCmd.fromIDomainMessage(message)
-          break
-        }
-        case FulfilTransferCmd.name: {
-          transferCmd = FulfilTransferCmd.fromIDomainMessage(message)
-          break
-        }
-        default: {
-          this._logger.isWarnEnabled() && this._logger.warn(`TransferCmdHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
-          break
-        }
-      }
+      const transferCmd: CommandMsg | undefined = this._getCommandFromMessage(message)
       let processCommandResult: boolean = false
-      if (transferCmd != null) {
+      if (transferCmd !== undefined) {
         processCommandResult = await this._transfersAgg.processCommand(transferCmd)
       } else {
         this._logger.isWarnEnabled() && this._logger.warn('TransferCmdHandler - is Unable to process command')
@@ -261,42 +238,19 @@ export class TransferCmdHandler implements IRunHandler {
 
   private async _cmdBatchHandler (messages: IDomainMessage[]): Promise<void> {
     const histTimer = this._histoTransfersCmdBatchHandlerMetric.startTimer()
-    const batchId = this._transfersAgg.startBatch()
+    const batchId: string = this._transfersAgg.startBatch()
     this._logger.isInfoEnabled() && this._logger.info(`transferCmdBatchHandler - batchId: ${batchId} - processing events - length:${messages?.length} - Start`)
     try {
       for (const message of messages) {
         const evtname = message.msgName ?? 'unknown'
         try {
           this._logger.isInfoEnabled() && this._logger.info(`TransferCmdBatchHandler - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
-          let transferCmd: CommandMsg | undefined
-          // Transform messages into correct Command
-          switch (message.msgName) {
-            case PrepareTransferCmd.name: {
-              transferCmd = PrepareTransferCmd.fromIDomainMessage(message)
-              break
-            }
-            case AckPayerFundsReservedCmd.name: {
-              transferCmd = AckPayerFundsReservedCmd.fromIDomainMessage(message)
-              break
-            }
-            case AckPayeeFundsCommittedCmd.name: {
-              transferCmd = AckPayeeFundsCommittedCmd.fromIDomainMessage(message)
-              break
-            }
-            case FulfilTransferCmd.name: {
-              transferCmd = FulfilTransferCmd.fromIDomainMessage(message)
-              break
-            }
-            default: {
-              this._logger.isWarnEnabled() && this._logger.warn(`transferCmdBatchHandler - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
-              break
-            }
-          }
+          const transferCmd: CommandMsg | undefined = this._getCommandFromMessage(message)
           let processCommandResult: boolean = false
           if (transferCmd != null) {
             processCommandResult = await this._transfersAgg.processCommand(transferCmd)
           } else {
-            this._logger.isWarnEnabled() && this._logger.warn('transferCmdBatchHandler - batchId: ${batchId} - is Unable to process command')
+            this._logger.isWarnEnabled() && this._logger.warn(`transferCmdBatchHandler - batchId: ${batchId} - is Unable to process command`)
           }
           this._logger.isInfoEnabled() && this._logger.info(`transferCmdBatchHandler - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
         } catch (err) {
@@ -314,27 +268,56 @@ export class TransferCmdHandler implements IRunHandler {
         this._logger.isInfoEnabled() && this._logger.info(`transferCmdBatchHandler - batchId: ${batchId} - peristing ${unpersistedStates.length} states`)
         await this._entityStateRepo.storeMany(unpersistedStates)
       } else {
-        this._logger.isWarnEnabled() && this._logger.warn('transferCmdBatchHandler - batchId: ${batchId} - no unpersisted states at _cmdHandler batch end')
+        this._logger.isWarnEnabled() && this._logger.warn(`transferCmdBatchHandler - batchId: ${batchId} - no unpersisted states at _cmdHandler batch end`)
       }
 
       if (uncommitedEvents?.length > 0) {
         this._logger.isInfoEnabled() && this._logger.info(`transferCmdBatchHandler - batchId: ${batchId} - publishing ${uncommitedEvents.length} domain event(s)`)
         await this._publisher.publishMany(uncommitedEvents)
       } else {
-        this._logger.isWarnEnabled() && this._logger.warn('transferCmdBatchHandler - batchId: ${batchId} - no domain events to publish at _cmdHandler batch end')
+        this._logger.isWarnEnabled() && this._logger.warn(`transferCmdBatchHandler - batchId: ${batchId} - no domain events to publish at _cmdHandler batch end`)
       }
-
     } catch (err) {
       // TODO: Handle something here?
+      this._logger.isErrorEnabled() && this._logger.error(`transferCmdBatchHandler - batchId: ${batchId} - failed`)
+      this._logger.isErrorEnabled() && this._logger.error(err)
       throw err
     }
     this._logger.isInfoEnabled() && this._logger.info(`transferCmdBatchHandler - batchId: ${batchId} - publishing cmd Finished`)
     histTimer({ success: 'true', evtname: 'unknown' })
   }
 
+  private _getCommandFromMessage (message: IDomainMessage): CommandMsg | undefined {
+    let transferCmd: CommandMsg | undefined
+    // Transform messages into correct Command
+    switch (message.msgName) {
+      case PrepareTransferCmd.name: {
+        transferCmd = PrepareTransferCmd.fromIDomainMessage(message)
+        break
+      }
+      case AckPayerFundsReservedCmd.name: {
+        transferCmd = AckPayerFundsReservedCmd.fromIDomainMessage(message)
+        break
+      }
+      case AckPayeeFundsCommittedCmd.name: {
+        transferCmd = AckPayeeFundsCommittedCmd.fromIDomainMessage(message)
+        break
+      }
+      case FulfilTransferCmd.name: {
+        transferCmd = FulfilTransferCmd.fromIDomainMessage(message)
+        break
+      }
+      default: {
+        this._logger.isWarnEnabled() && this._logger.warn(`transferCmdBatchHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+        break
+      }
+    }
+    return transferCmd
+  }
+
   async destroy (): Promise<void> {
-    if (this._consumer) await this._consumer.destroy(true)
-    if (this._consumerBatch) await this._consumerBatch.destroy(true)
+    if (this._consumer !== undefined) await this._consumer.destroy(true)
+    if (this._consumerBatch !== undefined) await this._consumerBatch.destroy(true)
     await this._publisher.destroy()
     await this._entityStateRepo.destroy()
     await this._duplicateRepo.destroy()

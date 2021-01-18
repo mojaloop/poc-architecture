@@ -147,7 +147,7 @@ export class RDKafkaProducer extends MessageProducer {
 
       this._client.on('ready', (info: RDKafka.ReadyInfo, metadata: RDKafka.Metadata) => {
         this._logger.isInfoEnabled() && this._logger.info(`RDKafkaProducer::event.ready - info: ${JSON.stringify(info, null, 2)}`)
-        this._logger.isInfoEnabled() && this._logger.info(`RDKafkaProducer::event.ready - metadata: ${JSON.stringify(metadata)}`)
+        this._logger.isDebugEnabled() && this._logger.debug(`RDKafkaProducer::event.ready - metadata: ${JSON.stringify(metadata)}`)
         // this._logger.isInfoEnabled() && this._logger.info(`RDKafkaProducer::event.ready - metadata: ${JSON.stringify(metadata, null, 2)}`)
         resolve()
       })

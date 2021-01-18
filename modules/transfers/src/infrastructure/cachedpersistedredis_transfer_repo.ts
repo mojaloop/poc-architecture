@@ -212,10 +212,10 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
 
       // Array to store all keys being processed, mainly for handling errors on the mset operation.
       const keys: string[] = []
- 
+
       const redisMultiClient = this._redisClient.multi()
 
-      entityStates.forEach( (entityState:TransferState) => {
+      entityStates.forEach((entityState: TransferState) => {
         const key: string = this.keyWithPrefix(entityState.id)
 
         this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::storeMany - storing ${entityState.id} in-memory only!`)
@@ -229,7 +229,7 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
           this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
           return reject(err)
         }
-  
+
         if (stringValue === null) {
           return resolve()
         }
@@ -237,7 +237,7 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
         this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::storeMany - scheduling setex - for key: ${key}`)
         redisMultiClient.setex(key, this._expirationInSeconds, stringValue)
         keys.push(key)
-      } )
+      })
 
       this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::storeMany - executing batch - for keys: ${JSON.stringify(keys)}`)
       redisMultiClient.exec((err: Error | null, replies: any) => {
@@ -250,8 +250,9 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
             this._logger.isErrorEnabled() && this._logger.error('CachedRedisParticipantStateRepo::storeMany - Unsuccessful attempt to store the entity state in redis - for keys: ' + JSON.stringify(keys))
             return reject(new Error('Unsuccessful attempt to store the entity state in redis - for keys: ' + JSON.stringify(keys)))
           }
-          replies.forEach( (reply, index) => {
+          replies.forEach((reply, index) => {
             // TODO: Need to see if there are any failed replies here, and determine how best to deal with it.
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::storeMany - Reply ${index}:${reply.toString()}`)
           })
         } else {
@@ -262,7 +263,7 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
     })
   }
 
-  //// Commented this out for the above method to use multi-batch request which suppors expiration of entries.
+  /// / Commented this out for the above method to use multi-batch request which suppors expiration of entries.
   // async storeMany (entityStates: TransferState[]): Promise<void> {
   //   return await new Promise((resolve, reject) => {
   //     if (!this.canCall()) return reject(new Error('Repository not ready'))
@@ -271,7 +272,7 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
   //     const redisArgs: string[] = []
   //     // Array to store all keys being processed, mainly for handling errors on the mset operation.
   //     const keys: string[] = []
- 
+
   //     entityStates.forEach( (entityState:TransferState) => {
   //       const key: string = this.keyWithPrefix(entityState.id)
 
@@ -289,7 +290,7 @@ export class CachedPersistedRedisTransferStateRepo implements ITransfersRepo {
   //         this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
   //         return reject(err)
   //       }
-  
+
   //       if (stringValue === null) {
   //         return resolve()
   //       }
