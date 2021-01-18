@@ -257,6 +257,7 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
           }
           replies.forEach((reply, index) => {
             // TODO: Need to see if there are any failed replies here, and determine how best to deal with it.
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::storeMany - Reply ${index}:${reply.toString()}`)
           })
         } else {
