@@ -150,7 +150,8 @@ export class RDKafkaConsumerBatched {
         // this._client.consume(async (err: RDKafka.LibrdKafkaError, messagesParam: RDKafka.Message[]) => {
         this._client.consume(RDKAFKA_CONSUMER_BATCH_SIZE, async (err: RDKafka.LibrdKafkaError, messages: any) => {
           if (err !== null) {
-            this._logger.isErrorEnabled() && this._logger.error('RDKafkaConsumerBatched got callback with err:', JSON.stringify(err))
+            this._logger.isErrorEnabled() && this._logger.error(`RDKafkaConsumerBatched got callback with err: ${err.message}`)
+            this._logger.isErrorEnabled() && this._logger.error(err)
             return setImmediate(() => {
               consumeRecursiveWrapper()
             })

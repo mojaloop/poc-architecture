@@ -154,7 +154,8 @@ export class RDKafkaConsumer extends MessageConsumer {
         /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
         this._client.consume(1, async (err: RDKafka.LibrdKafkaError, messages: RDKafka.Message[]) => {
           if (err !== null) {
-            this._logger.isErrorEnabled() && this._logger.error('RDKafkaConsumer got callback with err:', JSON.stringify(err))
+            this._logger.isErrorEnabled() && this._logger.error(`RDKafkaConsumer got callback with err: ${err.message}`)
+            this._logger.isErrorEnabled() && this._logger.error(err)
           } else {
             if (messages.length > 0) {
               // this._logger.isInfoEnabled() && this._logger.info(`RDKafkaConsumer got callback with data: ${JSON.stringify(messages)}`)
