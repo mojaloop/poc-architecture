@@ -113,7 +113,7 @@ export class RDKafkaConsumer extends MessageConsumer {
 
       this._client.on('ready', (info: RDKafka.ReadyInfo, metadata: RDKafka.Metadata) => {
         this._logger.isInfoEnabled() && this._logger.info(`RDKafkaConsumer::event.ready - info: ${JSON.stringify(info, null, 2)}`)
-        this._logger.isInfoEnabled() && this._logger.info(`RDKafkaConsumer::event.ready - metadata: ${JSON.stringify(metadata)}`)
+        this._logger.isDebugEnabled() && this._logger.debug(`RDKafkaConsumer::event.ready - metadata: ${JSON.stringify(metadata)}`)
         // this._logger.isInfoEnabled() && this._logger.info(`RDKafkaConsumer::event.ready - metadata: ${JSON.stringify(metadata, null, 2)}`)
         resolve()
       })
