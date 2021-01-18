@@ -209,7 +209,61 @@ export class CachedRedisParticipantStateRepo implements IParticipantRepo {
 
   async storeMany (entityStates: ParticipantState[]): Promise<void> {
     return await new Promise((resolve, reject) => {
-      resolve()
+      if (!this.canCall()) return reject(new Error('Repository not ready'))
+
+      // Array to store all keys being processed, mainly for handling errors on the mset operation.
+      const keys: string[] = []
+
+      const redisMultiClient = this._redisClient.multi()
+
+      entityStates.forEach((entityState: ParticipantState) => {
+        const key: string = this.keyWithPrefix(entityState.id)
+
+        if (this._inMemorylist.has(key)) {
+          this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::store - storing ${entityState.id} in-memory only!`)
+          this._inMemorylist.set(key, entityState)
+          return resolve()
+        }
+
+        this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::storeMany - storing ${entityState.id} in-memory only!`)
+
+        let stringValue: string
+        try {
+          stringValue = JSON.stringify(entityState)
+        } catch (err) {
+          this._logger.isErrorEnabled() && this._logger.error(err, 'Error parsing entity state JSON - for key: ' + key)
+          return reject(err)
+        }
+
+        if (stringValue === null) {
+          return resolve()
+        }
+
+        this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::storeMany - scheduling set - for key: ${key}`)
+        redisMultiClient.set(key, stringValue)
+        keys.push(key)
+      })
+
+      this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::storeMany - executing batch - for keys: ${JSON.stringify(keys)}`)
+      redisMultiClient.exec((err: Error | null, replies: any) => {
+        if (err != null) {
+          this._logger.isErrorEnabled() && this._logger.error(err, 'CachedRedisParticipantStateRepo::storeMany - Error storing entity state to redis - for keys: ' + JSON.stringify(keys))
+          return reject(err)
+        }
+        if (Array.isArray(replies)) {
+          if (replies.length === 0) {
+            this._logger.isErrorEnabled() && this._logger.error('CachedRedisParticipantStateRepo::storeMany - Unsuccessful attempt to store the entity state in redis - for keys: ' + JSON.stringify(keys))
+            return reject(new Error('Unsuccessful attempt to store the entity state in redis - for keys: ' + JSON.stringify(keys)))
+          }
+          replies.forEach((reply, index) => {
+            // TODO: Need to see if there are any failed replies here, and determine how best to deal with it.
+            this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::storeMany - Reply ${index}:${reply.toString()}`)
+          })
+        } else {
+          this._logger.isDebugEnabled() && this._logger.debug(`CachedRedisParticipantStateRepo::storeMany - Replies ${JSON.stringify(replies)}`)
+        }
+        return resolve()
+      })
     })
   }
 
