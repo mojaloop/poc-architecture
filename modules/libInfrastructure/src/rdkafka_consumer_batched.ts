@@ -146,24 +146,26 @@ export class RDKafkaConsumerBatched {
       this._logger.isInfoEnabled() && this._logger.info(`RDKafkaConsumerBatched autoCommitEnabled is ${autoCommitEnabled}, commitWaitMode is ${commitWaitMode}`)
 
       const consumeRecursiveWrapper = (): void => {
-        /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
         // this._client.consume(async (err: RDKafka.LibrdKafkaError, messagesParam: RDKafka.Message[]) => {
-        this._client.consume(RDKAFKA_CONSUMER_BATCH_SIZE, async (err: RDKafka.LibrdKafkaError, messages: any) => {
+        /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+        this._client.consume(RDKAFKA_CONSUMER_BATCH_SIZE, async (err: RDKafka.LibrdKafkaError, messages: RDKafka.Message[]) => {
           if (err !== null) {
             this._logger.isErrorEnabled() && this._logger.error(`RDKafkaConsumerBatched got callback with err: ${err.message}`)
             this._logger.isErrorEnabled() && this._logger.error(err)
-            return setImmediate(() => {
+            setImmediate(() => {
               consumeRecursiveWrapper()
             })
+            return
             // DONE - consider putting this in a setImmediate or process.nextTick (pedro)
           }
 
           // const messages: RDKafka.Message[] = [consumeParam]
 
           if (err !== null || messages.length <= 0) {
-            return setImmediate(() => {
+            setImmediate(() => {
               consumeRecursiveWrapper()
             })
+            return
           }
           this._logger.isWarnEnabled() && this._logger.warn(`RDKafkaConsumerBatched - consumeRecursiveWrapper received batch of ${messages.length} messages`)
 
@@ -213,7 +215,7 @@ export class RDKafkaConsumerBatched {
           }
 
           // DONE - consider putting this in a setImmediate or process.nextTick (pedro)
-          return setImmediate(() => {
+          setImmediate(() => {
             consumeRecursiveWrapper()
           })
         })

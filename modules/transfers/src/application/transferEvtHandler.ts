@@ -40,7 +40,6 @@
 import { DomainEventMsg, IDomainMessage, IMessagePublisher, ILogger, CommandMsg } from '@mojaloop-poc/lib-domain'
 import { MLTopics, ParticipantsTopics, PayerFundsReservedEvt, TransferPrepareRequestedEvt, TransferPrepareAcceptedEvt, TransferFulfilRequestedEvt, PayeeFundsCommittedEvt } from '@mojaloop-poc/lib-public-messages'
 import {
-  EnumOffset,
   IRunHandler,
   KafkaInfraTypes,
   MessageConsumer,
@@ -58,16 +57,20 @@ import { Crypto, IMetricsFactory } from '@mojaloop-poc/lib-utilities'
 import { v4 as uuidv4 } from 'uuid'
 
 export class TransferEvtHandler implements IRunHandler {
+  private _logger: ILogger
   private _consumer: MessageConsumer
   private _consumerBatch: RDKafkaConsumerBatched
   private _publisher: IMessagePublisher
+  private _histoTransferEvtHandlerMetric: any
+  private _histoTransferEvtBatchHandlerMetric: any
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
-    logger.isInfoEnabled() && logger.info(`TransferEvtHandler::start - appConfig=${JSON.stringify(appConfig)}`)
+    this._logger = logger
+    this._logger.isInfoEnabled() && this._logger.info(`TransferEvtHandler::start - appConfig=${JSON.stringify(appConfig)}`)
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.isInfoEnabled() && logger.info(`Creating ${appConfig.kafka.producer} transferEvtHandler.kafkaMsgPublisher...`)
+    this._logger.isInfoEnabled() && this._logger.info(`Creating ${appConfig.kafka.producer} transferEvtHandler.kafkaMsgPublisher...`)
     let clientId = `transferEvtHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_RDKAFKA): {
@@ -92,188 +95,36 @@ export class TransferEvtHandler implements IRunHandler {
         break
       }
       default: {
-        logger.isWarnEnabled() && logger.warn('TransferEvtConsumer - Unable to find a Kafka Producer implementation!')
+        this._logger.isWarnEnabled() && this._logger.warn('TransferEvtConsumer - Unable to find a Kafka Producer implementation!')
         throw new Error('transferEvtHandler.kafkaMsgPublisher was not created!')
       }
     }
 
-    logger.isInfoEnabled() && logger.info(`TransferEvtConsumer - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
+    this._logger.isInfoEnabled() && this._logger.info(`TransferEvtConsumer - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
 
     this._publisher = kafkaMsgPublisher
-    await kafkaMsgPublisher.init()
+    await this._publisher.init()
 
-    const histoTransferEvtHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+    this._histoTransferEvtHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
       'transferEvtHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
       'Instrumentation for transferEvtHandler', // Description of metric
       ['success', 'error', 'evtname'] // Define a custom label 'success'
     )
 
-    const histoTransferEvtBatchHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
+    this._histoTransferEvtBatchHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
       'transferEvtBatchHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
       'Instrumentation for transferEvtBatchHandler', // Description of metric
       ['success', 'error', 'evtname'] // Define a custom label 'success'
     )
 
-    // Standard Handler
-    const transferEvtHandler = async (message: IDomainMessage): Promise<void> => {
-      const histTimer = histoTransferEvtHandlerMetric.startTimer()
-      const evtname = message.msgName ?? 'unknown'
-      try {
-        logger.isInfoEnabled() && logger.info(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
-        let transferEvt: DomainEventMsg | undefined
-        let transferCmd: CommandMsg | null = null
-        // # Transform messages into correct Command
-        switch (message.msgName) {
-          case PayerFundsReservedEvt.name: {
-            transferEvt = PayerFundsReservedEvt.fromIDomainMessage(message)
-            if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${PayerFundsReservedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
-            const ackPayerFundsReservedCmdPayload: AckPayerFundsReservedCmdPayload = transferEvt.payload
-            transferCmd = new AckPayerFundsReservedCmd(ackPayerFundsReservedCmdPayload)
-            transferCmd.passTraceInfo(transferEvt)
-            break
-          }
-          case PayeeFundsCommittedEvt.name: {
-            transferEvt = PayeeFundsCommittedEvt.fromIDomainMessage(message)
-            if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${PayeeFundsCommittedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
-            const ackPayeeFundsCommittedCmdPayload: AckPayeeFundsCommittedCmdPayload = transferEvt.payload
-            transferCmd = new AckPayeeFundsCommittedCmd(ackPayeeFundsCommittedCmdPayload)
-            transferCmd.passTraceInfo(transferEvt)
-            break
-          }
-          case TransferPrepareRequestedEvt.name: {
-            transferEvt = TransferPrepareRequestedEvt.fromIDomainMessage(message)
-            if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${TransferPrepareRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
-            const prepareTransferCmdPayload: PrepareTransferCmdPayload = transferEvt.payload
-            transferCmd = new PrepareTransferCmd(prepareTransferCmdPayload)
-            transferCmd.passTraceInfo(transferEvt)
-            break
-          }
-          case TransferFulfilRequestedEvt.name: {
-            transferEvt = TransferFulfilRequestedEvt.fromIDomainMessage(message)
-            if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${TransferFulfilRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
-            const fulfilTransferCmdPayload: FulfilTransferCmdPayload = transferEvt.payload
-            transferCmd = new FulfilTransferCmd(fulfilTransferCmdPayload)
-            transferCmd.passTraceInfo(transferEvt)
-            break
-          }
-          case TransferPrepareAcceptedEvt.name: {
-            // logger.isInfoEnabled() && logger.info(`EVENT:Type TransferPrepareAcceptedEvt ignored for now... TODO: refactor the topic names`)
-            break
-          }
-          default: {
-            logger.isDebugEnabled() && logger.debug(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
-            histTimer({ success: 'true', evtname })
-            return
-          }
-        }
-
-        if (transferCmd != null) {
-          logger.isInfoEnabled() && logger.info(`TransferEvtConsumer - publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${transferCmd?.msgName}:${transferCmd?.msgId}`)
-          await kafkaMsgPublisher!.publish(transferCmd)
-          logger.isInfoEnabled() && logger.info(`TransferEvtConsumer - publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
-        }
-        histTimer({ success: 'true', evtname })
-      } catch (err) {
-        const errMsg: string = err?.message?.toString()
-        logger.isWarnEnabled() && logger.warn(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
-        logger.isErrorEnabled() && logger.error(err)
-        histTimer({ success: 'false', error: err.message, evtname })
-      }
-    }
-
-    // Batch Handler
-    const transferEvtBatchHandler = async (messages: IDomainMessage[]): Promise<void> => {
-      const histTimer = histoTransferEvtBatchHandlerMetric.startTimer()
-      const batchId = uuidv4()
-      logger.isInfoEnabled() && logger.info(`transferEvtBatchHandler - processing events - batchId: ${batchId} - length:${messages?.length} - Start`)
-
-      const commands: IDomainMessage[] = []
-
-      try {
-        for (const message of messages) {
-          const evtname = message.msgName ?? 'unknown'
-          try {
-            logger.isInfoEnabled() && logger.info(`transferEvtBatchHandler - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
-            let transferEvt: DomainEventMsg | undefined
-            let transferCmd: CommandMsg | null = null
-            // # Transform messages into correct Command
-            switch (message.msgName) {
-              case PayerFundsReservedEvt.name: {
-                transferEvt = PayerFundsReservedEvt.fromIDomainMessage(message)
-                if (transferEvt == null) throw new InvalidTransferEvtError(`transferEvtBatchHandler - batchId: ${batchId} - is unable to process event - ${PayerFundsReservedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
-                const ackPayerFundsReservedCmdPayload: AckPayerFundsReservedCmdPayload = transferEvt.payload
-                transferCmd = new AckPayerFundsReservedCmd(ackPayerFundsReservedCmdPayload)
-                transferCmd.passTraceInfo(transferEvt)
-                break
-              }
-              case PayeeFundsCommittedEvt.name: {
-                transferEvt = PayeeFundsCommittedEvt.fromIDomainMessage(message)
-                if (transferEvt == null) throw new InvalidTransferEvtError(`transferEvtBatchHandler - batchId: ${batchId} - is unable to process event - ${PayeeFundsCommittedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
-                const ackPayeeFundsCommittedCmdPayload: AckPayeeFundsCommittedCmdPayload = transferEvt.payload
-                transferCmd = new AckPayeeFundsCommittedCmd(ackPayeeFundsCommittedCmdPayload)
-                transferCmd.passTraceInfo(transferEvt)
-                break
-              }
-              case TransferPrepareRequestedEvt.name: {
-                transferEvt = TransferPrepareRequestedEvt.fromIDomainMessage(message)
-                if (transferEvt == null) throw new InvalidTransferEvtError(`transferEvtBatchHandler - batchId: ${batchId} - is unable to process event - ${TransferPrepareRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
-                const prepareTransferCmdPayload: PrepareTransferCmdPayload = transferEvt.payload
-                transferCmd = new PrepareTransferCmd(prepareTransferCmdPayload)
-                transferCmd.passTraceInfo(transferEvt)
-                break
-              }
-              case TransferFulfilRequestedEvt.name: {
-                transferEvt = TransferFulfilRequestedEvt.fromIDomainMessage(message)
-                if (transferEvt == null) throw new InvalidTransferEvtError(`transferEvtBatchHandler - batchId: ${batchId} - is unable to process event - ${TransferFulfilRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
-                const fulfilTransferCmdPayload: FulfilTransferCmdPayload = transferEvt.payload
-                transferCmd = new FulfilTransferCmd(fulfilTransferCmdPayload)
-                transferCmd.passTraceInfo(transferEvt)
-                break
-              }
-              case TransferPrepareAcceptedEvt.name: {
-                // logger.isInfoEnabled() && logger.info(`EVENT:Type TransferPrepareAcceptedEvt ignored for now... TODO: refactor the topic names`)
-                break
-              }
-              default: {
-                logger.isDebugEnabled() && logger.debug(`transferEvtBatchHandler - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
-              }
-            }
-    
-            if (transferCmd != null) {
-              logger.isInfoEnabled() && logger.info(`transferEvtBatchHandler - batchId: ${batchId} - publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${transferCmd?.msgName}:${transferCmd?.msgId}`)
-              commands.push(transferCmd)
-              logger.isInfoEnabled() && logger.info(`transferEvtBatchHandler - batchId: ${batchId} - publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
-            }
-          } catch (err) {
-            const errMsg: string = err?.message?.toString()
-            logger.isWarnEnabled() && logger.warn(`transferEvtBatchHandler - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
-            logger.isErrorEnabled() && logger.error(err)
-            histTimer({ success: 'false', error: err.message, evtname })
-            throw err
-          }
-        }
-      } catch (err) {
-        // TODO: Handle something here?
-        throw err
-      }
-      if (commands != null && commands.length >0) {
-        logger.isInfoEnabled() && logger.info(`transferEvtBatchHandler - batchId: ${batchId} - publishing cmd list - length:${commands?.length}`)
-        await kafkaMsgPublisher!.publishMany(commands)
-        logger.isInfoEnabled() && logger.info(`transferEvtBatchHandler - batchId: ${batchId} - publishing cmd Finished`)
-      } else {
-        logger.isDebugEnabled() && logger.debug(`transferEvtBatchHandler - batchId: ${batchId} - No commands processed.`)
-      }
-      histTimer({ success: 'true', evtname: 'unknown' })
-    }
-
     let transferEvtConsumer: MessageConsumer | undefined
     let transferEvtBatchConsumer: RDKafkaConsumerBatched | undefined
 
     if (appConfig.batch.enabled === true) {
-      logger.isInfoEnabled() && logger.info(`TransferEvtHandler - Creating ${appConfig.kafka.consumer as string} transferEvtBatchConsumer...`)
+      this._logger.isInfoEnabled() && this._logger.info(`TransferEvtHandler - Creating ${appConfig.kafka.consumer as string} transferEvtBatchConsumer...`)
       clientId = `transferEvtBatchConsumer-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
     } else {
-      logger.isInfoEnabled() && logger.info(`TransferEvtHandler - Creating ${appConfig.kafka.consumer as string} transferEvtConsumer...`)
+      this._logger.isInfoEnabled() && this._logger.info(`TransferEvtHandler - Creating ${appConfig.kafka.consumer as string} transferEvtConsumer...`)
       clientId = `transferEvtConsumer-${appConfig.kafka.consumer as string}-${Crypto.randomBytes(8)}`
     }
 
@@ -300,16 +151,16 @@ export class TransferEvtHandler implements IRunHandler {
 
         if (appConfig.batch.enabled === true) {
           transferEvtBatchConsumer = new RDKafkaConsumerBatched(rdKafkaConsumerOptions, logger)
-          logger.isInfoEnabled() && logger.info(`TransferEvtHandler - Created kafkaConsumer of type ${transferEvtBatchConsumer?.constructor?.name}`)
+          this._logger.isInfoEnabled() && this._logger.info('TransferEvtHandler - Created kafkaConsumer of type RDKafkaConsumerBatched')
         } else {
           transferEvtConsumer = new RDKafkaConsumer(rdKafkaConsumerOptions, logger)
-          logger.isInfoEnabled() && logger.info(`TransferEvtHandler - Created kafkaConsumer of type ${transferEvtConsumer?.constructor?.name}`)
+          this._logger.isInfoEnabled() && this._logger.info('TransferEvtHandler - Created kafkaConsumer of type RDKafkaConsumer')
         }
 
         break
       }
       default: {
-        logger.isWarnEnabled() && logger.warn('TransferEvtHandler - Unable to find a Kafka consumer implementation!')
+        this._logger.isWarnEnabled() && this._logger.warn('TransferEvtHandler - Unable to find a Kafka consumer implementation!')
         throw new Error('transferEvtConsumer was not created!')
       }
     }
@@ -321,30 +172,188 @@ export class TransferEvtHandler implements IRunHandler {
       'TransferFulfilRequestedEvt'
     ]
 
-    logger.isInfoEnabled() && logger.info('TransferEvtHandler - Initializing transferCmdConsumer...')
+    this._logger.isInfoEnabled() && this._logger.info('TransferEvtHandler - Initializing transferCmdConsumer...')
     if (appConfig.batch.enabled === true) {
       if (transferEvtBatchConsumer === undefined) {
         const err = new Error('transferEvtBatchConsumer is undefined')
-        logger.isErrorEnabled() && logger.error(err)
+        this._logger.isErrorEnabled() && this._logger.error(err)
         throw err
       }
       this._consumerBatch = transferEvtBatchConsumer
       /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-      await transferEvtBatchConsumer.init(transferEvtBatchHandler, subscribedMsgNames)
+      await transferEvtBatchConsumer.init(this._transferEvtBatchHandler.bind(this), subscribedMsgNames)
     } else {
       if (transferEvtConsumer === undefined) {
         const err = new Error('transferEvtConsumer is undefined')
-        logger.isErrorEnabled() && logger.error(err)
-        throw err      }
+        this._logger.isErrorEnabled() && this._logger.error(err)
+        throw err
+      }
       this._consumer = transferEvtConsumer
       /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-      await transferEvtConsumer.init(transferEvtHandler, subscribedMsgNames)
+      await transferEvtConsumer.init(this._transferEvtHandler.bind(this), subscribedMsgNames)
     }
   }
 
+  private async _transferEvtHandler (message: IDomainMessage): Promise<void> {
+    const histTimer = this._histoTransferEvtHandlerMetric.startTimer()
+    const evtname = message.msgName ?? 'unknown'
+    try {
+      this._logger.isInfoEnabled() && this._logger.info(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+      let transferEvt: DomainEventMsg | undefined
+      let transferCmd: CommandMsg | null = null
+      // # Transform messages into correct Command
+      switch (message.msgName) {
+        case PayerFundsReservedEvt.name: {
+          transferEvt = PayerFundsReservedEvt.fromIDomainMessage(message)
+          if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${PayerFundsReservedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+          const ackPayerFundsReservedCmdPayload: AckPayerFundsReservedCmdPayload = transferEvt.payload
+          transferCmd = new AckPayerFundsReservedCmd(ackPayerFundsReservedCmdPayload)
+          transferCmd.passTraceInfo(transferEvt)
+          break
+        }
+        case PayeeFundsCommittedEvt.name: {
+          transferEvt = PayeeFundsCommittedEvt.fromIDomainMessage(message)
+          if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${PayeeFundsCommittedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+          const ackPayeeFundsCommittedCmdPayload: AckPayeeFundsCommittedCmdPayload = transferEvt.payload
+          transferCmd = new AckPayeeFundsCommittedCmd(ackPayeeFundsCommittedCmdPayload)
+          transferCmd.passTraceInfo(transferEvt)
+          break
+        }
+        case TransferPrepareRequestedEvt.name: {
+          transferEvt = TransferPrepareRequestedEvt.fromIDomainMessage(message)
+          if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${TransferPrepareRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+          const prepareTransferCmdPayload: PrepareTransferCmdPayload = transferEvt.payload
+          transferCmd = new PrepareTransferCmd(prepareTransferCmdPayload)
+          transferCmd.passTraceInfo(transferEvt)
+          break
+        }
+        case TransferFulfilRequestedEvt.name: {
+          transferEvt = TransferFulfilRequestedEvt.fromIDomainMessage(message)
+          if (transferEvt == null) throw new InvalidTransferEvtError(`TransferEvtHandler is unable to process event - ${TransferFulfilRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+          const fulfilTransferCmdPayload: FulfilTransferCmdPayload = transferEvt.payload
+          transferCmd = new FulfilTransferCmd(fulfilTransferCmdPayload)
+          transferCmd.passTraceInfo(transferEvt)
+          break
+        }
+        case TransferPrepareAcceptedEvt.name: {
+          // this._logger.isInfoEnabled() && this._logger.info(`EVENT:Type TransferPrepareAcceptedEvt ignored for now... TODO: refactor the topic names`)
+          break
+        }
+        default: {
+          this._logger.isDebugEnabled() && this._logger.debug(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+          histTimer({ success: 'true', evtname })
+          return
+        }
+      }
+
+      if (transferCmd != null) {
+        this._logger.isInfoEnabled() && this._logger.info(`TransferEvtConsumer - publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${transferCmd?.msgName}:${transferCmd?.msgId}`)
+        await this._publisher.publish(transferCmd)
+        this._logger.isInfoEnabled() && this._logger.info(`TransferEvtConsumer - publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+      }
+      histTimer({ success: 'true', evtname })
+    } catch (err) {
+      const errMsg: string = err?.message?.toString()
+      this._logger.isWarnEnabled() && this._logger.warn(`TransferEvtConsumer - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+      this._logger.isErrorEnabled() && this._logger.error(err)
+      histTimer({ success: 'false', error: err.message, evtname })
+    }
+  }
+
+  private async _transferEvtBatchHandler (messages: IDomainMessage[]): Promise<void> {
+    const histTimer = this._histoTransferEvtBatchHandlerMetric.startTimer()
+    const batchId = uuidv4()
+    this._logger.isInfoEnabled() && this._logger.info(`transferEvtBatchHandler - processing events - batchId: ${batchId} - length:${messages?.length} - Start`)
+
+    const commands: IDomainMessage[] = []
+
+    try {
+      for (const message of messages) {
+        const evtname = message.msgName ?? 'unknown'
+        try {
+          this._logger.isInfoEnabled() && this._logger.info(`transferEvtBatchHandler - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+          const transferCmd: CommandMsg | undefined = this._getCommandFromEventMsg(message)
+
+          if (transferCmd !== undefined) {
+            this._logger.isInfoEnabled() && this._logger.info(`transferEvtBatchHandler - batchId: ${batchId} - publishing cmd - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Cmd: ${transferCmd?.msgName}:${transferCmd?.msgId}`)
+            commands.push(transferCmd)
+            this._logger.isInfoEnabled() && this._logger.info(`transferEvtBatchHandler - batchId: ${batchId} - publishing cmd Finished - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+          }
+        } catch (err) {
+          const errMsg: string = err?.message?.toString()
+          this._logger.isWarnEnabled() && this._logger.warn(`transferEvtBatchHandler - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+          this._logger.isErrorEnabled() && this._logger.error(err)
+          histTimer({ success: 'false', error: err.message, evtname })
+          throw err
+        }
+      }
+    } catch (err) {
+      // TODO: Handle something here?
+      this._logger.isErrorEnabled() && this._logger.error(`transferEvtBatchHandler - batchId: ${batchId} - failed`)
+      this._logger.isErrorEnabled() && this._logger.error(err)
+      throw err
+    }
+    if (commands != null && commands.length > 0) {
+      this._logger.isInfoEnabled() && this._logger.info(`transferEvtBatchHandler - batchId: ${batchId} - publishing cmd list - length:${commands?.length}`)
+      await this._publisher.publishMany(commands)
+      this._logger.isInfoEnabled() && this._logger.info(`transferEvtBatchHandler - batchId: ${batchId} - publishing cmd Finished`)
+    } else {
+      this._logger.isDebugEnabled() && this._logger.debug(`transferEvtBatchHandler - batchId: ${batchId} - No commands processed.`)
+    }
+    histTimer({ success: 'true', evtname: 'unknown' })
+  }
+
+  private _getCommandFromEventMsg (message: IDomainMessage): CommandMsg | undefined {
+    let transferEvt: DomainEventMsg | undefined
+    let transferCmd: CommandMsg | undefined
+    // # Transform messages into correct Command
+    switch (message.msgName) {
+      case PayerFundsReservedEvt.name: {
+        transferEvt = PayerFundsReservedEvt.fromIDomainMessage(message)
+        if (transferEvt == null) throw new InvalidTransferEvtError(`transferEvtBatchHandler - is unable to process event - ${PayerFundsReservedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+        const ackPayerFundsReservedCmdPayload: AckPayerFundsReservedCmdPayload = transferEvt.payload
+        transferCmd = new AckPayerFundsReservedCmd(ackPayerFundsReservedCmdPayload)
+        transferCmd.passTraceInfo(transferEvt)
+        break
+      }
+      case PayeeFundsCommittedEvt.name: {
+        transferEvt = PayeeFundsCommittedEvt.fromIDomainMessage(message)
+        if (transferEvt == null) throw new InvalidTransferEvtError(`transferEvtBatchHandler - is unable to process event - ${PayeeFundsCommittedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+        const ackPayeeFundsCommittedCmdPayload: AckPayeeFundsCommittedCmdPayload = transferEvt.payload
+        transferCmd = new AckPayeeFundsCommittedCmd(ackPayeeFundsCommittedCmdPayload)
+        transferCmd.passTraceInfo(transferEvt)
+        break
+      }
+      case TransferPrepareRequestedEvt.name: {
+        transferEvt = TransferPrepareRequestedEvt.fromIDomainMessage(message)
+        if (transferEvt == null) throw new InvalidTransferEvtError(`transferEvtBatchHandler - is unable to process event - ${TransferPrepareRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+        const prepareTransferCmdPayload: PrepareTransferCmdPayload = transferEvt.payload
+        transferCmd = new PrepareTransferCmd(prepareTransferCmdPayload)
+        transferCmd.passTraceInfo(transferEvt)
+        break
+      }
+      case TransferFulfilRequestedEvt.name: {
+        transferEvt = TransferFulfilRequestedEvt.fromIDomainMessage(message)
+        if (transferEvt == null) throw new InvalidTransferEvtError(`transferEvtBatchHandler - is unable to process event - ${TransferFulfilRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+        const fulfilTransferCmdPayload: FulfilTransferCmdPayload = transferEvt.payload
+        transferCmd = new FulfilTransferCmd(fulfilTransferCmdPayload)
+        transferCmd.passTraceInfo(transferEvt)
+        break
+      }
+      case TransferPrepareAcceptedEvt.name: {
+        // this._logger.isInfoEnabled() && this._logger.info(`EVENT:Type TransferPrepareAcceptedEvt ignored for now... TODO: refactor the topic names`)
+        break
+      }
+      default: {
+        this._logger.isDebugEnabled() && this._logger.debug(`transferEvtBatchHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+      }
+    }
+    return transferCmd
+  }
+
   async destroy (): Promise<void> {
-    if (this._consumer) await this._consumer.destroy(true)
-    if (this._consumerBatch) await this._consumerBatch.destroy(true)
+    if (this._consumer !== undefined) await this._consumer.destroy(true)
+    if (this._consumerBatch !== undefined) await this._consumerBatch.destroy(true)
     await this._publisher.destroy()
   }
 }
