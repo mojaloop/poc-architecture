@@ -124,7 +124,7 @@ export class ParticipantEvtHandler implements IRunHandler {
     )
     if (appConfig.batch.enabled === true) {
       this._histoParticipantEvtHandlerBatchesMetric = metrics.getHistogram( // Create a new Histogram instrumentation
-        'participantEvtHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+        'participantEvtHandlerBatch', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
         'Instrumentation for participantEvtHandler - time it takes for each batch of events to be processed', // Description of metric
         ['success', 'error'] // Define a custom label 'success'
       )

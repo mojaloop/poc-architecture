@@ -171,13 +171,13 @@ export class TransferCmdHandler implements IRunHandler {
 
     this._histoTransfersCmdHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
       'transferCmdHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
-      'Instrumentation for transferCmdHandler', // Description of metric
+      'Instrumentation for transferCmdHandler - time it takes for each command to be processed', // Description of metric
       ['success', 'error', 'evtname'] // Define a custom label 'success'
     )
 
     this._histoTransfersCmdBatchHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
-      'transferCmdBatchHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
-      'Instrumentation for transferCmdHandler', // Description of metric
+      'transferCmdHandlerBatch', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+      'Instrumentation for transferCmdHandler - time it takes for batch of commands to be processed', // Description of metric
       ['success', 'error', 'evtname'] // Define a custom label 'success'
     )
 
@@ -237,7 +237,9 @@ export class TransferCmdHandler implements IRunHandler {
   }
 
   private async _cmdBatchHandler (messages: IDomainMessage[]): Promise<void> {
-    const histTimer = this._histoTransfersCmdBatchHandlerMetric.startTimer()
+    const histTimer = this._histoTransfersCmdHandlerMetric.startTimer()
+    const histTimerBatches = this._histoTransfersCmdBatchHandlerMetric.startTimer()
+
     const batchId: string = this._transfersAgg.startBatch()
     this._logger.isInfoEnabled() && this._logger.info(`transferCmdBatchHandler - batchId: ${batchId} - processing events - length:${messages?.length} - Start`)
     try {
@@ -277,14 +279,20 @@ export class TransferCmdHandler implements IRunHandler {
       } else {
         this._logger.isWarnEnabled() && this._logger.warn(`transferCmdBatchHandler - batchId: ${batchId} - no domain events to publish at _cmdHandler batch end`)
       }
+
+      for (const message of messages) {
+        histTimer({ success: 'true', evtname: message.msgName ?? 'unknown' })
+      }
+      this._logger.isInfoEnabled() && this._logger.info(`transferCmdBatchHandler - batchId: ${batchId} - finished`)
+      histTimerBatches({ success: 'true' })
     } catch (err) {
       // TODO: Handle something here?
       this._logger.isErrorEnabled() && this._logger.error(`transferCmdBatchHandler - batchId: ${batchId} - failed`)
       this._logger.isErrorEnabled() && this._logger.error(err)
+      histTimer({ success: 'false', error: err.message })
+      histTimerBatches({ success: 'true' })
       throw err
     }
-    this._logger.isInfoEnabled() && this._logger.info(`transferCmdBatchHandler - batchId: ${batchId} - publishing cmd Finished`)
-    histTimer({ success: 'true', evtname: 'unknown' })
   }
 
   private _getCommandFromMessage (message: IDomainMessage): CommandMsg | undefined {

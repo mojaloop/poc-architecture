@@ -112,7 +112,7 @@ export class TransferEvtHandler implements IRunHandler {
     )
 
     this._histoTransferEvtBatchHandlerMetric = metrics.getHistogram( // Create a new Histogram instrumentation
-      'transferEvtBatchHandler', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
+      'transferEvtHandlerBatch', // Name of metric. Note that this name will be concatenated after the prefix set in the config. i.e. '<PREFIX>_exampleFunctionMetric'
       'Instrumentation for transferEvtBatchHandler', // Description of metric
       ['success', 'error', 'evtname'] // Define a custom label 'success'
     )
@@ -261,7 +261,8 @@ export class TransferEvtHandler implements IRunHandler {
   }
 
   private async _transferEvtBatchHandler (messages: IDomainMessage[]): Promise<void> {
-    const histTimer = this._histoTransferEvtBatchHandlerMetric.startTimer()
+    const histTimer = this._histoTransferEvtHandlerMetric.startTimer()
+    const histTimerBatches = this._histoTransferEvtBatchHandlerMetric.startTimer()
     const batchId = uuidv4()
     this._logger.isInfoEnabled() && this._logger.info(`transferEvtBatchHandler - processing events - batchId: ${batchId} - length:${messages?.length} - Start`)
 
@@ -269,7 +270,7 @@ export class TransferEvtHandler implements IRunHandler {
 
     try {
       for (const message of messages) {
-        const evtname = message.msgName ?? 'unknown'
+        // const evtname = message.msgName ?? 'unknown'
         try {
           this._logger.isInfoEnabled() && this._logger.info(`transferEvtBatchHandler - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
           const transferCmd: CommandMsg | undefined = this._getCommandFromEventMsg(message)
@@ -283,7 +284,6 @@ export class TransferEvtHandler implements IRunHandler {
           const errMsg: string = err?.message?.toString()
           this._logger.isWarnEnabled() && this._logger.warn(`transferEvtBatchHandler - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
           this._logger.isErrorEnabled() && this._logger.error(err)
-          histTimer({ success: 'false', error: err.message, evtname })
           throw err
         }
       }
@@ -291,16 +291,22 @@ export class TransferEvtHandler implements IRunHandler {
       // TODO: Handle something here?
       this._logger.isErrorEnabled() && this._logger.error(`transferEvtBatchHandler - batchId: ${batchId} - failed`)
       this._logger.isErrorEnabled() && this._logger.error(err)
+      histTimerBatches({ success: 'false' })
       throw err
     }
     if (commands != null && commands.length > 0) {
       this._logger.isInfoEnabled() && this._logger.info(`transferEvtBatchHandler - batchId: ${batchId} - publishing cmd list - length:${commands?.length}`)
       await this._publisher.publishMany(commands)
       this._logger.isInfoEnabled() && this._logger.info(`transferEvtBatchHandler - batchId: ${batchId} - publishing cmd Finished`)
+
+      for (const message of messages) {
+        histTimer({ success: 'true', evtname: message.msgName ?? 'unknown' })
+      }
     } else {
       this._logger.isDebugEnabled() && this._logger.debug(`transferEvtBatchHandler - batchId: ${batchId} - No commands processed.`)
     }
-    histTimer({ success: 'true', evtname: 'unknown' })
+
+    histTimerBatches({ success: 'true' })
   }
 
   private _getCommandFromEventMsg (message: IDomainMessage): CommandMsg | undefined {
