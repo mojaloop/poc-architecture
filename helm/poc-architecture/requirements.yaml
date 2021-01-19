@@ -81,7 +81,7 @@ dependencies:
 - name: kafka
   # version: 0.13.11
   version: 0.21.2
-  repository: http://storage.googleapis.com/kubernetes-charts-incubator
+  repository: https://charts.helm.sh/incubator
   alias: kafka
   condition: kafka.enabled
 - name: redis

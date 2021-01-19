@@ -39,9 +39,11 @@ config:
   participants_repo_type: redis
   participants_repo_clustered: false
   participants_query_repo_url: 'mongodb://root:example@$release_name-mongodb:27017/'
+  participants_batch_enabled: false
   transfers_repo_type: redis
   transfers_repo_clustered: false
   transfers_query_repo_url: 'mongodb://root:example@$release_name-mongodb:27017/'
+  transfers_batch_enabled: false
   duplicate_repo_type: redis
   duplicate_repo_clustered: false
   event_trace_vendor: mojaloop

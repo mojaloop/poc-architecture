@@ -6,16 +6,24 @@ global: {}
 parameters:
   poc_architecture_image : &poc_architecture_image "mojaloop/poc-architecture"
   poc_architecture_tag : &poc_architecture_tag "v0.63-es"
-  kafka_autocommit: &kafka_autocommit true
-  kafka_producer_gzip: &kafka_producer_gzip true
+  kafka_autocommit: &kafka_autocommit false
+  kafka_producer_gzip: &kafka_producer_gzip false
+  kafka_autocommit_interval: &kafka_autocommit_interval 100
+  kafka_autocommit_threshold: &kafka_autocommit_threshold 1000
+  # default kafka_fetch_min_bytes = 1, ref: https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
+  kafka_fetch_min_bytes: &kafka_fetch_min_bytes 1
+  # default kafka_fetch_wait_max_ms = 500 (was 100), ref: https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
+  kafka_fetch_wait_max_ms: &kafka_fetch_wait_max_ms 500
+  # Supported commit modes: no-wait, commit-msg-sync (blocking)
+  rdkafka_commit_wait_mode: &rdkafka_commit_wait_mode no-wait
   kafka_replicas: &kafka_replicas 1
-  # Supported consumers: kafkajs, node-kafka, node-kafka-stream, node-rdkafka
+  # Supported consumers: node-rdkafka
   kafka_consumer: &kafka_consumer node-rdkafka
-  # Supported producers: kafkajs, node-kafka, node-rdkafka
+  # Supported producers: node-rdkafka
   kafka_producer: &kafka_producer node-rdkafka
-  # Supported repo Types: memory, redis, cachedredis, cachedpersistedredis
+  # Supported repo Types: memory, cachedpersistedredis
   participants_repo_type: &participants_repo_type cachedpersistedredis
-  # Supported repo Types: memory, redis, cachedredis
+  # Supported repo Types: memory, cachedpersistedredis
   transfers_repo_type: &transfers_repo_type redis
   # Supported repo Types: memory, redis, cachedredis
   duplicate_repo_type: &duplicate_repo_type redis
@@ -44,10 +52,10 @@ jobs:
       kafka_consumer: *kafka_consumer
       # Supported producers: kafkajs, node-kafka, node-rdkafka
       kafka_producer: *kafka_producer
-      kafka_producer_gzip: true
+      kafka_producer_gzip: *kafka_producer_gzip
       kafka_autocommit: *kafka_autocommit
-      kafka_autocommit_interval: 100
-      kafka_autocommit_threshold: 1000
+      kafka_autocommit_interval: *kafka_autocommit_interval
+      kafka_autocommit_threshold: *kafka_autocommit_threshold
       simulator_host: '$release_name-legacy-simulator'
       uv_threadpool_size: 7
       redis_host: 'redis://$release_name-redis-master:6379'
@@ -4622,8 +4630,8 @@ participants-evt:
     kafka_producer: *kafka_producer
     kafka_producer_gzip: *kafka_producer_gzip
     kafka_autocommit: *kafka_autocommit
-    kafka_autocommit_interval: 100
-    kafka_autocommit_threshold: 1000
+    kafka_autocommit_interval: *kafka_autocommit_interval
+    kafka_autocommit_threshold: *kafka_autocommit_threshold
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
     # redis_host: 'redis://$release_name-redis-master:6379'
@@ -4702,8 +4710,8 @@ participants-cmd:
     kafka_producer: *kafka_producer
     kafka_producer_gzip: *kafka_producer_gzip
     kafka_autocommit: *kafka_autocommit
-    kafka_autocommit_interval: 100
-    kafka_autocommit_threshold: 1000
+    kafka_autocommit_interval: *kafka_autocommit_interval
+    kafka_autocommit_threshold: *kafka_autocommit_threshold
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
     # redis_host: 'redis://$release_name-redis-master:6379'
@@ -4782,8 +4790,8 @@ participants-state:
     kafka_producer: *kafka_producer
     kafka_producer_gzip: *kafka_producer_gzip
     kafka_autocommit: *kafka_autocommit
-    kafka_autocommit_interval: 100
-    kafka_autocommit_threshold: 1000
+    kafka_autocommit_interval: *kafka_autocommit_interval
+    kafka_autocommit_threshold: *kafka_autocommit_threshold
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
     # redis_host: 'redis://$release_name-redis-master:6379'
@@ -4865,8 +4873,8 @@ transfer-evt:
     kafka_producer: *kafka_producer
     kafka_producer_gzip: *kafka_producer_gzip
     kafka_autocommit: *kafka_autocommit
-    kafka_autocommit_interval: 100
-    kafka_autocommit_threshold: 1000
+    kafka_autocommit_interval: *kafka_autocommit_interval
+    kafka_autocommit_threshold: *kafka_autocommit_threshold
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
     # redis_host: 'redis://$release_name-redis-master:6379'
@@ -4946,8 +4954,8 @@ transfers-cmd:
     kafka_producer: *kafka_producer
     kafka_producer_gzip: *kafka_producer_gzip
     kafka_autocommit: *kafka_autocommit
-    kafka_autocommit_interval: 100
-    kafka_autocommit_threshold: 1000
+    kafka_autocommit_interval: *kafka_autocommit_interval
+    kafka_autocommit_threshold: *kafka_autocommit_threshold
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
     # redis_host: 'redis://$release_name-redis-master:6379'
@@ -5027,8 +5035,8 @@ transfers-state:
     kafka_producer: *kafka_producer
     kafka_producer_gzip: *kafka_producer_gzip
     kafka_autocommit: *kafka_autocommit
-    kafka_autocommit_interval: 100
-    kafka_autocommit_threshold: 1000
+    kafka_autocommit_interval: *kafka_autocommit_interval
+    kafka_autocommit_threshold: *kafka_autocommit_threshold
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
     # redis_host: 'redis://$release_name-redis-master:6379'
@@ -5102,8 +5110,8 @@ simulator-dev-tool:
     kafka_producer: *kafka_producer
     kafka_producer_gzip: *kafka_producer_gzip
     kafka_autocommit: *kafka_autocommit
-    kafka_autocommit_interval: 100
-    kafka_autocommit_threshold: 1000
+    kafka_autocommit_interval: *kafka_autocommit_interval
+    kafka_autocommit_threshold: *kafka_autocommit_threshold
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
     redis_host: 'redis://$release_name-redis-master:6379'
@@ -5176,8 +5184,8 @@ simulator-metrics-exporter:
     kafka_producer: *kafka_producer
     kafka_producer_gzip: *kafka_producer_gzip
     kafka_autocommit: *kafka_autocommit
-    kafka_autocommit_interval: 100
-    kafka_autocommit_threshold: 1000
+    kafka_autocommit_interval: *kafka_autocommit_interval
+    kafka_autocommit_threshold: *kafka_autocommit_threshold
     measure_kafka_group_id: 'perf_measure_consumer'
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
@@ -5424,7 +5432,8 @@ ml-api-adapter:
       kafka_host: '$release_name-kafka'
       kafka_port: 9092
       kafka_consume_timeout: 100
-      kafka_autocommit_interval_ms: 100
+      kafka_autocommit_interval: *kafka_autocommit_interval
+      kafka_autocommit_threshold: *kafka_autocommit_threshold
       kafka_autocommit_enabled: true
       central_services_host: '$release_name-centralledger-service'
       central_services_port: 80
@@ -5626,8 +5635,8 @@ devtoolclient:
     kafka_producer: *kafka_producer
     kafka_producer_gzip: *kafka_producer_gzip
     kafka_autocommit: *kafka_autocommit
-    kafka_autocommit_interval: 100
-    kafka_autocommit_threshold: 1000
+    kafka_autocommit_interval: *kafka_autocommit_interval
+    kafka_autocommit_threshold: *kafka_autocommit_threshold
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
     redis_host: 'redis://$release_name-redis-master:6379'
@@ -5700,8 +5709,8 @@ perftoolclient:
     kafka_producer: *kafka_producer
     kafka_producer_gzip: *kafka_producer_gzip
     kafka_autocommit: *kafka_autocommit
-    kafka_autocommit_interval: 100
-    kafka_autocommit_threshold: 1000
+    kafka_autocommit_interval: *kafka_autocommit_interval
+    kafka_autocommit_threshold: *kafka_autocommit_threshold
     simulator_host: '$release_name-legacy-simulator'
     uv_threadpool_size: 7
     redis_host: 'redis://$release_name-redis-master:6379'
