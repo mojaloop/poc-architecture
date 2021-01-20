@@ -50,4 +50,5 @@ export interface IESourcingStateRepository {
   canCall: () => boolean // for circuit breaker
 
   load: (id: string) => Promise<TESourcingState | null>
+  storeOffset: (id: string, topic: string, partition: number, offset: number) => Promise<void>
 }

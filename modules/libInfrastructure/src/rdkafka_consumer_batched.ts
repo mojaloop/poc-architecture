@@ -38,8 +38,9 @@ import { ConsoleLogger, getEnvIntegerOrDefault, getEnvValueOrDefault } from '@mo
 import * as RDKafka from 'node-rdkafka'
 import { ILogger, IDomainMessage } from '@mojaloop-poc/lib-domain'
 import { RdKafkaCommitMode, RDKafkaConsumerOptions } from './rdkafka_consumer'
+import { TopicPartitionOffset } from 'node-rdkafka'
 
-const RDKAFKA_CONSUMER_BATCH_SIZE = 100
+const RDKAFKA_CONSUMER_BATCH_SIZE = getEnvIntegerOrDefault('RDKAFKA_CONSUMER_BATCH_SIZE', 50)
 
 export class RDKafkaConsumerBatched {
   protected _logger: ILogger
@@ -156,12 +157,9 @@ export class RDKafkaConsumerBatched {
               consumeRecursiveWrapper()
             })
             return
-            // DONE - consider putting this in a setImmediate or process.nextTick (pedro)
           }
 
-          // const messages: RDKafka.Message[] = [consumeParam]
-
-          if (err !== null || messages.length <= 0) {
+          if (messages.length <= 0) {
             setImmediate(() => {
               consumeRecursiveWrapper()
             })
@@ -200,17 +198,36 @@ export class RDKafkaConsumerBatched {
 
           // if so defined, commit all messages in this batch
           if (autoCommitEnabled !== true) {
+            const toCommit: TopicPartitionOffset[] = []
+
             for (const msg of messages) {
+              const topic: TopicPartitionOffset | undefined = toCommit.find((item) => {
+                return item.topic === msg.topic && item.partition === msg.partition
+              })
+              if (topic !== undefined) {
+                if (topic.offset < msg.offset) topic.offset = msg.offset
+              } else {
+                toCommit.push({
+                  offset: msg.offset,
+                  partition: msg.partition,
+                  topic: msg.topic
+                })
+              }
+            }
+
+            try {
               switch (commitWaitMode) {
                 case RdKafkaCommitMode.RDKAFKA_COMMIT_NO_WAIT:
-                  this._client.commitMessage(msg)
+                  this._client.commit(toCommit)
                   break
                 case RdKafkaCommitMode.RDKAFKA_COMMIT_MSG_SYNC:
-                  this._client.commitMessageSync(msg)
+                  this._client.commitSync(toCommit)
                   break
                 default:
                   this._logger.isErrorEnabled() && this._logger.error('RDKafkaConsumerBatched unknown commitWaitMode - no commits will happen!')
               }
+            } catch (err) {
+              this._logger.isErrorEnabled() && this._logger.error(err, 'RDKafkaConsumerBatched - error committing')
             }
           }
 

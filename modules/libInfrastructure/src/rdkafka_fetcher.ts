@@ -39,7 +39,7 @@
 
 import { IDomainMessage, ILogger, IMessageFetcher } from '@mojaloop-poc/lib-domain'
 import * as RDKafka from 'node-rdkafka'
-import { Assignment } from 'node-rdkafka'
+import { Assignment, TopicPartitionOffset } from 'node-rdkafka'
 
 export class RDKafkaFetcher implements IMessageFetcher {
   protected _logger: ILogger
@@ -89,12 +89,28 @@ export class RDKafkaFetcher implements IMessageFetcher {
     return await new Promise(async (resolve, reject) => {
       const retMsgs: IDomainMessage[] = []
 
+      let partitions: number [] = []
+      let partitionsReading: number = 0
+
       const consumer = new RDKafka.KafkaConsumer({
         ...this._commonClientConfs,
         'enable.partition.eof': true
       }, {
         'consume.callback.max.messages': 100,
         'auto.commit.enable': false
+      })
+
+      let consume: any
+
+      consumer.on('partition.eof', (eofEvent: TopicPartitionOffset) => {
+        this._logger.isDebugEnabled() && this._logger.debug('RDKafkaFetcher EOF event received, returning')
+        partitionsReading--
+        if (partitionsReading === 0 || (partition !== undefined && eofEvent.partition === partition)) {
+          consumer.unsubscribe()
+          consumer.disconnect()
+          consume = null
+          return resolve(retMsgs)
+        }
       })
 
       consumer.on('event.event', (err) => {
@@ -117,13 +133,15 @@ export class RDKafkaFetcher implements IMessageFetcher {
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       consumer.on('ready', async (readyInfo: RDKafka.ReadyInfo, metadata: RDKafka.Metadata) => {
         // get partitions if none was provided
-        let partitions: number [] = []
+
         if (partition === -1) {
           // partitions = await this._getPartitionsForTopic(consumer.getClient(), topic)
           partitions = this._getPartitionsForTopicFromMetadata(metadata, topic)
         } else {
           partitions = [partition]
         }
+
+        partitionsReading = partitions.length
 
         // OLDTODO check if this is EOF empty and return if it is - actually, the consume(number) sends empty array if EOF
 
@@ -143,8 +161,9 @@ export class RDKafkaFetcher implements IMessageFetcher {
 
         let messageCounter = 0
 
-        const consume = (): void => {
-          consumer.consume(1, (err: RDKafka.LibrdKafkaError, messages: RDKafka.Message[]) => {
+        consume = (): void => {
+          // fixed batch number
+          consumer.consume(100, (err: RDKafka.LibrdKafkaError, messages: RDKafka.Message[]) => {
             if (err !== null) {
               this._logger.isErrorEnabled() && this._logger.error(err, 'RDKafkaFetcher error fetching messages from kafka')
               consumer.disconnect()
@@ -165,12 +184,12 @@ export class RDKafkaFetcher implements IMessageFetcher {
               const msgKey: string | null = message.key != null ? message.key.toString() : null
 
               if (msgKey === null || msgKey !== aggregateId) {
-                return consume()
+                return
               }
 
               const msgValue: string | null = message.value != null ? message.value.toString() : null
               if (msgValue == null) {
-                return consume()
+                return
               }
 
               let msgAsDomainMessage: IDomainMessage | null = null
@@ -190,13 +209,14 @@ export class RDKafkaFetcher implements IMessageFetcher {
                 // maybe the close will trigger the stream end
                 consumer.disconnect()
                 return resolve(retMsgs)
-              } else {
-                return consume()
               }
             })
+            // after end of foreach
+            if (consume !== null) setImmediate(() => { consume() })
           })
         }
 
+        // initial call
         consume()
       })
 

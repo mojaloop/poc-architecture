@@ -44,6 +44,8 @@ export class ParticipantSnapshotState {
   stateEventsToNextSnapshot: number = 0
   // timestamp of last snapshot
   lastSnapshotTs: number = 0
+  lastEventOffset: number = 0
+  eventsPartition: number = -1
   constructor (id: string, stateEventsToNextSnapshot: number) {
     this.participantId = id
     this.stateEventsToNextSnapshot = stateEventsToNextSnapshot

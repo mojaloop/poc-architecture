@@ -87,6 +87,16 @@ export class EventSourcingStateRepo implements IESourcingStateRepository {
     return this._initialized // for now, no circuit breaker exists
   }
 
+  async storeOffset (id: string, topic: string, partition: number, offset: number): Promise<void> {
+    this._logger.isDebugEnabled() && this._logger.debug(`EventSourcingStateRepo.storeOffset() - updating offset cache for entity id: ${id}...`)
+    return await this._redisOffsetRepo.store({
+      aggregateId: id,
+      topic: topic,
+      partition: partition,
+      offset: offset
+    })
+  }
+
   async load (id: string): Promise<TESourcingState | null> {
     /*
     1. get offsets for snapshot from redis perm store

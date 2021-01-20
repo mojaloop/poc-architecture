@@ -42,6 +42,8 @@ import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
 
 export type SnapshotParticipantStateCmdPayload = {
   participantId: string
+  lastEventOffset: number
+  eventsPartition: number
 }
 
 export class SnapshotParticipantStateCmd extends CommandMsg {

@@ -36,9 +36,10 @@
  ******/
 
 'use strict'
-import { IDomainMessage, ILogger, IMessagePublisher } from '@mojaloop-poc/lib-domain'
+import { IDomainMessage, ILogger, IMessagePublisher, MessageTypes, IESourcingStateRepository } from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
 import {
+  EventSourcingStateRepo,
   IRunHandler,
   MessageConsumer,
   RDKafkaCompressionTypes,
@@ -57,8 +58,8 @@ import Timeout = NodeJS.Timeout
 
 // TODO move these 3 constants to config value
 const MAX_STATE_EVENTS_UNTIL_SNAPSHOTS_ISSUED: number = 10000 // development, TODO: Figure out what is ok
-const MAX_SECS_BETWEEN_SNAPSHOTS_ISSUED: number = 60 * 60 // snapshot every 1 hour - TODO: production values should be around 12 hours or even 1 day
-const TIMER_INTERVAL_SECS: number = 5 * 60 // timer runs every 5 mins
+const MAX_SECS_BETWEEN_SNAPSHOTS_ISSUED: number = 2 * 60 // snapshot every 1 hour - TODO: production values should be around 12 hours or even 1 day
+const TIMER_INTERVAL_SECS: number = 1 * 60 // timer runs every 5 mins
 
 export class ParticipantSnapshotOperator implements IRunHandler {
   private _logger: ILogger
@@ -67,6 +68,7 @@ export class ParticipantSnapshotOperator implements IRunHandler {
   private readonly _snapshotStates: Map<string, ParticipantSnapshotState> = new Map<string, ParticipantSnapshotState>()
   private _clientId: string
   private _operatorStateRepo: RedisParticipantOperatorStateRepo
+  private _eventSourcingRepo: IESourcingStateRepository
   private _intervalTimer: Timeout
   // private _histoParticipantSnapshotOperatorMetric: any
 
@@ -88,6 +90,12 @@ export class ParticipantSnapshotOperator implements IRunHandler {
     //   'Time delta between state msg generated vs stored', // Description of metric
     //   ['success', 'evtname'] // Define a custom label 'success'
     // )
+
+    // we need this to cache the snapshot offset in redis
+    logger.isInfoEnabled() && logger.info('ParticipantSnapshotOperator - Creating Eventsourcing-repo of type EventSourcingStateRepo')
+    this._eventSourcingRepo = new EventSourcingStateRepo(appConfig.state_cache.host, appConfig.state_cache.clustered, appConfig.kafka.host, 'Participant', ParticipantsTopics.SnapshotEvents, ParticipantsTopics.StateEvents, logger)
+    await this._eventSourcingRepo.init()
+    logger.isInfoEnabled() && logger.info('ParticipantSnapshotOperator - Created and init\'edEventsourcing-repo of type EventSourcingStateRepo')
 
     // create and initialise the RedisParticipantOperatorStateRepo used to load and store operator state
     logger.isInfoEnabled() && logger.info('ParticipantSnapshotOperator - Creating RedisParticipantOperatorStateRepo...')
@@ -169,13 +177,14 @@ export class ParticipantSnapshotOperator implements IRunHandler {
   private async _loadState (): Promise<void> {
     this._logger.isDebugEnabled() && this._logger.debug('ParticipantSnapshotOperator - loading possible existing state...')
     const operatorState: ParticipantSnapshotOperatorState | null = await this._operatorStateRepo.load()
-    if (operatorState?.participantSnapshotStates !== null) {
+
+    if (operatorState !== null) {
       operatorState?.participantSnapshotStates.forEach((participantSnapState: ParticipantSnapshotState) => {
         this._snapshotStates.set(participantSnapState.participantId, participantSnapState)
       })
       this._logger.isDebugEnabled() && this._logger.debug('ParticipantSnapshotOperator - existing state loaded')
     } else {
-      this._logger.isDebugEnabled() && this._logger.debug('ParticipantSnapshotOperator - existing state mot found')
+      this._logger.isDebugEnabled() && this._logger.debug('ParticipantSnapshotOperator - existing state not found')
     }
   }
 
@@ -224,7 +233,9 @@ export class ParticipantSnapshotOperator implements IRunHandler {
     Array.from(this._snapshotStates.values()).forEach((state: ParticipantSnapshotState) => {
       if (state.stateEventsToNextSnapshot <= 0 || state.stateEventsToNextSnapshot === 0 || Date.now() - state.lastSnapshotTs >= MAX_SECS_BETWEEN_SNAPSHOTS_ISSUED * 1000) {
         snapshotCmds.push(new SnapshotParticipantStateCmd({
-          participantId: state.participantId
+          participantId: state.participantId,
+          lastEventOffset: state.lastEventOffset,
+          eventsPartition: state.eventsPartition
         }))
         this._logger.isDebugEnabled() && this._logger.debug(`ParticipantSnapshotOperator - execution - scheduled participant with id: ${state.participantId} for snapshotting`)
       }
@@ -254,11 +265,11 @@ export class ParticipantSnapshotOperator implements IRunHandler {
   async _messageHandler (message: IDomainMessage): Promise<void> {
     // const histTimer = this._histoParticipantSnapshotOperatorMetric.startTimer()
     // const evtname = message.msgName ?? 'unknown'
-    this._logger.isDebugEnabled() && this._logger.debug(`ParticipantSnapshotOperator - started processing state event (msgName:msgKey:msgId:aggregateId): ${message?.msgName}:${message?.msgKey}:${message?.msgId}:${message?.aggregateId} ...`)
+    this._logger.isDebugEnabled() && this._logger.debug(`ParticipantSnapshotOperator - messageHandler - started processing state event (msgName:msgKey:msgId:aggregateId): ${message?.msgName}:${message?.msgKey}:${message?.msgId}:${message?.aggregateId} ...`)
 
     try {
       if (message.aggregateId === undefined || message.aggregateId === null) {
-        this._logger.isWarnEnabled() && this._logger.warn('ParticipantSnapshotOperator - received state event has invalid aggregateId - ignoring it')
+        this._logger.isWarnEnabled() && this._logger.warn('ParticipantSnapshotOperator - messageHandler -received state event has invalid aggregateId - ignoring it')
         return
       }
 
@@ -271,17 +282,23 @@ export class ParticipantSnapshotOperator implements IRunHandler {
       } else {
         if (state === undefined) {
           this._snapshotStates.set(participantId, new ParticipantSnapshotState(participantId, MAX_STATE_EVENTS_UNTIL_SNAPSHOTS_ISSUED))
-          this._logger.isDebugEnabled() && this._logger.debug(`ParticipantSnapshotOperator - added new ParticipantSnapshotState for participantId: ${participantId}`)
+          this._logger.isDebugEnabled() && this._logger.debug(`ParticipantSnapshotOperator - messageHandler - added new ParticipantSnapshotState for participantId: ${participantId}`)
         } else {
           if (message.msgTopic === ParticipantsTopics.SnapshotEvents) {
             // snapshot, reset te state for this participant
             state.stateEventsToNextSnapshot = MAX_STATE_EVENTS_UNTIL_SNAPSHOTS_ISSUED
             state.lastSnapshotTs = Date.now()
-            this._logger.isDebugEnabled() && this._logger.debug(`ParticipantSnapshotOperator - SnapshotEvents event detected for participant: ${participantId} - its ParticipantSnapshotState was reset`)
+            this._logger.isDebugEnabled() && this._logger.debug(`ParticipantSnapshotOperator - messageHandler -SnapshotEvents event detected for participant: ${participantId} - its ParticipantSnapshotState was reset`)
+
+            // T this is a snapshot, we must store its offset in redis / IMessageOffsetRepo
+            await this._eventSourcingRepo.storeOffset(message.aggregateId, message.msgTopic, message.msgPartition ?? -1, message.msgOffset ?? -1)
+            this._logger.isDebugEnabled() && this._logger.debug('ParticipantSnapshotOperator - messageHandler - SnapshotEvents stored offset for participant snapshot')
           } else if (message.msgTopic === ParticipantsTopics.StateEvents) {
             // we don't care about specific events, any state event will decrease the counter
             state.stateEventsToNextSnapshot--
-            this._logger.isDebugEnabled() && this._logger.debug(`ParticipantSnapshotOperator - decreased stateEventsToNextSnapshot counter for ParticipantSnapshotState with participantId: ${participantId}`)
+            state.lastEventOffset = message.msgOffset ?? 0
+            state.eventsPartition = message.msgPartition ?? -1
+            this._logger.isDebugEnabled() && this._logger.debug(`ParticipantSnapshotOperator - messageHandler - decreased stateEventsToNextSnapshot counter for ParticipantSnapshotState with participantId: ${participantId}`)
           }
         }
       }
@@ -294,10 +311,10 @@ export class ParticipantSnapshotOperator implements IRunHandler {
       // this._histoParticipantStateStoreTimeMetric.observe({}, msgSentVsDataStoredTimeDelta / 1000)
     } catch (err) {
       const errMsg: string = err?.message?.toString()
-      this._logger.isWarnEnabled() && this._logger.warn(`ParticipantSnapshotOperator - processing state event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+      this._logger.isWarnEnabled() && this._logger.warn(`ParticipantSnapshotOperator - messageHandler -processing state event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
       this._logger.isErrorEnabled() && this._logger.error(err)
       // histTimer({ success: 'false', /* error: err.message, */ evtname })
     }
-    this._logger.isDebugEnabled() && this._logger.debug(`ParticipantSnapshotOperator - finished processing state event (msgName:msgKey:msgId:aggregateId): ${message?.msgName}:${message?.msgKey}:${message?.msgId}:${message?.aggregateId}`)
+    this._logger.isDebugEnabled() && this._logger.debug(`ParticipantSnapshotOperator - messageHandler -finished processing state event (msgName:msgKey:msgId:aggregateId): ${message?.msgName}:${message?.msgKey}:${message?.msgId}:${message?.aggregateId}`)
   }
 }

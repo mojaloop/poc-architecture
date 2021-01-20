@@ -43,7 +43,18 @@ import { ParticipantEntity, ParticipantState, InvalidAccountError, InvalidLimitE
 import { ParticipantsFactory } from './participants_factory'
 import { ReservePayerFundsCmd } from '../messages/reserve_payer_funds_cmd'
 import { CreateParticipantCmd } from '../messages/create_participant_cmd'
-import { DuplicateParticipantDetectedEvt, InvalidParticipantEvt, PayerFundsReservedEvt, ParticipantCreatedEvt, NetCapLimitExceededEvt, PayeeFundsCommittedEvt, ParticipantAccountTypes, PayerFundsReservedEvtPayload, ParticipantEndpoint } from '@mojaloop-poc/lib-public-messages'
+import {
+  DuplicateParticipantDetectedEvt,
+  InvalidParticipantEvt,
+  PayerFundsReservedEvt,
+  ParticipantCreatedEvt,
+  NetCapLimitExceededEvt,
+  PayeeFundsCommittedEvt,
+  ParticipantAccountTypes,
+  PayerFundsReservedEvtPayload,
+  ParticipantEndpoint,
+  ParticipantsTopics
+} from '@mojaloop-poc/lib-public-messages'
 import { IParticipantRepo } from './participant_repo'
 import { CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'
 import { ParticipantCreatedStateEvtPayload, ParticipantCreatedStateEvt } from '../messages/participant_created_stateevt'
@@ -384,6 +395,9 @@ export class ParticpantsAgg extends BaseEventSourcingAggregate<ParticipantEntity
     }
 
     const snapshot = new ParticipantStateSnapshotEvt(this._rootEntity.exportState())
+    // send other StateSnapshotMsg props
+    snapshot.lastEventOffset = commandMsg.payload.lastEventOffset
+    snapshot.eventsPartition = commandMsg.payload.eventsPartition
 
     return { success: true, stateEvent: snapshot }
   }

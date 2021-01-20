@@ -268,7 +268,13 @@ export class TransferCmdHandler implements IRunHandler {
 
       if (unpersistedStates?.length > 0) {
         this._logger.isInfoEnabled() && this._logger.info(`transferCmdBatchHandler - batchId: ${batchId} - peristing ${unpersistedStates.length} states`)
-        await this._entityStateRepo.storeMany(unpersistedStates)
+
+        // don't use storeMany for just one
+        if (unpersistedStates.length === 1) {
+          await this._entityStateRepo.store(unpersistedStates[0])
+        } else {
+          await this._entityStateRepo.storeMany(unpersistedStates)
+        }
       } else {
         this._logger.isWarnEnabled() && this._logger.warn(`transferCmdBatchHandler - batchId: ${batchId} - no unpersisted states at _cmdHandler batch end`)
       }

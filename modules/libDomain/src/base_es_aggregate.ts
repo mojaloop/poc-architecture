@@ -39,7 +39,7 @@
 
 import { BaseEntity } from './base_entity'
 import { BaseEntityState } from './base_entity_state'
-import { CommandMsg, DomainEventMsg, IDomainMessage, StateEventMsg, StateSnapshotMsg } from './messages'
+import { CommandMsg, DomainEventMsg, IDomainMessage, MessageTypes, StateEventMsg, StateSnapshotMsg } from './messages'
 import { IMessagePublisher } from './imessage_publisher'
 import { IEntityStateRepository } from './ientity_state_repository'
 import { IESourcingStateRepository, TESourcingState } from './ientity_es_state_repository'
@@ -67,7 +67,7 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
   private readonly _commandHandlers: Map<string, (cmd: CommandMsg) => Promise<TCommandResult>>
   private _snapshotEventHandler: (snapshotEvent: StateSnapshotMsg, replayed?: boolean) => Promise<void>
 
-  private _uncommittedDomainEvents: DomainEventMsg[]
+  private _uncommittedDomainEvents: IDomainMessage[]
   private _unpersistedEntityStates: S[]
   protected _rootEntity: E | null
 
@@ -185,13 +185,16 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
         await this.applyManyStateEvents(esState.events, true)
       }
 
-      // update cache from ES
+      // We should not do this - this load is probably being called in the context of a
+      // cmd that will update the cache at its end, having this with process.nextTick wll overwrite
+      // the state with this pre cmd exec state
+      /* // update cache from ES
       if (this._rootEntity !== null && this._rootEntity !== undefined) {
         process.nextTick(async () => {
           // @ts-expect-error
           await this._entity_cache_repo.store(this._rootEntity.exportState())
         })
-      }
+      } */
 
       this._logger.isDebugEnabled() && this._logger.debug(`Aggregate with id: ${aggregateId} loaded from the event stream - took: ${now('micro') - startTimeMicroSecs} microseconds`)
     } else {
@@ -212,31 +215,27 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
       return
     }
 
-    let events: IDomainMessage[] = []
-    if (this._uncommittedDomainEvents != null && this._uncommittedDomainEvents.length > 0) {
-      events = events.concat(this._uncommittedDomainEvents)
-    }
     if (stateEvent !== null) {
-      events.push(stateEvent)
+      this._uncommittedDomainEvents.push(stateEvent) // add to the events that this commit will publish
     }
 
-    const eventNames = events.map(evt => evt.msgName)
-
-    events.forEach(evt => {
-      if (this._batchedMode && this._batchId !== null) {
+    const eventNames: string[] = []
+    this._uncommittedDomainEvents.forEach(evt => {
+      eventNames.push(evt.msgName)
+      if (this._batchedMode) {
         evt.msgBatchId = this._batchId
-        this._logger.isDebugEnabled() && this._logger.debug(`Adding event to the uncommitted events batch list name:'${evt.msgName}'; key:'${evt.msgKey}'; id:'${evt.msgId}'`)
+        // this._logger.isDebugEnabled() && this._logger.debug(`Adding event name: '${evt.msgName}'; key:'${evt.msgKey}'; id:'${evt.msgId}' to the uncommitted events batch list`)
       } else {
-        this._logger.isDebugEnabled() && this._logger.debug(`Committing name:'${evt.msgName}'; key:'${evt.msgKey}'; id:'${evt.msgId}'`)
+        this._logger.isDebugEnabled() && this._logger.debug(`Committing event name:'${evt.msgName}'; key:'${evt.msgKey}'; id:'${evt.msgId}'`)
       }
     })
 
     if (!this._batchedMode) {
-      await this._msgPublisher.publishMany(events)
-      this._logger.isDebugEnabled() && this._logger.debug(`Aggregate committed ${events.length} events - ${JSON.stringify(eventNames)}`)
+      await this._msgPublisher.publishMany(this._uncommittedDomainEvents)
+      this._logger.isDebugEnabled() && this._logger.debug(`Aggregate committed ${eventNames.length} events - ${JSON.stringify(eventNames)}`)
       this._uncommittedDomainEvents = []
     } else {
-      this._logger.isDebugEnabled() && this._logger.debug(`Aggregate added ${events.length} events - ${JSON.stringify(eventNames)} to the uncommitted events batch list`)
+      this._logger.isDebugEnabled() && this._logger.debug(`Aggregate now has ${eventNames.length} uncommitted events on this batch`)
     }
   }
 
@@ -260,7 +259,7 @@ export abstract class BaseEventSourcingAggregate<E extends BaseEntity<S>, S exte
     return this._batchId
   }
 
-  public getUncommitedDomainEvents (): DomainEventMsg[] {
+  public getUncommitedDomainEvents (): IDomainMessage[] {
     return this._uncommittedDomainEvents
   }
 

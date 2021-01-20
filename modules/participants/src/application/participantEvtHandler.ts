@@ -244,6 +244,8 @@ export class ParticipantEvtHandler implements IRunHandler {
       histTimerBatches({ success: 'true' })
       throw err
     }
+
+    this._logger.isDebugEnabled() && this._logger.debug('') // empty line to facilitate log analysis
   }
 
   private async _getCommandFromEventMsg (message: IDomainMessage): Promise<CommandMsg | undefined> {

@@ -248,7 +248,7 @@ export class ParticipantCmdHandler implements IRunHandler {
         }
       }
 
-      const uncommitedEvents: DomainEventMsg[] = this._participantAgg.getUncommitedDomainEvents()
+      const uncommitedEvents: IDomainMessage[] = this._participantAgg.getUncommitedDomainEvents()
       // const unpersistedStates: ParticipantState[] = this._participantAgg.getUnpersistedEntityStates()
 
       if (uncommitedEvents.length > 0) {
@@ -276,6 +276,8 @@ export class ParticipantCmdHandler implements IRunHandler {
       histTimerBatches({ success: 'true' })
       throw err
     }
+
+    this._logger.isDebugEnabled() && this._logger.debug('') // empty line to facilitate log analysis
   }
 
   private async _cmdHandler (message: IDomainMessage): Promise<void> {
