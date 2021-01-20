@@ -41,6 +41,7 @@ import { RdKafkaCommitMode, RDKafkaConsumerOptions } from './rdkafka_consumer'
 import { TopicPartitionOffset } from 'node-rdkafka'
 
 const RDKAFKA_CONSUMER_BATCH_SIZE = getEnvIntegerOrDefault('RDKAFKA_CONSUMER_BATCH_SIZE', 50)
+const RDKAFKA_CONSUMER_BATCH_TIMEOUT_MS = getEnvIntegerOrDefault('RDKAFKA_CONSUMER_BATCH_TIMEOUT_MS', 250)
 
 export class RDKafkaConsumerBatched {
   protected _logger: ILogger
@@ -143,12 +144,13 @@ export class RDKafkaConsumerBatched {
       const autoCommitEnabled = this._options.client.consumerConfig['enable.auto.commit']
       const commitWaitMode = this._options.client.rdKafkaCommitWaitMode
 
+      this._client.setDefaultConsumeTimeout(RDKAFKA_CONSUMER_BATCH_TIMEOUT_MS)
+
       /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
       this._logger.isInfoEnabled() && this._logger.info(`RDKafkaConsumerBatched autoCommitEnabled is ${autoCommitEnabled}, commitWaitMode is ${commitWaitMode}`)
 
       const consumeRecursiveWrapper = (): void => {
-        // this._client.consume(async (err: RDKafka.LibrdKafkaError, messagesParam: RDKafka.Message[]) => {
-        /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         this._client.consume(RDKAFKA_CONSUMER_BATCH_SIZE, async (err: RDKafka.LibrdKafkaError, messages: RDKafka.Message[]) => {
           if (err !== null) {
             this._logger.isErrorEnabled() && this._logger.error(`RDKafkaConsumerBatched got callback with err: ${err.message}`)
