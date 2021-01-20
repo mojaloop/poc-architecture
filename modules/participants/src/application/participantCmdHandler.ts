@@ -43,8 +43,7 @@ import {
   ILogger,
   IMessagePublisher,
   IEntityDuplicateRepository,
-  IESourcingStateRepository,
-  DomainEventMsg
+  IESourcingStateRepository
 } from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
 import {
@@ -219,7 +218,7 @@ export class ParticipantCmdHandler implements IRunHandler {
   private async _cmdHandlerBatched (messages: IDomainMessage[]): Promise<void> {
     const batchId: string = this._participantAgg.startBatch()
 
-    this._logger.isDebugEnabled() && this._logger.debug(`ParticipantCmdConsumer - batchId: ${batchId} - processing ${messages?.length} message(s)`)
+    this._logger.isDebugEnabled() && this._logger.debug(`ParticipantCmdBatchConsumer - batchId: ${batchId} - processing ${messages?.length} message(s)`)
 
     const histTimer = this._histoParticipantCmdHandlerMetric.startTimer()
     const histTimerBatches = this._histoParticipantCmdHandlerBatchesMetric.startTimer()
@@ -227,22 +226,22 @@ export class ParticipantCmdHandler implements IRunHandler {
       for (const message of messages) {
         // const evtname = message.msgName ?? 'unknown'
         try {
-          this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - batchId: ${batchId} - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+          this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdBatchConsumer - batchId: ${batchId} - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
           const participantCmd: CommandMsg | undefined = this._getCommandFromMessage(message)
 
           if (participantCmd !== undefined) {
             const success = await this._participantAgg.processCommand(participantCmd)
             if (success) {
-              this._logger.isDebugEnabled() && this._logger.debug(`ParticipantCmdConsumer - batchId: ${batchId} - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - success`)
+              this._logger.isDebugEnabled() && this._logger.debug(`ParticipantCmdBatchConsumer - batchId: ${batchId} - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - success`)
             } else {
-              this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdConsumer - batchId: ${batchId} - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - failed`)
+              this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdBatchConsumer - batchId: ${batchId} - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - failed`)
             }
           } else {
-            this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdConsumer - batchId: ${batchId} - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - unhandled command found`)
+            this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdBatchConsumer - batchId: ${batchId} - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - unhandled command found`)
           }
         } catch (err) {
           const errMsg: string = err?.message?.toString()
-          this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - batchId: ${batchId} - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+          this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdBatchConsumer - batchId: ${batchId} - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
           this._logger.isErrorEnabled() && this._logger.error(err)
           histTimer({ success: 'false', error: err.message, evtname: message.msgName ?? 'unknown' })
         }
@@ -252,7 +251,7 @@ export class ParticipantCmdHandler implements IRunHandler {
       // const unpersistedStates: ParticipantState[] = this._participantAgg.getUnpersistedEntityStates()
 
       if (uncommitedEvents.length > 0) {
-        this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - batchId: ${batchId} - publishing ${uncommitedEvents.length} domain event(s)`)
+        this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdBatchConsumer - batchId: ${batchId} - publishing ${uncommitedEvents.length} domain event(s)`)
         await this._publisher.publishMany(uncommitedEvents)
 
         for (const message of messages) {
@@ -264,13 +263,13 @@ export class ParticipantCmdHandler implements IRunHandler {
         //   await this._stateCacheRepo.store(state)
         // }
       } else {
-        this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdConsumer - batchId: ${batchId} - no domain events to publish at _cmdHandlerBatched batch end`)
+        this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdBatchConsumer - batchId: ${batchId} - no domain events to publish at _cmdHandlerBatched batch end`)
       }
 
-      this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - batchId: ${batchId} - finished`)
+      this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdBatchConsumer - batchId: ${batchId} - finished`)
       histTimerBatches({ success: 'true' })
     } catch (err) {
-      this._logger.isErrorEnabled() && this._logger.error(`ParticipantCmdConsumer - batchId: ${batchId} - failed`)
+      this._logger.isErrorEnabled() && this._logger.error(`ParticipantCmdBatchConsumer - batchId: ${batchId} - failed`)
       this._logger.isErrorEnabled() && this._logger.error(err)
       histTimer({ success: 'false', error: err.message })
       histTimerBatches({ success: 'true' })

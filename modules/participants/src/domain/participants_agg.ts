@@ -52,8 +52,7 @@ import {
   PayeeFundsCommittedEvt,
   ParticipantAccountTypes,
   PayerFundsReservedEvtPayload,
-  ParticipantEndpoint,
-  ParticipantsTopics
+  ParticipantEndpoint
 } from '@mojaloop-poc/lib-public-messages'
 import { IParticipantRepo } from './participant_repo'
 import { CommitPayeeFundsCmd } from '../messages/commit_payee_funds_cmd'

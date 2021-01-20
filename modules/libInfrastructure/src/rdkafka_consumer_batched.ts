@@ -40,8 +40,8 @@ import { ILogger, IDomainMessage } from '@mojaloop-poc/lib-domain'
 import { RdKafkaCommitMode, RDKafkaConsumerOptions } from './rdkafka_consumer'
 import { TopicPartitionOffset } from 'node-rdkafka'
 
-const RDKAFKA_CONSUMER_BATCH_SIZE = getEnvIntegerOrDefault('RDKAFKA_CONSUMER_BATCH_SIZE', 50)
-const RDKAFKA_CONSUMER_BATCH_TIMEOUT_MS = getEnvIntegerOrDefault('RDKAFKA_CONSUMER_BATCH_TIMEOUT_MS', 250)
+const RDKAFKA_CONSUMER_BATCH_SIZE: number = getEnvIntegerOrDefault('RDKAFKA_CONSUMER_BATCH_SIZE', 50)
+const RDKAFKA_CONSUMER_BATCH_TIMEOUT_MS: number = getEnvIntegerOrDefault('RDKAFKA_CONSUMER_BATCH_TIMEOUT_MS', 250)
 
 export class RDKafkaConsumerBatched {
   protected _logger: ILogger
@@ -105,6 +105,8 @@ export class RDKafkaConsumerBatched {
       this._client.connect()
 
       this._client.on('ready', (info: RDKafka.ReadyInfo, metadata: RDKafka.Metadata) => {
+        this._logger.isInfoEnabled() && this._logger.info(`RDKafkaConsumerBatched::event.ready - info: RDKAFKA_CONSUMER_BATCH_SIZE=${RDKAFKA_CONSUMER_BATCH_SIZE.toString()}`)
+        this._logger.isInfoEnabled() && this._logger.info(`RDKafkaConsumerBatched::event.ready - info: RDKAFKA_CONSUMER_BATCH_TIMEOUT_MS=${RDKAFKA_CONSUMER_BATCH_TIMEOUT_MS.toString()}`)
         this._logger.isInfoEnabled() && this._logger.info(`RDKafkaConsumerBatched::event.ready - info: ${JSON.stringify(info, null, 2)}`)
         this._logger.isDebugEnabled() && this._logger.debug(`RDKafkaConsumerBatched::event.ready - metadata: ${JSON.stringify(metadata)}`)
         // this._logger.isInfoEnabled() && this._logger.info(`RDKafkaConsumerBatched::event.ready - metadata: ${JSON.stringify(metadata, null, 2)}`)
