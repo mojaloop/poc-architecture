@@ -24,6 +24,8 @@ config:
   # Supported commit modes: no-wait, commit-msg-sync (blocking)
   rdkafka_commit_wait_mode: commit-msg-sync
   rdkafka_batch_num_messages: null
+  rdkafka_consumer_batch_size: 1
+  rdkafka_consumer_batch_timeout_ms: 250
   rdkafka_queue_buffering_max_us: null
   rdkafka_debug_consumer: null
   rdkafka_debug_producer: null
@@ -50,6 +52,7 @@ config:
   log_level: info
   log_filter: info
   metric_prefix: poc_
+  simulators_batch_enabled: false
 
 init:
   enabled: true

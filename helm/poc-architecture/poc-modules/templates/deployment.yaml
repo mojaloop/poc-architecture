@@ -152,6 +152,10 @@ spec:
               value: {{ .Values.config.rdkafka_queue_buffering_max_us | quote }}
             - name: RDKAFKA_STATS_INT_MS
               value: {{ .Values.config.rdkafka_stats_interval_ms | quote }}
+            - name: RDKAFKA_CONSUMER_BATCH_SIZE
+              value: {{ .Values.config.rdkafka_consumer_batch_size | quote }}
+            - name: RDKAFKA_CONSUMER_BATCH_TIMEOUT_MS
+              value: {{ .Values.config.rdkafka_consumer_batch_timeout_ms | quote }}
             {{- if .Values.config.rdkafka_debug_consumer }}
             - name: RDKAFKA_DEBUG_CONSUMER
               value: {{ .Values.config.rdkafka_debug_consumer | quote }}
@@ -174,6 +178,8 @@ spec:
               value: {{ .Values.config.metric_prefix | quote }}
             - name: PARTICIPANTS_COLLECTION
               value: {{ .Values.config.perf_multiple_producer_participant_collection | quote }}
+            - name: SIMULATORS_BATCH_ENABLED
+              value: {{ .Values.config.simulators_batch_enabled | quote }}
             - name: SIMULATED_DFSPS_CNT
               value: {{ .Values.config.perf_multiple_producer_simulated_dfsp_cnt | quote }}
             - name: INJECTED_PER_SECOND
