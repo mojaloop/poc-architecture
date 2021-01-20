@@ -223,12 +223,12 @@ export class CachedPersistedRedisParticipantStateRepo implements IParticipantRep
           return reject(err)
         }
         this._logger.isDebugEnabled() && this._logger.debug(`CachedPersistedRedisParticipantStateRepo::getAll() - got back, ${result.length} results'`)
-        let results: string[]
+        const ids: string[] = []
         result.forEach((val: string) => {
-          results.push(val.replace(this.keyPrefix, ''))
+          ids.push(val.replace(this.keyPrefix, ''))
         })
 
-        return resolve(result)
+        return resolve(ids)
       })
     })
   }

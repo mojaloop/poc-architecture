@@ -192,12 +192,12 @@ export class RedisParticipantStateRepo implements IParticipantRepo {
           return reject(err)
         }
         this._logger.isDebugEnabled() && this._logger.debug(`RedisParticipantStateRepo::getAll() - got back, ${result.length} results'`)
-        const results: string[] = []
+        const ids: string[] = []
         result.forEach((val: string) => {
-          results.push(val.replace(this.keyPrefix, ''))
+          ids.push(val.replace(this.keyPrefix, ''))
         })
 
-        return resolve(result)
+        return resolve(ids)
       })
     })
   }
