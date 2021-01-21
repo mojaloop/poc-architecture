@@ -47,6 +47,7 @@ import * as dotenv from 'dotenv'
 import { Command } from 'commander'
 import { resolve as Resolve } from 'path'
 import { RepoInfraTypes } from '../infrastructure'
+import { TransferEvtAndCmdHandler } from './transfersEvtAndCmdHandler'
 
 /* eslint-disable-next-line @typescript-eslint/no-var-requires */
 const pckg = require('../../package.json')
@@ -63,6 +64,7 @@ Program.command('handler')
   .option('--transferEvt', 'Start the Transfers Evt Handler')
   .option('--transferCmd', 'Start the Transfers Cmd Handler')
   .option('--transferStateEvt', 'Start the Transfers Read Side State Handler')
+  .option('--transferEvtAndCmd', 'Start the Transfers consolidated Evt and Cmd Handler - incompatible with transferEvt and transferCmd handlers')
 
   // function to execute when command is uses
   .action(async (args: any): Promise<void> => {
@@ -141,23 +143,38 @@ Program.command('handler')
 
     // list of all handlers
     const runHandlerList: IRunHandler[] = []
-    const runAllHAndlers = args.transferEvt === undefined && args.transferCmd === undefined && args.transferStateEvt === undefined
+    const runAllHAndlers = args.transferEvt === undefined && args.transferCmd === undefined && args.transferStateEvt === undefined && args.transferEvtAndCmd !== true
+
+    // start TransferEvtHandler
+    if (args.transferEvtAndCmd != null) {
+      const transferEvtAndCmdHandler = new TransferEvtAndCmdHandler()
+      await transferEvtAndCmdHandler.start(appConfig, logger, metrics)
+      runHandlerList.push(transferEvtAndCmdHandler)
+    }
 
     // start TransferEvtHandler
     if (runAllHAndlers || args.transferEvt != null) {
-      const transferEvtHandler = new TransferEvtHandler()
-      await transferEvtHandler.start(appConfig, logger, metrics)
-      runHandlerList.push(transferEvtHandler)
+      if (args.transferEvtAndCmd != null) {
+        logger.isWarnEnabled() && logger.warn('Cannot use --transferEvt or --transferCmd with --transferEvtAndCmd')
+      } else {
+        const transferEvtHandler = new TransferEvtHandler()
+        await transferEvtHandler.start(appConfig, logger, metrics)
+        runHandlerList.push(transferEvtHandler)
+      }
     }
 
-    // start TransferEvtHandler
+    // start TransferCmdHandler
     if (runAllHAndlers || args.transferCmd != null) {
-      const transferEvtHandler = new TransferCmdHandler()
-      await transferEvtHandler.start(appConfig, logger, metrics)
-      runHandlerList.push(transferEvtHandler)
+      if (args.transferEvtAndCmd != null) {
+        logger.isWarnEnabled() && logger.warn('Cannot use --transferEvt or --transferCmd with --transferEvtAndCmd')
+      } else {
+        const transferCmdHandler = new TransferCmdHandler()
+        await transferCmdHandler.start(appConfig, logger, metrics)
+        runHandlerList.push(transferCmdHandler)
+      }
     }
 
-    // start TransferEvtHandler
+    // start TransferStateEvtHandler
     if (runAllHAndlers || args.transferStateEvt != null) {
       const transferStateEvtHandler = new TransferStateEvtHandler()
       await transferStateEvtHandler.start(appConfig, logger, metrics)
