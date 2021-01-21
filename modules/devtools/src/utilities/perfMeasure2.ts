@@ -6,7 +6,7 @@
 'use strict'
 
 import { IDomainMessage, ILogger } from '@mojaloop-poc/lib-domain'
-import { KafkaInfraTypes, MessageConsumer, RDKafkaConsumer, RDKafkaConsumerOptions, EnumOffset, RdKafkaCommitMode, ApiServer, TApiServerOptions } from '@mojaloop-poc/lib-infrastructure'
+import { KafkaInfraTypes, MessageConsumer, RDKafkaConsumer, RDKafkaConsumerOptions, RdKafkaCommitMode, ApiServer, TApiServerOptions } from '@mojaloop-poc/lib-infrastructure'
 import { MojaLogger, Crypto, getEnvIntegerOrDefault, TMetricOptionsType, Metrics, extractTraceStateFromMessage } from '@mojaloop-poc/lib-utilities'
 // import { ConsoleLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
 

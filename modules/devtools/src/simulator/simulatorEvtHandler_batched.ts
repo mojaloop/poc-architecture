@@ -59,11 +59,11 @@ export class SimulatorBatchedEvtHandler implements IRunHandler {
   private _publisher: IMessagePublisher
 
   async start (appConfig: any, logger: ILogger, metrics: IMetricsFactory): Promise<void> {
-    logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler::start - appConfig=${JSON.stringify(appConfig)}`)
+    logger.isInfoEnabled() && logger.info(`SimulatorBatchedEvtHandler::start - appConfig=${JSON.stringify(appConfig)}`)
     let kafkaMsgPublisher: IMessagePublisher | undefined
 
-    logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - Creating ${appConfig.kafka.producer as string} simulatorEvtHandler.kafkaMsgPublisher...`)
-    let clientId = `simulatorEvtHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
+    logger.isInfoEnabled() && logger.info(`SimulatorBatchedEvtHandler - Creating ${appConfig.kafka.producer as string} SimulatorBatchedEvtHandler.kafkaMsgPublisher...`)
+    let clientId = `SimulatorBatchedEvtHandler-${appConfig.kafka.producer as string}-${Crypto.randomBytes(8)}`
     switch (appConfig.kafka.producer) {
       case (KafkaInfraTypes.NODE_RDKAFKA): {
         const rdKafkaProducerOptions: RDKafkaProducerOptions = {
@@ -87,12 +87,12 @@ export class SimulatorBatchedEvtHandler implements IRunHandler {
         break
       }
       default: {
-        logger.isWarnEnabled() && logger.warn('SimulatorEvtHandler - Unable to find a Kafka Producer implementation!')
-        throw new Error('simulatorEvtHandler.kafkaMsgPublisher was not created!')
+        logger.isWarnEnabled() && logger.warn('SimulatorBatchedEvtHandler - Unable to find a Kafka Producer implementation!')
+        throw new Error('SimulatorBatchedEvtHandler.kafkaMsgPublisher was not created!')
       }
     }
 
-    logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`SimulatorBatchedEvtHandler - Created kafkaMsgPublisher of type ${kafkaMsgPublisher.constructor.name}`)
 
     this._publisher = kafkaMsgPublisher
     await kafkaMsgPublisher.init()
@@ -103,26 +103,26 @@ export class SimulatorBatchedEvtHandler implements IRunHandler {
     //   ['success', 'error'] // Define a custom label 'success'
     // )
 
-    const simulatorEvtHandler = async (messages: IDomainMessage[]): Promise<void> => {
-      logger.isDebugEnabled() && logger.debug(`SimulatorBatchedEvtHandler - processing ${messages?.length} message(s)`)
+    const simulatorEvtBatchHandler = async (messages: IDomainMessage[]): Promise<void> => {
+      logger.isDebugEnabled() && logger.debug(`simulatorEvtBatchHandler - processing ${messages?.length} message(s)`)
 
       // const histTimer = histoSimulatorEvtHandlerMetric.startTimer()
       const respEvents: IDomainMessage[] = []
 
       for (const message of messages) {
         try {
-          logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+          logger.isInfoEnabled() && logger.info(`simulatorEvtBatchHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
           let simulatorEvt: DomainEventMsg | undefined
           let transferEvt: CommandMsg | null = null
           // # Transform messages into correct Command
           switch (message.msgName) {
             case TransferPreparedEvt.name: {
               simulatorEvt = TransferPreparedEvt.fromIDomainMessage(message)
-              if (simulatorEvt == null) throw new Error(`simulatorEvtHandler is unable to process event - ${TransferPrepareRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+              if (simulatorEvt == null) throw new Error(`simulatorEvtBatchHandler is unable to process event - ${TransferPrepareRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
               // const prepareTransferCmdPayload: PrepareTransferCmdPayload = simulatorEvt.payload
               // transferCmd = new PrepareTransferCmd(prepareTransferCmdPayload)
               /* eslint-disable @typescript-eslint/restrict-template-expressions */
-              logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - ${TransferPreparedEvt.name} Received - transferId: ${simulatorEvt.payload.transferId}`)
+              logger.isInfoEnabled() && logger.info(`simulatorEvtBatchHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - ${TransferPreparedEvt.name} Received - transferId: ${simulatorEvt.payload.transferId}`)
               const fulfilPayload = {
                 completedTimestamp: (new Date()).toISOString(),
                 transferState: 'COMMITTED',
@@ -169,42 +169,42 @@ export class SimulatorBatchedEvtHandler implements IRunHandler {
             case TransferFulfilledEvt.name: {
               simulatorEvt = TransferFulfilledEvt.fromIDomainMessage(message)
               /* eslint-disable @typescript-eslint/restrict-template-expressions */
-              if (simulatorEvt == null) throw new Error(`simulatorEvtHandler is unable to process event - ${TransferFulfilRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
-              logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - ${TransferFulfilRequestedEvt.name} Received - transferId: ${simulatorEvt.payload.transferId}`)
+              if (simulatorEvt == null) throw new Error(`simulatorEvtBatchHandler is unable to process event - ${TransferFulfilRequestedEvt.name} is Invalid - ${message?.msgName}:${message?.msgKey}:${message?.msgId}`)
+              logger.isInfoEnabled() && logger.info(`simulatorEvtBatchHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - ${TransferFulfilRequestedEvt.name} Received - transferId: ${simulatorEvt.payload.transferId}`)
               break
             }
             default: {
-              logger.isDebugEnabled() && logger.debug(`SimulatorEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
+              logger.isDebugEnabled() && logger.debug(`simulatorEvtBatchHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Skipping unknown event`)
               // histTimer({ success: 'true' })
               return
             }
           }
 
           if (transferEvt != null) {
-            logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - queueing response to event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - response: ${transferEvt?.msgName}:${transferEvt?.msgId}`)
+            logger.isInfoEnabled() && logger.info(`simulatorEvtBatchHandler - queueing response to event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - response: ${transferEvt?.msgName}:${transferEvt?.msgId}`)
             respEvents.push(transferEvt)
             // await kafkaMsgPublisher!.publish(transferEvt)
           }
           // histTimer({ success: 'true' })
         } catch (err) {
           const errMsg: string = err?.message?.toString()
-          logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+          logger.isInfoEnabled() && logger.info(`simulatorEvtBatchHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
           logger.isErrorEnabled() && logger.error(err)
           // histTimer({ success: 'false', error: err.message })
         }
       }
 
       if (respEvents.length > 0) {
-        logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - publishing ${respEvents.length} event(s)`)
+        logger.isInfoEnabled() && logger.info(`simulatorEvtBatchHandler - publishing ${respEvents.length} event(s)`)
         await kafkaMsgPublisher!.publishMany(respEvents)
       } else {
-        logger.isWarnEnabled() && logger.warn('SimulatorEvtHandler - no events to publish at batch end')
+        logger.isWarnEnabled() && logger.warn('simulatorEvtBatchHandler - no events to publish at batch end')
       }
     }
 
     /* eslint-disable-next-line @typescript-eslint/restrict-template-expressions */
-    logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - Creating ${appConfig.kafka.consumer} simulatorEvtConsumer...`)
-    clientId = `simulatorEvtConsumer-${appConfig.kafka.consumer}-${Crypto.randomBytes(8)}`
+    logger.isInfoEnabled() && logger.info(`SimulatorBatchedEvtHandler - Creating ${appConfig.kafka.consumer} simulatorEvtConsumer...`)
+    clientId = `simulatorEvtBatchHandler-${appConfig.kafka.consumer}-${Crypto.randomBytes(8)}`
     const rdKafkaConsumerOptions: RDKafkaConsumerOptions = {
       client: {
         consumerConfig: {
@@ -224,18 +224,18 @@ export class SimulatorBatchedEvtHandler implements IRunHandler {
     }
     this._consumer = new RDKafkaConsumerBatched(rdKafkaConsumerOptions, logger)
 
-    logger.isInfoEnabled() && logger.info(`SimulatorEvtHandler - Created kafkaConsumer of type ${RDKafkaConsumerBatched.constructor.name}`)
+    logger.isInfoEnabled() && logger.info(`SimulatorBatchedEvtHandler - Created kafkaConsumer of type ${RDKafkaConsumerBatched.constructor.name}`)
 
-    logger.isInfoEnabled() && logger.info('SimulatorEvtHandler - Initializing transferCmdConsumer...')
+    logger.isInfoEnabled() && logger.info('SimulatorBatchedEvtHandler - Initializing transferCmdConsumer...')
 
     const subscribedMsgNames = [
       'TransferPreparedEvt',
       'TransferFulfilledEvt'
     ]
 
-    logger.isInfoEnabled() && logger.info('SimulatorEvtHandler - Initializing transferCmdConsumer...')
+    logger.isInfoEnabled() && logger.info('SimulatorBatchedEvtHandler - Initializing transferCmdConsumer...')
     /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
-    await this._consumer.init(simulatorEvtHandler, subscribedMsgNames)
+    await this._consumer.init(simulatorEvtBatchHandler, subscribedMsgNames)
   }
 
   async destroy (): Promise<void> {

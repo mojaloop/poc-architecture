@@ -36,7 +36,7 @@
  ******/
 
 'use strict'
-import { IDomainMessage, ILogger, IMessagePublisher, MessageTypes, IESourcingStateRepository } from '@mojaloop-poc/lib-domain'
+import { IDomainMessage, ILogger, IMessagePublisher, IESourcingStateRepository } from '@mojaloop-poc/lib-domain'
 import { ParticipantsTopics } from '@mojaloop-poc/lib-public-messages'
 import {
   EventSourcingStateRepo,

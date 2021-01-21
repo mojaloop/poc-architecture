@@ -37,7 +37,7 @@
 
 'use strict'
 
-import { MojaLogger, Metrics, TMetricOptionsType } from '@mojaloop-poc/lib-utilities'
+import { MojaLogger, Metrics, TMetricOptionsType, getEnvBoolOrDefault } from '@mojaloop-poc/lib-utilities'
 import { ILogger } from '@mojaloop-poc/lib-domain'
 import { TApiServerOptions, ApiServer, IRunHandler, KafkaInfraTypes, RdKafkaCommitMode } from '@mojaloop-poc/lib-infrastructure'
 import { SimulatorEvtHandler } from './simulatorEvtHandler'
@@ -88,6 +88,9 @@ Program.command('handler')
         gzipCompression: (process.env.KAFKA_PRODUCER_GZIP === 'true'),
         fetchMinBytes: (process.env.KAFKA_FETCH_MIN_BYTES != null && !isNaN(Number(process.env.KAFKA_FETCH_MIN_BYTES)) && process.env.KAFKA_FETCH_MIN_BYTES?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_MIN_BYTES) : 1,
         fetchWaitMaxMs: (process.env.KAFKA_FETCH_WAIT_MAX_MS != null && !isNaN(Number(process.env.KAFKA_FETCH_WAIT_MAX_MS)) && process.env.KAFKA_FETCH_WAIT_MAX_MS?.trim()?.length > 0) ? Number.parseInt(process.env.KAFKA_FETCH_WAIT_MAX_MS) : 100
+      },
+      batch: {
+        enabled: getEnvBoolOrDefault('SIMULATORS_BATCH_ENABLED')
       }
     }
 
@@ -112,9 +115,14 @@ Program.command('handler')
     // list of all handlers
     const runHandlerList: IRunHandler[] = []
 
+    let simulatorEvtHandler: IRunHandler
     // start all handlers here
-    // const simulatorEvtHandler = new SimulatorEvtHandler()
-    const simulatorEvtHandler = new SimulatorBatchedEvtHandler()
+    if (appConfig.batch.enabled === true) {
+      simulatorEvtHandler = new SimulatorBatchedEvtHandler()
+    } else {
+      simulatorEvtHandler = new SimulatorEvtHandler()
+    }
+
     await simulatorEvtHandler.start(appConfig, logger, metrics)
     runHandlerList.push(simulatorEvtHandler)
 
