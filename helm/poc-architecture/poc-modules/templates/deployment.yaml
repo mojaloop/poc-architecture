@@ -168,8 +168,10 @@ spec:
               value: {{ .Values.config.kafka_fetch_min_bytes | quote }}
             - name: KAFKA_FETCH_WAIT_MAX_MS
               value: {{ .Values.config.kafka_fetch_wait_max_ms | quote }}
+            {{- if .Values.config.measure_kafka_group_id }}
             - name: MEASURE_KAFKA_GROUP_ID
               value: {{ .Values.config.measure_kafka_group_id | quote }}
+            {{- end}}
             - name: EVENT_SDK_VENDOR_PREFIX
               value: {{ .Values.config.event_trace_vendor | quote }}
             - name: UV_THREADPOOL_SIZE
