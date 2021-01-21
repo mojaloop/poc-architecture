@@ -220,7 +220,7 @@ export class TransferCmdHandler implements IRunHandler {
     const histTimer = this._histoTransfersCmdHandlerMetric.startTimer()
     const evtname = message.msgName ?? 'unknown'
     try {
-      this._logger.isInfoEnabled() && this._logger.info(`TransferCmdHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+      this._logger.isInfoEnabled() && this._logger.info(`TransferCmdHandler - processing commandMsg - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
       const transferCmd: CommandMsg | undefined = this._getCommandFromMessage(message)
       let processCommandResult: boolean = false
       if (transferCmd !== undefined) {
@@ -228,7 +228,7 @@ export class TransferCmdHandler implements IRunHandler {
       } else {
         this._logger.isWarnEnabled() && this._logger.warn('TransferCmdHandler - is Unable to process command')
       }
-      this._logger.isInfoEnabled() && this._logger.info(`TransferCmdHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
+      this._logger.isInfoEnabled() && this._logger.info(`TransferCmdHandler - processing commandMsg - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
       histTimer({ success: 'true', evtname })
     } catch (err) {
       this._logger.isErrorEnabled() && this._logger.error(err)
@@ -241,12 +241,12 @@ export class TransferCmdHandler implements IRunHandler {
     const histTimerBatches = this._histoTransfersCmdBatchHandlerMetric.startTimer()
 
     const batchId: string = this._transfersAgg.startBatch()
-    this._logger.isInfoEnabled() && this._logger.info(`transferCmdBatchHandler - batchId: ${batchId} - processing events - length:${messages?.length} - Start`)
+    this._logger.isInfoEnabled() && this._logger.info(`transferCmdBatchHandler - batchId: ${batchId} - processing commandMsgs - length:${messages?.length} - Start`)
     try {
       for (const message of messages) {
         const evtname = message.msgName ?? 'unknown'
         try {
-          this._logger.isInfoEnabled() && this._logger.info(`TransferCmdBatchHandler - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
+          this._logger.isInfoEnabled() && this._logger.info(`TransferCmdBatchHandler - batchId: ${batchId} - processing commandMsg - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
           const transferCmd: CommandMsg | undefined = this._getCommandFromMessage(message)
           let processCommandResult: boolean = false
           if (transferCmd != null) {
@@ -254,10 +254,10 @@ export class TransferCmdHandler implements IRunHandler {
           } else {
             this._logger.isWarnEnabled() && this._logger.warn(`transferCmdBatchHandler - batchId: ${batchId} - is Unable to process command`)
           }
-          this._logger.isInfoEnabled() && this._logger.info(`transferCmdBatchHandler - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
+          this._logger.isInfoEnabled() && this._logger.info(`transferCmdBatchHandler - batchId: ${batchId} - processing commandMsg - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
         } catch (err) {
           const errMsg: string = err?.message?.toString()
-          this._logger.isWarnEnabled() && this._logger.warn(`transferCmdBatchHandler - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
+          this._logger.isWarnEnabled() && this._logger.warn(`transferCmdBatchHandler - batchId: ${batchId} - processing commandMsg - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
           this._logger.isErrorEnabled() && this._logger.error(err)
           histTimer({ success: 'false', error: err.message, evtname })
         }
