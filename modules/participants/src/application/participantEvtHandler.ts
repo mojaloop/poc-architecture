@@ -197,13 +197,12 @@ export class ParticipantEvtHandler implements IRunHandler {
     const batchId: string = uuidv4()
     this._logger.isDebugEnabled() && this._logger.debug(`ParticipantEvtHandler - batchId: ${batchId} - processing ${messages?.length} message(s)`)
 
-    const histTimer = this._histoParticipantEvtHandlerMetric.startTimer()
     const histTimerBatches = this._histoParticipantEvtHandlerBatchesMetric.startTimer()
 
     const commands: IDomainMessage[] = []
     try {
       for (const message of messages) {
-        // const evtname = message.msgName ?? 'unknown' // FIXME see todo above
+        const histTimer = this._histoParticipantEvtHandlerMetric.startTimer()
         try {
           this._logger.isInfoEnabled() && this._logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
           const participantCmd: CommandMsg | undefined = await this._getCommandFromEventMsg(message)
@@ -211,26 +210,22 @@ export class ParticipantEvtHandler implements IRunHandler {
           if (participantCmd !== undefined) {
             this._logger.isInfoEnabled() && this._logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - queuing Cmd: ${participantCmd?.msgName}:${message?.msgKey}:${participantCmd?.msgId} `)
             commands.push(participantCmd)
+            histTimer({ success: 'true', evtname: message.msgName ?? 'unknown' })
           } else {
             this._logger.isWarnEnabled() && this._logger.warn(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Unable to process event`)
+            histTimer({ success: 'false', evtname: message.msgName ?? 'unknown' })
           }
-
-          // histTimer({ success: 'true', evtname }) // FIXME see todo above
         } catch (err) {
           const errMsg: string = err?.message?.toString()
           this._logger.isInfoEnabled() && this._logger.info(`ParticipantEvtHandler - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
           this._logger.isErrorEnabled() && this._logger.error(err)
-          // histTimer({ success: 'false', evtname }) // FIXME see todo above
+          histTimer({ success: 'false', error: err.message, evtname: message.msgName ?? 'unknown' })
         }
       }
 
       if (commands.length > 0) {
         this._logger.isInfoEnabled() && this._logger.info(`ParticipantEvtHandler - publishing ${commands.length} cmd(s)`)
         await this._publisher.publishMany(commands)
-
-        for (const message of messages) {
-          histTimer({ success: 'true', evtname: message.msgName ?? 'unknown' })
-        }
       } else {
         this._logger.isWarnEnabled() && this._logger.warn('ParticipantEvtHandler - no commands to publish at batch end')
       }
@@ -240,7 +235,6 @@ export class ParticipantEvtHandler implements IRunHandler {
     } catch (err) {
       this._logger.isErrorEnabled() && this._logger.error(`ParticipantEvtHandler - batchId: ${batchId} - failed`)
       this._logger.isErrorEnabled() && this._logger.error(err)
-      histTimer({ success: 'false', error: err.message })
       histTimerBatches({ success: 'true' })
       throw err
     }

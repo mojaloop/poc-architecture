@@ -221,11 +221,10 @@ export class ParticipantCmdHandler implements IRunHandler {
 
     this._logger.isDebugEnabled() && this._logger.debug(`ParticipantCmdConsumer - batchId: ${batchId} - processing ${messages?.length} message(s)`)
 
-    const histTimer = this._histoParticipantCmdHandlerMetric.startTimer()
     const histTimerBatches = this._histoParticipantCmdHandlerBatchesMetric.startTimer()
     try {
       for (const message of messages) {
-        // const evtname = message.msgName ?? 'unknown'
+        const histTimer = this._histoParticipantCmdHandlerMetric.startTimer()
         try {
           this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - batchId: ${batchId} - batchId: ${batchId} - processing event - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
           const participantCmd: CommandMsg | undefined = this._getCommandFromMessage(message)
@@ -234,11 +233,14 @@ export class ParticipantCmdHandler implements IRunHandler {
             const success = await this._participantAgg.processCommand(participantCmd)
             if (success) {
               this._logger.isDebugEnabled() && this._logger.debug(`ParticipantCmdConsumer - batchId: ${batchId} - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - success`)
+              histTimer({ success: 'true', evtname: message.msgName ?? 'unknown' })
             } else {
               this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdConsumer - batchId: ${batchId} - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - failed`)
+              histTimer({ success: 'false', evtname: message.msgName ?? 'unknown' })
             }
           } else {
             this._logger.isWarnEnabled() && this._logger.warn(`ParticipantCmdConsumer - batchId: ${batchId} - processing command - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - unhandled command found`)
+            histTimer({ success: 'false', evtname: message.msgName ?? 'unknown' })
           }
         } catch (err) {
           const errMsg: string = err?.message?.toString()
@@ -255,10 +257,6 @@ export class ParticipantCmdHandler implements IRunHandler {
         this._logger.isInfoEnabled() && this._logger.info(`ParticipantCmdConsumer - batchId: ${batchId} - publishing ${uncommitedEvents.length} domain event(s)`)
         await this._publisher.publishMany(uncommitedEvents)
 
-        for (const message of messages) {
-          histTimer({ success: 'true', evtname: message.msgName ?? 'unknown' })
-        }
-
         // The participant_agg is overloading the base agg store() and persisting in all calls (even in batch)
         // for (const state of unpersistedStates) {
         //   await this._stateCacheRepo.store(state)
@@ -272,7 +270,7 @@ export class ParticipantCmdHandler implements IRunHandler {
     } catch (err) {
       this._logger.isErrorEnabled() && this._logger.error(`ParticipantCmdConsumer - batchId: ${batchId} - failed`)
       this._logger.isErrorEnabled() && this._logger.error(err)
-      histTimer({ success: 'false', error: err.message })
+
       histTimerBatches({ success: 'true' })
       throw err
     }

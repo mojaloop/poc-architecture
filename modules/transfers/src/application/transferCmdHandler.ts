@@ -237,13 +237,13 @@ export class TransferCmdHandler implements IRunHandler {
   }
 
   private async _cmdBatchHandler (messages: IDomainMessage[]): Promise<void> {
-    const histTimer = this._histoTransfersCmdHandlerMetric.startTimer()
     const histTimerBatches = this._histoTransfersCmdBatchHandlerMetric.startTimer()
 
     const batchId: string = this._transfersAgg.startBatch()
     this._logger.isInfoEnabled() && this._logger.info(`transferCmdBatchHandler - batchId: ${batchId} - processing commandMsgs - length:${messages?.length} - Start`)
     try {
       for (const message of messages) {
+        const histTimer = this._histoTransfersCmdHandlerMetric.startTimer()
         const evtname = message.msgName ?? 'unknown'
         try {
           this._logger.isInfoEnabled() && this._logger.info(`TransferCmdBatchHandler - batchId: ${batchId} - processing commandMsg - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Start`)
@@ -255,6 +255,7 @@ export class TransferCmdHandler implements IRunHandler {
             this._logger.isWarnEnabled() && this._logger.warn(`transferCmdBatchHandler - batchId: ${batchId} - is Unable to process command`)
           }
           this._logger.isInfoEnabled() && this._logger.info(`transferCmdBatchHandler - batchId: ${batchId} - processing commandMsg - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Result: ${processCommandResult.toString()}`)
+          histTimer({ success: processCommandResult.toString(), evtname })
         } catch (err) {
           const errMsg: string = err?.message?.toString()
           this._logger.isWarnEnabled() && this._logger.warn(`transferCmdBatchHandler - batchId: ${batchId} - processing commandMsg - ${message?.msgName}:${message?.msgKey}:${message?.msgId} - Error: ${errMsg}`)
@@ -286,16 +287,12 @@ export class TransferCmdHandler implements IRunHandler {
         this._logger.isWarnEnabled() && this._logger.warn(`transferCmdBatchHandler - batchId: ${batchId} - no domain events to publish at _cmdHandler batch end`)
       }
 
-      for (const message of messages) {
-        histTimer({ success: 'true', evtname: message.msgName ?? 'unknown' })
-      }
       this._logger.isInfoEnabled() && this._logger.info(`transferCmdBatchHandler - batchId: ${batchId} - finished`)
       histTimerBatches({ success: 'true' })
     } catch (err) {
       // TODO: Handle something here?
       this._logger.isErrorEnabled() && this._logger.error(`transferCmdBatchHandler - batchId: ${batchId} - failed`)
       this._logger.isErrorEnabled() && this._logger.error(err)
-      histTimer({ success: 'false', error: err.message })
       histTimerBatches({ success: 'true' })
       throw err
     }
