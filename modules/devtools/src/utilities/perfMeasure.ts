@@ -150,9 +150,10 @@ function logRPS (): void {
     buckets.delete(lastSecond - 1)
   } // clean up old
 
+  const taken = Date.now() - now
   setTimeout(() => {
     logRPS()
-  }, INTERVAL_MS)
+  }, taken < INTERVAL_MS ? INTERVAL_MS - taken : INTERVAL_MS)
 }
 
 function recordCompleted (timeMs: number, transferId: string): void {
@@ -167,8 +168,10 @@ function recordCompleted (timeMs: number, transferId: string): void {
 const handlerForFulfilEvt = async (message: IDomainMessage): Promise<void> => {
   if (message.msgName === 'TransferFulfilledEvt') {
     fulfiledCounter++
-    const reqReceivedAt = evtMap.get(message.aggregateId)
-    if (reqReceivedAt != null) {
+    // const reqReceivedAt = evtMap.get(message.aggregateId)
+    if (evtMap.has(message.aggregateId)) {
+      const reqReceivedAt = evtMap.get(message.aggregateId)
+      // @ts-expect-error
       const timeDelta = message.msgTimestamp - reqReceivedAt
       // console.log(`Prepare leg completed for transfer id: ${message.aggregateId} took: - ${message.msgTimestamp - reqReceivedAt} ms`)
       recordCompleted(timeDelta, message.aggregateId)
