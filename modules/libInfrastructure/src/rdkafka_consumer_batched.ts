@@ -204,6 +204,7 @@ export class RDKafkaConsumerBatched {
           if (autoCommitEnabled !== true) {
             const toCommit: TopicPartitionOffset[] = []
 
+            // TODO: Validate if this is necessary as it may already be done by either node-rdkafka or librdkafka
             for (const msg of messages) {
               const topic: TopicPartitionOffset | undefined = toCommit.find((item) => {
                 return item.topic === msg.topic && item.partition === msg.partition
