@@ -298,27 +298,33 @@ export class TransferEvtAndCmdHandler implements IRunHandler {
   }
 
   private async _evtBatchHandler (eventMessages: IDomainMessage[]): Promise<void> {
+    const startTs = Date.now()
     const histEvtTimerBatches = this._histoTransfersEvtBatchHandlerMetric.startTimer()
     const histCmdTimerBatches = this._histoTransfersCmdBatchHandlerMetric.startTimer()
-    const batchId = uuidv4()
-    this._logger.isInfoEnabled() && this._logger.info(`TransferEvtAndCmdHandler (batched) - processing events - batchId: ${batchId} - length:${eventMessages?.length} - Start`)
 
-    const commands: IDomainMessage[] = []
+    const batchId: string = this._transfersAgg.startBatch()
+    this._logger.isDebugEnabled() && this._logger.debug(`TransferEvtAndCmdHandler (batched) - processing events - batchId: ${batchId} - length:${eventMessages?.length} - Start`)
+
+    // const commands: IDomainMessage[] = []
 
     try {
       for (const eventMessage of eventMessages) {
         const histEvtTimer = this._histoTransfersEvtHandlerMetric.startTimer()
         const histCmdTimer = this._histoTransfersCmdHandlerMetric.startTimer()
         try {
-          this._logger.isInfoEnabled() && this._logger.info(`TransferEvtAndCmdHandler (batched) - batchId: ${batchId} - getting command for event - ${eventMessage?.msgName}:${eventMessage?.msgKey}:${eventMessage?.msgId}`)
+          this._logger.isDebugEnabled() && this._logger.debug(`TransferEvtAndCmdHandler (batched) - batchId: ${batchId} - getting command for event - ${eventMessage?.msgName}:${eventMessage?.msgKey}:${eventMessage?.msgId}`)
           const transferCmd: CommandMsg | undefined = this._getCommandMsgFromEventMsg(eventMessage)
 
           if (transferCmd !== undefined) {
             histEvtTimer({ success: 'true', evtname: eventMessage.msgName ?? 'unknown' })
-            commands.push(transferCmd)
-            this._logger.isInfoEnabled() && this._logger.info(`TransferEvtAndCmdHandler (batched) - batchId: ${batchId} - processing cmd: ${transferCmd?.msgName}:${transferCmd?.msgId}`)
+            //  commands.push(transferCmd)
+            this._logger.isDebugEnabled() && this._logger.debug(`TransferEvtAndCmdHandler (batched) - batchId: ${batchId} - processing cmd: ${transferCmd?.msgName}:${transferCmd?.msgId}`)
             const processCommandResult: boolean = await this._transfersAgg.processCommand(transferCmd)
-            this._logger.isInfoEnabled() && this._logger.info(`TransferEvtAndCmdHandler (batched) - processing cmd finished - ${transferCmd?.msgName}:${transferCmd?.msgKey}:${transferCmd?.msgId} - Result: ${processCommandResult.toString()}`)
+            if (processCommandResult) {
+              this._logger.isDebugEnabled() && this._logger.debug(`TransferEvtAndCmdHandler (batched) - processing cmd finished - ${transferCmd?.msgName}:${transferCmd?.msgKey}:${transferCmd?.msgId} - Result: ${processCommandResult.toString()}`)
+            } else {
+              this._logger.isWarnEnabled() && this._logger.warn(`TransferEvtAndCmdHandler (batched) - processing cmd finished - ${transferCmd?.msgName}:${transferCmd?.msgKey}:${transferCmd?.msgId} - Result: ${processCommandResult.toString()}`)
+            }
             histCmdTimer({ success: 'true', evtname: transferCmd?.msgName ?? 'unknown' })
           } else {
             this._logger.isWarnEnabled() && this._logger.warn('TransferEvtAndCmdHandler (batched) - could not get CommandMsg from EventMsg')
@@ -347,7 +353,7 @@ export class TransferEvtAndCmdHandler implements IRunHandler {
     const uncommitedEvents: IDomainMessage[] = this._transfersAgg.getUncommitedDomainEvents()
 
     if (unpersistedStates?.length > 0) {
-      this._logger.isInfoEnabled() && this._logger.info(`TransferEvtAndCmdHandler (batched) - batchId: ${batchId} - peristing ${unpersistedStates.length} states`)
+      this._logger.isDebugEnabled() && this._logger.debug(`TransferEvtAndCmdHandler (batched) - batchId: ${batchId} - peristing ${unpersistedStates.length} states`)
 
       // don't use storeMany for just one
       if (unpersistedStates.length === 1) {
@@ -356,14 +362,14 @@ export class TransferEvtAndCmdHandler implements IRunHandler {
         await this._entityStateRepo.storeMany(unpersistedStates)
       }
     } else {
-      this._logger.isWarnEnabled() && this._logger.warn(`TransferEvtAndCmdHandler (batched) - batchId: ${batchId} - no unpersisted states at _cmdHandler batch end`)
+      this._logger.isDebugEnabled() && this._logger.debug(`TransferEvtAndCmdHandler (batched) - batchId: ${batchId} - no unpersisted states at _cmdHandler batch end`)
     }
 
     if (uncommitedEvents?.length > 0) {
-      this._logger.isInfoEnabled() && this._logger.info(`TransferEvtAndCmdHandler (batched) - batchId: ${batchId} - publishing ${uncommitedEvents.length} domain event(s)`)
+      this._logger.isDebugEnabled() && this._logger.debug(`TransferEvtAndCmdHandler (batched) - batchId: ${batchId} - publishing ${uncommitedEvents.length} domain event(s)`)
       await this._publisher.publishMany(uncommitedEvents)
     } else {
-      this._logger.isWarnEnabled() && this._logger.warn(`TransferEvtAndCmdHandler (batched) - batchId: ${batchId} - no domain events to publish at _cmdHandler batch end`)
+      this._logger.isDebugEnabled() && this._logger.debug(`TransferEvtAndCmdHandler (batched) - batchId: ${batchId} - no domain events to publish at _cmdHandler batch end`)
     }
 
     // for (const evtMessage of eventMessages) {
@@ -373,9 +379,10 @@ export class TransferEvtAndCmdHandler implements IRunHandler {
     //   histCmdTimer({ success: 'true', evtname: cmdMessage.msgName ?? 'unknown' })
     // }
 
-    this._logger.isInfoEnabled() && this._logger.info(`TransferEvtAndCmdHandler (batched) - batchId: ${batchId} - finished`)
+    this._logger.isDebugEnabled() && this._logger.debug(`TransferEvtAndCmdHandler (batched) - batchId: ${batchId} - finished`)
     histEvtTimerBatches({ success: 'true' })
     histCmdTimerBatches({ success: 'true' })
+    this._logger.isDebugEnabled() && this._logger.debug(`TransferEvtAndCmdHandler (batched) - batchId: ${batchId} - batch took: ${Date.now() - startTs} ms`)
     this._logger.isDebugEnabled() && this._logger.debug('') // blank debug line to facilitate log analysis
     this._logger.isDebugEnabled() && this._logger.debug('') // blank debug line to facilitate log analysis
   }
