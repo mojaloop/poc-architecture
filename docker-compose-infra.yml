@@ -1,0 +1,45 @@
+version: "3.4"
+services:
+    kafka:
+        image: "johnnypark/kafka-zookeeper"
+        network_mode: host
+        container_name: arch_poc_kafka
+        ports:
+            - "2181:2181"
+            - "9092:9092"
+        environment:
+            ADVERTISED_HOST: "localhost"
+            NUM_PARTITIONS: "8"
+            JMX_PORT: 9990
+    kafka-manager:
+        image: "sheepkiller/kafka-manager"
+        network_mode: host
+        container_name: arch_poc_kafka_manager
+        ports:
+            - "9000:9000"
+        environment:
+            ZK_HOSTS: localhost:2181
+    redis:
+        image: "redis:alpine"
+        network_mode: host
+        container_name: arch_poc_redis
+        ports:
+            - "6379:6379"
+    mongodb:
+        image: "mongo"
+        network_mode: host
+        container_name: arch_poc_mongodb
+        ports:
+            - "27017:27017"
+        environment:
+            MONGO_INITDB_ROOT_USERNAME: root
+            MONGO_INITDB_ROOT_PASSWORD: example
+#    mongo-express:
+#        image: mongo-express
+#        restart: always
+#        ports:
+#            - "8081:8081"
+#        environment:
+#            ME_CONFIG_MONGODB_ADMINUSERNAME: root
+#            ME_CONFIG_MONGODB_ADMINPASSWORD: example
+

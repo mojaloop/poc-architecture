@@ -1,0 +1,127 @@
+version: '3.4'
+services:
+    simulator:
+        image: "mojaloop/poc-architecture:v0.86-es"
+        command: sh -c "cd modules/devtools && node dist/simulator/index.js handler --config ../../.env"
+        network_mode: host
+        environment:
+            - LOG_LEVEL=error
+            - REDIS_HOST=redis://localhost:6379
+            - KAFKA_HOST=localhost:9092
+            - KAFKA_CONSUMER=node-rdkafka
+            - KAFKA_PRODUCER=node-rdkafka
+#            - RDKAFKA_BATCH_NUM_MESSAGES=100
+#            - RDKAFKA_QUEUE_BUFFERING_MAX_US=1000
+#            - KAFKA_AUTO_COMMIT=true
+            - KAFKA_AUTO_COMMIT_INTERVAL=100
+            - KAFKA_FETCH_WAIT_MAX_MS=30
+            - KAFKA_FETCH_MIN_BYTES=16384
+            - KAFKA_PRODUCER_GZIP=true
+            - SIMULATORS_BATCH_ENABLED=true
+            - RDKAFKA_CONSUMER_BATCH_SIZE=250
+
+    transfers_evt:
+        image: "mojaloop/poc-architecture:v0.86-es"
+        command: sh -c "cd modules/transfers && node dist/application/index.js handler --config ../../.env --transferEvt"
+        network_mode: host
+        environment:
+            - LOG_LEVEL=error
+            - REDIS_HOST=redis://localhost:6379
+            - KAFKA_HOST=localhost:9092
+            - KAFKA_CONSUMER=node-rdkafka
+            - KAFKA_PRODUCER=node-rdkafka
+#            - RDKAFKA_BATCH_NUM_MESSAGES=100
+#            - RDKAFKA_QUEUE_BUFFERING_MAX_US=1000
+#            - KAFKA_AUTO_COMMIT=true
+            - KAFKA_AUTO_COMMIT_INTERVAL=100
+            - KAFKA_FETCH_WAIT_MAX_MS=30
+            - KAFKA_FETCH_MIN_BYTES=16384
+            - KAFKA_PRODUCER_GZIP=true
+            - TRANSFERS_BATCH_ENABLED=true
+
+    transfers_cmd:
+        image: "mojaloop/poc-architecture:v0.86-es"
+        command: sh -c "cd modules/transfers && node dist/application/index.js handler --config ../../.env --transferCmd"
+        network_mode: host
+        environment:
+            - LOG_LEVEL=error
+            - REDIS_HOST=redis://localhost:6379
+            - KAFKA_HOST=localhost:9092
+            - KAFKA_CONSUMER=node-rdkafka
+            - KAFKA_PRODUCER=node-rdkafka
+            - TRANSFERS_REPO_TYPE=cachedpersistedredis
+            - DUPLICATE_REPO_TYPE=redis
+            - REDIS_EXPIRATION_IN_SEC=30
+#            - KAFKA_AUTO_COMMIT=true
+            - KAFKA_AUTO_COMMIT_INTERVAL=100
+            - KAFKA_FETCH_WAIT_MAX_MS=30
+            - KAFKA_FETCH_MIN_BYTES=16384
+            - KAFKA_PRODUCER_GZIP=true
+            - TRANSFERS_BATCH_ENABLED=true
+
+    transfers_single:
+        image: "mojaloop/poc-architecture:v0.86-es"
+        command: sh -c "cd modules/transfers && node dist/application/index.js handler --config ../../.env --transferEvtAndCmd"
+        network_mode: host
+        environment:
+            - LOG_LEVEL=error
+            - REDIS_HOST=redis://localhost:6379
+            - KAFKA_HOST=localhost:9092
+            - KAFKA_CONSUMER=node-rdkafka
+            - KAFKA_PRODUCER=node-rdkafka
+            - TRANSFERS_REPO_TYPE=cachedpersistedredis
+            - DUPLICATE_REPO_TYPE=redis
+            - REDIS_EXPIRATION_IN_SEC=30
+            #            - RDKAFKA_BATCH_NUM_MESSAGES=100
+            #            - RDKAFKA_QUEUE_BUFFERING_MAX_US=1000
+            #            - KAFKA_AUTO_COMMIT=true
+            - KAFKA_AUTO_COMMIT_INTERVAL=100
+            - KAFKA_FETCH_WAIT_MAX_MS=30
+            - KAFKA_FETCH_MIN_BYTES=16384
+            - KAFKA_PRODUCER_GZIP=true
+            - TRANSFERS_BATCH_ENABLED=true
+            - RDKAFKA_CONSUMER_BATCH_SIZE=250
+            - RDKAFKA_CONSUMER_BATCH_TIMEOUT_MS=500
+
+    participants_evt:
+        image: "mojaloop/poc-architecture:v0.86-es"
+        command: sh -c "cd modules/participants && node dist/application/index.js handler --config ../../.env --participantsEvt"
+        network_mode: host
+        environment:
+            - LOG_LEVEL=warn
+            - REDIS_HOST=redis://localhost:6379
+            - KAFKA_HOST=localhost:9092
+            - KAFKA_CONSUMER=node-rdkafka
+            - KAFKA_PRODUCER=node-rdkafka
+            - PARTICIPANTS_REPO_TYPE=cachedredis
+#            - RDKAFKA_BATCH_NUM_MESSAGES=100
+#            - RDKAFKA_QUEUE_BUFFERING_MAX_US=1000
+#            - KAFKA_AUTO_COMMIT=true
+            - KAFKA_AUTO_COMMIT_INTERVAL=100
+            - KAFKA_FETCH_WAIT_MAX_MS=30
+            - KAFKA_FETCH_MIN_BYTES=16384
+            - KAFKA_PRODUCER_GZIP=true
+            - PARTICIPANTS_BATCH_ENABLED=true
+            - RDKAFKA_CONSUMER_BATCH_SIZE=250
+            - RDKAFKA_CONSUMER_BATCH_TIMEOUT_MS=500
+
+    participants_cmd:
+        image: "mojaloop/poc-architecture:v0.86-es"
+        command: sh -c "cd modules/participants && node dist/application/index.js handler --config ../../.env --participantsCmd"
+        network_mode: host
+        environment:
+            - LOG_LEVEL=error
+            - REDIS_HOST=redis://localhost:6379
+            - KAFKA_HOST=localhost:9092
+            - KAFKA_CONSUMER=node-rdkafka
+            - KAFKA_PRODUCER=node-rdkafka
+            - PARTICIPANTS_REPO_TYPE=cachedredis
+#            - KAFKA_AUTO_COMMIT=true
+            - KAFKA_AUTO_COMMIT_INTERVAL=100
+            - KAFKA_FETCH_WAIT_MAX_MS=30
+            - KAFKA_FETCH_MIN_BYTES=16384
+            - KAFKA_PRODUCER_GZIP=true
+            - PARTICIPANTS_BATCH_ENABLED=true
+            - RDKAFKA_CONSUMER_BATCH_SIZE=250
+            - RDKAFKA_CONSUMER_BATCH_TIMEOUT_MS=500
+

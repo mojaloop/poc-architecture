@@ -116,3 +116,79 @@ npm run start:transfers
 ## Known Issues
 
 1. `@typescript-eslint/no-misused-promises` lint issue disabled on several places, e.g. [kafka_generic_producer.ts](./modules/libInfrastructure/src/kafka_generic_producer.ts)
+
+
+## Local tests with docker
+
+### Review the parameters in .env file
+_TODO add more detail about the variables_
+
+### Start the infrastructure
+```sh
+docker-compose -f docker-compose-infra.yml -p "arch_poc" up
+```
+
+### Start the applications
+Note: Don't use the docker-compose-app.yml directly, unless you comment out transfers_single OR transfers_evt + transfers_cmd, this is because the transfers_single is a version of the transfers that includes the event and command handlers.
+
+#### Adjust the instance counts
+In scale_up.sh setup change the variables on top with the variables fr the instance count, 1 of each is a good start.
+Again, don't enable transfers_single along with the transfers_evt + transfers_cmd combination.
+
+Then, run:
+```sh
+./scale_up.sh
+```
+
+### Create participants
+Go to "modules/devtools" directory and run:
+
+```sh
+npm run pubCreateParticipantCmd
+```
+### Send a test transfer
+Also in "modules/devtools" directory:
+
+```sh
+npm run pubTransferPrepareRequestedEvt
+```
+
+### Measure performance
+All commands also in "modules/devtools" directory.
+
+In a separate terminal window start the performance measurement script:
+
+```sh
+LOG_LEVEL=info npm run perfMeasure
+```
+In another separate terminal window start the transfer injection, adjusting the injected number:
+
+```sh
+INJECTED_PER_SECOND=5 LOG_LEVEL=info npm run pubPrepareMultipleTransferEvt
+```
+
+This will start injecting X transfers per second and if everything is working, you should start seeing the results in the perfMeasure terminal:
+
+```
+*** 5 req/sec *** 150 avg ms *** 0 pending *** 5/5 avg req/ful 15/15 total req/ful *** 0 reqs over 1 sec (0%)
+```
+
+If you don't see the first number increasing, or if only the pending increases, that's a sign that somehting is not working, and transfers are not being processed.
+Check the logs to see what's happening.
+
+### Check the logs
+```sh
+docker-compose -f docker-compose-app.yml logs --follow # for app logs
+docker-compose -f docker-compose-infra.yml logs --follow # for infra logs
+```
+
+
+### Stop the applications
+```sh
+./scale_down.sh
+```
+
+### Stop the infrastructure
+```sh
+docker-compose -f docker-compose-infra.yml -p "arch_poc" down
+```
