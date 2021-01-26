@@ -1,13 +1,19 @@
 version: '3.4'
+
+networks:
+  mojaloop-poc:
+    name: mojaloop-poc
+
 services:
     simulator:
         image: "mojaloop/poc-architecture:v0.86-es"
-        command: sh -c "cd modules/devtools && node dist/simulator/index.js handler --config ../../.env"
-        network_mode: host
+        command: sh -c "cd modules/devtools && node dist/simulator/index.js handler --config ../../.env --disableApi"
+        # network_mode: host
         environment:
             - LOG_LEVEL=error
-            - REDIS_HOST=redis://localhost:6379
-            - KAFKA_HOST=localhost:9092
+            - REDIS_HOST=redis://redis:6379
+            - REDIS_DUPL_HOST=redis://redis:6379
+            - KAFKA_HOST=kafka:9092
             - KAFKA_CONSUMER=node-rdkafka
             - KAFKA_PRODUCER=node-rdkafka
 #            - RDKAFKA_BATCH_NUM_MESSAGES=100
@@ -19,15 +25,20 @@ services:
             - KAFKA_PRODUCER_GZIP=true
             - SIMULATORS_BATCH_ENABLED=true
             - RDKAFKA_CONSUMER_BATCH_SIZE=250
+            - PARTICIPANTS_READSIDE_MONGO_DB_HOST=mongodb://root:example@mongodb:27017/
+            - TRANSFERS_READSIDE_MONGO_DB_HOST=mongodb://root:example@mongodb:27017/
+        networks:
+        - mojaloop-poc
 
     transfers_evt:
         image: "mojaloop/poc-architecture:v0.86-es"
-        command: sh -c "cd modules/transfers && node dist/application/index.js handler --config ../../.env --transferEvt"
-        network_mode: host
+        command: sh -c "cd modules/transfers && node dist/application/index.js handler --config ../../.env --transferEvt --disableApi"
+        # network_mode: host
         environment:
             - LOG_LEVEL=error
-            - REDIS_HOST=redis://localhost:6379
-            - KAFKA_HOST=localhost:9092
+            - REDIS_HOST=redis://redis:6379
+            - REDIS_DUPL_HOST=redis://redis:6379
+            - KAFKA_HOST=kafka:9092
             - KAFKA_CONSUMER=node-rdkafka
             - KAFKA_PRODUCER=node-rdkafka
 #            - RDKAFKA_BATCH_NUM_MESSAGES=100
@@ -38,15 +49,20 @@ services:
             - KAFKA_FETCH_MIN_BYTES=16384
             - KAFKA_PRODUCER_GZIP=true
             - TRANSFERS_BATCH_ENABLED=true
+            - PARTICIPANTS_READSIDE_MONGO_DB_HOST=mongodb://root:example@mongodb:27017/
+            - TRANSFERS_READSIDE_MONGO_DB_HOST=mongodb://root:example@mongodb:27017/
+        networks:
+        - mojaloop-poc
 
     transfers_cmd:
         image: "mojaloop/poc-architecture:v0.86-es"
-        command: sh -c "cd modules/transfers && node dist/application/index.js handler --config ../../.env --transferCmd"
-        network_mode: host
+        command: sh -c "cd modules/transfers && node dist/application/index.js handler --config ../../.env --transferCmd --disableApi"
+        # network_mode: host
         environment:
             - LOG_LEVEL=error
-            - REDIS_HOST=redis://localhost:6379
-            - KAFKA_HOST=localhost:9092
+            - REDIS_HOST=redis://redis:6379
+            - REDIS_DUPL_HOST=redis://redis:6379
+            - KAFKA_HOST=kafka:9092
             - KAFKA_CONSUMER=node-rdkafka
             - KAFKA_PRODUCER=node-rdkafka
             - TRANSFERS_REPO_TYPE=cachedpersistedredis
@@ -58,15 +74,20 @@ services:
             - KAFKA_FETCH_MIN_BYTES=16384
             - KAFKA_PRODUCER_GZIP=true
             - TRANSFERS_BATCH_ENABLED=true
+            - PARTICIPANTS_READSIDE_MONGO_DB_HOST=mongodb://root:example@mongodb:27017/
+            - TRANSFERS_READSIDE_MONGO_DB_HOST=mongodb://root:example@mongodb:27017/
+        networks:
+        - mojaloop-poc
 
     transfers_single:
         image: "mojaloop/poc-architecture:v0.86-es"
-        command: sh -c "cd modules/transfers && node dist/application/index.js handler --config ../../.env --transferEvtAndCmd"
-        network_mode: host
+        command: sh -c "cd modules/transfers && node dist/application/index.js handler --config ../../.env --transferEvtAndCmd --disableApi"
+        # network_mode: host
         environment:
             - LOG_LEVEL=error
-            - REDIS_HOST=redis://localhost:6379
-            - KAFKA_HOST=localhost:9092
+            - REDIS_HOST=redis://redis:6379
+            - REDIS_DUPL_HOST=redis://redis:6379
+            - KAFKA_HOST=kafka:9092
             - KAFKA_CONSUMER=node-rdkafka
             - KAFKA_PRODUCER=node-rdkafka
             - TRANSFERS_REPO_TYPE=cachedpersistedredis
@@ -82,15 +103,20 @@ services:
             - TRANSFERS_BATCH_ENABLED=true
             - RDKAFKA_CONSUMER_BATCH_SIZE=250
             - RDKAFKA_CONSUMER_BATCH_TIMEOUT_MS=500
+            - PARTICIPANTS_READSIDE_MONGO_DB_HOST=mongodb://root:example@mongodb:27017/
+            - TRANSFERS_READSIDE_MONGO_DB_HOST=mongodb://root:example@mongodb:27017/
+        networks:
+        - mojaloop-poc
 
     participants_evt:
         image: "mojaloop/poc-architecture:v0.86-es"
-        command: sh -c "cd modules/participants && node dist/application/index.js handler --config ../../.env --participantsEvt"
-        network_mode: host
+        command: sh -c "cd modules/participants && node dist/application/index.js handler --config ../../.env --participantsEvt --disableApi"
+        # network_mode: host
         environment:
             - LOG_LEVEL=warn
-            - REDIS_HOST=redis://localhost:6379
-            - KAFKA_HOST=localhost:9092
+            - REDIS_HOST=redis://redis:6379
+            - REDIS_DUPL_HOST=redis://redis:6379
+            - KAFKA_HOST=kafka:9092
             - KAFKA_CONSUMER=node-rdkafka
             - KAFKA_PRODUCER=node-rdkafka
             - PARTICIPANTS_REPO_TYPE=cachedredis
@@ -104,15 +130,20 @@ services:
             - PARTICIPANTS_BATCH_ENABLED=true
             - RDKAFKA_CONSUMER_BATCH_SIZE=250
             - RDKAFKA_CONSUMER_BATCH_TIMEOUT_MS=500
+            - PARTICIPANTS_READSIDE_MONGO_DB_HOST=mongodb://root:example@mongodb:27017/
+            - TRANSFERS_READSIDE_MONGO_DB_HOST=mongodb://root:example@mongodb:27017/
+        networks:
+        - mojaloop-poc
 
     participants_cmd:
         image: "mojaloop/poc-architecture:v0.86-es"
-        command: sh -c "cd modules/participants && node dist/application/index.js handler --config ../../.env --participantsCmd"
-        network_mode: host
+        command: sh -c "cd modules/participants && node dist/application/index.js handler --config ../../.env --participantsCmd --disableApi"
+        # network_mode: host
         environment:
             - LOG_LEVEL=error
-            - REDIS_HOST=redis://localhost:6379
-            - KAFKA_HOST=localhost:9092
+            - REDIS_HOST=redis://redis:6379
+            - REDIS_DUPL_HOST=redis://redis:6379
+            - KAFKA_HOST=kafka:9092
             - KAFKA_CONSUMER=node-rdkafka
             - KAFKA_PRODUCER=node-rdkafka
             - PARTICIPANTS_REPO_TYPE=cachedredis
@@ -124,4 +155,7 @@ services:
             - PARTICIPANTS_BATCH_ENABLED=true
             - RDKAFKA_CONSUMER_BATCH_SIZE=250
             - RDKAFKA_CONSUMER_BATCH_TIMEOUT_MS=500
-
+            - PARTICIPANTS_READSIDE_MONGO_DB_HOST=mongodb://root:example@mongodb:27017/
+            - TRANSFERS_READSIDE_MONGO_DB_HOST=mongodb://root:example@mongodb:27017/
+        networks:
+        - mojaloop-poc

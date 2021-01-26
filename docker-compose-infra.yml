@@ -1,39 +1,52 @@
 version: "3.4"
+
+networks:
+  mojaloop-poc:
+    name: mojaloop-poc
+
 services:
     kafka:
         image: "johnnypark/kafka-zookeeper"
-        network_mode: host
+        # network_mode: host
         container_name: arch_poc_kafka
         ports:
             - "2181:2181"
             - "9092:9092"
         environment:
-            ADVERTISED_HOST: "localhost"
+            ADVERTISED_HOST: "kafka"
             NUM_PARTITIONS: "8"
             JMX_PORT: 9990
+        networks:
+        - mojaloop-poc
     kafka-manager:
         image: "sheepkiller/kafka-manager"
-        network_mode: host
+        # network_mode: host
         container_name: arch_poc_kafka_manager
         ports:
-            - "9000:9000"
+            - "9090:9000"
         environment:
-            ZK_HOSTS: localhost:2181
+            ZK_HOSTS: kafka:2181
+        networks:
+        - mojaloop-poc
     redis:
         image: "redis:alpine"
-        network_mode: host
+        # network_mode: host
         container_name: arch_poc_redis
         ports:
             - "6379:6379"
+        networks:
+        - mojaloop-poc
     mongodb:
         image: "mongo"
-        network_mode: host
+        # network_mode: host
         container_name: arch_poc_mongodb
         ports:
             - "27017:27017"
         environment:
             MONGO_INITDB_ROOT_USERNAME: root
             MONGO_INITDB_ROOT_PASSWORD: example
+        networks:
+        - mojaloop-poc
 #    mongo-express:
 #        image: mongo-express
 #        restart: always
