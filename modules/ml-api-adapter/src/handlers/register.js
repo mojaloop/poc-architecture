@@ -1,5 +1,5 @@
 /*****
-@file This registers all handlers for the central-ledger API
+* @file This registers all handlers for the central-ledger API
 
 License
 --------------
